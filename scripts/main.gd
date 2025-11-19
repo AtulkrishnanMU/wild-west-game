@@ -17,6 +17,9 @@ func _ready() -> void:
 		cash_label.add_theme_font_override("font", ui_font)
 		health_percent_label.add_theme_font_override("font", ui_font)
 	health_bar.show_percentage = false
+	var music := get_node_or_null("Music")
+	if music and music.stream:
+		music.stream.loop = true
 	_on_player_health_changed(player.health, player.MAX_HEALTH)
 	
 func _input(event: InputEvent) -> void:
