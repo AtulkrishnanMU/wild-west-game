@@ -1,12 +1,31 @@
-[gd_scene load_steps=44 format=3 uid="uid://cgi4k0orycx0"]
+[gd_scene load_steps=55 format=3 uid="uid://cgi4k0orycx0"]
 
 [ext_resource type="Texture2D" uid="uid://cag4imwhq5jd4" path="res://assets/characters/1 Woodcutter/Woodcutter_attack1.png" id="1_xwavj"]
 [ext_resource type="Texture2D" uid="uid://cuuyuoribgk3l" path="res://assets/characters/1 Woodcutter/Woodcutter_attack2.png" id="2_nenq2"]
 [ext_resource type="Texture2D" uid="uid://covkdw65s6r4o" path="res://assets/characters/1 Woodcutter/Woodcutter_attack3.png" id="3_md484"]
 [ext_resource type="Texture2D" uid="uid://b35ebjpe3b0uy" path="res://assets/characters/1 Woodcutter/Woodcutter_idle.png" id="4_ipns3"]
 [ext_resource type="Texture2D" uid="uid://38a2p5uku1u5" path="res://assets/characters/1 Woodcutter/Woodcutter_jump.png" id="5_8qclf"]
+[ext_resource type="Texture2D" uid="uid://c1rg6pcdbkvsv" path="res://assets/characters/1 Woodcutter/Woodcutter_death.png" id="5_w8i8w"]
 [ext_resource type="Texture2D" uid="uid://cfkgv10wege1p" path="res://assets/characters/1 Woodcutter/Woodcutter_run.png" id="6_w8i8w"]
 [ext_resource type="Script" uid="uid://btvp64teqwxqa" path="res://scripts/enemy.gd" id="7_enemy"]
+[ext_resource type="AudioStream" uid="uid://db3ihxencpmdn" path="res://sounds/enemy-slash.mp3" id="8_md484"]
+[ext_resource type="AudioStream" uid="uid://bo4b2xs1nbs0n" path="res://sounds/hit.mp3" id="9_hit"]
+
+[sub_resource type="Shader" id="Shader_enemy_hit"]
+code = "shader_type canvas_item;
+uniform float hit_silhouette = 0.0;
+void fragment() {
+    vec4 tex = texture(TEXTURE, UV);
+    if (hit_silhouette > 0.5) {
+        COLOR = vec4(vec3(1.0), tex.a);
+    } else {
+        COLOR = tex;
+    }
+}"
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_enemy_hit"]
+shader = SubResource("Shader_enemy_hit")
+shader_parameter/hit_silhouette = 0.0
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_otmr2"]
 atlas = ExtResource("1_xwavj")
@@ -78,6 +97,30 @@ region = Rect2(192, 0, 48, 48)
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_1f82d"]
 atlas = ExtResource("3_md484")
+region = Rect2(240, 0, 48, 48)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_j0dkt"]
+atlas = ExtResource("5_w8i8w")
+region = Rect2(0, 0, 48, 48)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_sdxul"]
+atlas = ExtResource("5_w8i8w")
+region = Rect2(48, 0, 48, 48)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_e7lhw"]
+atlas = ExtResource("5_w8i8w")
+region = Rect2(96, 0, 48, 48)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_gst0f"]
+atlas = ExtResource("5_w8i8w")
+region = Rect2(144, 0, 48, 48)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_sm4rh"]
+atlas = ExtResource("5_w8i8w")
+region = Rect2(192, 0, 48, 48)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_5lniq"]
+atlas = ExtResource("5_w8i8w")
 region = Rect2(240, 0, 48, 48)
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_lioqc"]
@@ -217,6 +260,29 @@ animations = [{
 }, {
 "frames": [{
 "duration": 1.0,
+"texture": SubResource("AtlasTexture_j0dkt")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_sdxul")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_e7lhw")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_gst0f")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_sm4rh")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_5lniq")
+}],
+"loop": false,
+"name": &"DEATH",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
 "texture": SubResource("AtlasTexture_lioqc")
 }, {
 "duration": 1.0,
@@ -284,16 +350,21 @@ radius = 13.0
 
 [node name="Enemy" type="CharacterBody2D"]
 collision_layer = 4
-collision_mask = 1
 script = ExtResource("7_enemy")
 
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
+material = SubResource("ShaderMaterial_enemy_hit")
 position = Vector2(6, -7)
 sprite_frames = SubResource("SpriteFrames_j0dkt")
-animation = &"IDLE"
+animation = &"DEATH"
 autoplay = "IDLE"
-frame_progress = 0.3266809
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
 position = Vector2(-2, 3)
 shape = SubResource("CircleShape2D_xwavj")
+
+[node name="SlashEnemyPlayer" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("8_md484")
+
+[node name="HitEnemyPlayer" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("9_hit")

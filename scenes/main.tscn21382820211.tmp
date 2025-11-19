@@ -515,20 +515,6 @@ offset_bottom = 37.0
 max_value = 200.0
 value = 200.0
 
-[node name="CashLabel" type="Label" parent="UI"]
-offset_left = 10.0
-offset_top = 40.0
-offset_right = 210.0
-offset_bottom = 67.0
-text = "CASH: 0"
-
-[node name="HealthPercentLabel" type="Label" parent="UI"]
-offset_left = 220.0
-offset_top = 10.0
-offset_right = 300.0
-offset_bottom = 37.0
-text = "100%"
-
 [node name="Background" type="TileMap" parent="."]
 visible = false
 position = Vector2(26, 26)
@@ -549,6 +535,9 @@ tile_set = SubResource("TileSet_tefeu")
 format = 2
 layer_0/tile_data = PackedInt32Array(393212, 393216, 2, 327690, 393216, 2, 327682, 262144, 2, 327700, 131072, 5, 327714, 131072, 5, 327721, 262144, 2, 327707, 327680, 3, 327704, 393216, 2, 327702, 196608, 4, 393235, 196608, 4, 393228, 327680, 3, 393218, 131072, 5, 524282, 262144, 2, 393203, 196608, 4, 327673, 262144, 2, 458741, 393216, 2, 196650, 327680, 3, 393263, 196608, 4, 393252, 262144, 2, 262149, 131072, 5, 196638, 0, 4, 262131, 0, 4, 262145, 196608, 4, 196625, 131072, 5, 393230, 393216, 2, 524287, 262144, 2, 327694, 393216, 65540, 196647, 393216, 262148)
 
+[node name="Enemy" parent="." instance=ExtResource("7_o6xl0")]
+position = Vector2(-78, 18)
+
 [node name="Player" parent="." instance=ExtResource("2_0wfyh")]
 position = Vector2(-3, 17)
 script = ExtResource("3_sugp2")
@@ -557,15 +546,3 @@ script = ExtResource("3_sugp2")
 position = Vector2(4, -5)
 zoom = Vector2(2.785, 2.785)
 position_smoothing_enabled = true
-
-[node name="Enemy" parent="." instance=ExtResource("7_o6xl0")]
-position = Vector2(-116, 17)
-
-[node name="Enemy2" parent="." instance=ExtResource("7_o6xl0")]
-position = Vector2(265, 7)
-
-[node name="Enemy3" parent="." instance=ExtResource("7_o6xl0")]
-position = Vector2(323, 18)
-
-[node name="Enemy4" parent="." instance=ExtResource("7_o6xl0")]
-position = Vector2(-186, 18)
