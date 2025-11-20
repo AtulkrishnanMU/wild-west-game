@@ -1,6 +1,7 @@
 extends CharacterBody2D
 var SPEED: float = 150.0
 const GRAVITY: float = 900.0
+const JUMP_SPEED: float = -360.0
 const ATTACK_RANGE: float = 18.0          # When enemy stops chasing and starts attacking
 const DAMAGE_H_RANGE: float = 45.0        # Tight but fair – enemy must be close
 const DAMAGE_V_RANGE: float = 50.0        # Good vertical coverage (jumping, etc.)
@@ -72,13 +73,21 @@ func _physics_process(delta: float) -> void:
 	# ── Movement & Attack Logic ──
 	if not is_attacking:
 		if abs_distance > ATTACK_RANGE:
-			# Chase
-			velocity.x = direction * SPEED
-			animated_sprite.flip_h = direction < 0
-			animated_sprite.play("RUN")
-			# Occasional running swing
-			if randf() < 0.012:
-				_start_attack_running()
+			# Occasionally do a jumping lunge toward the player when they are REALLY far away
+			var far_jump_distance := 140.0
+			if abs_distance > far_jump_distance and is_on_floor() and randf() < 0.3:
+				velocity.y = JUMP_SPEED
+				velocity.x = direction * SPEED * 1.2
+				animated_sprite.flip_h = direction < 0
+				animated_sprite.play("JUMP")
+			else:
+				# Normal chase
+				velocity.x = direction * SPEED
+				animated_sprite.flip_h = direction < 0
+				animated_sprite.play("RUN")
+				# Occasional running swing
+				if randf() < 0.012:
+					_start_attack_running()
 		else:
 			# Close enough → standing attack
 			velocity.x = 0.0

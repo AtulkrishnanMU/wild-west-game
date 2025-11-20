@@ -348,7 +348,7 @@ animations = [{
 [sub_resource type="CircleShape2D" id="CircleShape2D_xwavj"]
 radius = 13.0
 
-[node name="Enemy" type="CharacterBody2D"]
+[node name="Axe_enemy" type="CharacterBody2D"]
 collision_layer = 4
 script = ExtResource("7_enemy")
 
@@ -356,8 +356,10 @@ script = ExtResource("7_enemy")
 material = SubResource("ShaderMaterial_enemy_hit")
 position = Vector2(6, -7)
 sprite_frames = SubResource("SpriteFrames_j0dkt")
-animation = &"DEATH"
+animation = &"JUMP"
 autoplay = "IDLE"
+frame = 3
+frame_progress = 0.3465484
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
 position = Vector2(-2, 3)
