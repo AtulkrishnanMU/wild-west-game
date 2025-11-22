@@ -28,14 +28,13 @@ func _apply_damage(target: Node) -> void:
 	if target == shooter:
 		return
 	# Do not damage enemies that are currently very close to the player
-	if target.is_in_group("enemies"):
+	if target.is_in_group("enemies") and shooter and shooter.is_in_group("enemies"):
 		var player := _get_player()
 		if player and player.global_position.distance_to(target.global_position) < safe_enemy_player_distance:
 			return
 		# Also do not damage enemies that are very close to the shooter
-		if shooter and shooter.is_in_group("enemies"):
-			if shooter.global_position.distance_to(target.global_position) < safe_enemy_shooter_distance:
-				return
+		if shooter.global_position.distance_to(target.global_position) < safe_enemy_shooter_distance:
+			return
 	if target.has_method("take_damage"):
 		target.take_damage(damage)
 	queue_free()

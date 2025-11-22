@@ -276,6 +276,9 @@ func take_damage(amount: int) -> void:
 		# Remove from enemies group so player can no longer hit the corpse
 		if is_in_group("enemies"):
 			remove_from_group("enemies")
+		# Remove enemy from collision layers so it no longer blocks player/bullets,
+		# but keep its mask so it can still collide with the ground and fall normally.
+		collision_layer = 0
 		# Face the player on death if possible
 		if player:
 			animated_sprite.flip_h = (player.global_position.x < global_position.x)
@@ -359,8 +362,14 @@ func _play_enemy_hurt_sound() -> void:
 func _check_visibility_activation():
 	if has_been_visible_with_player:
 		return  # Already activated once
-
-	# If both player AND this enemy are on screen at the same time
-	if notifier and player_notifier and notifier.is_on_screen() and player_notifier.is_on_screen():
+	
+	# If visibility notifiers are missing for some reason, fall back to always-active
+	if notifier == null or player_notifier == null:
+		has_been_visible_with_player = true
+		is_active = true
+		return
+	
+	# Activate once this enemy is on screen
+	if notifier.is_on_screen():
 		has_been_visible_with_player = true
 		is_active = true

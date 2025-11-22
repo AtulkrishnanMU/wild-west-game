@@ -4,6 +4,8 @@ const SPEED = 300.0
 const JUMP_VELOCITY = -400.0
 const AudioUtils = preload("res://scripts/audio_utils.gd")
 const BLOOD_SCENE := preload("res://scenes/blood_splash.tscn")
+const PLAYER_BULLET_SCENE := preload("res://scenes/bullet.tscn")
+const PLAYER_GUN_SHOT_SOUND := preload("res://sounds/gun-shot.mp3")
 signal health_changed(current: int, max: int)
 signal cash_changed(current: int)
 
@@ -21,6 +23,7 @@ var controls_enabled: bool = true
 @onready var camera: Camera2D = get_parent().get_node_or_null("Camera2D")
 @onready var sword_hitbox: Area2D = $SwordHitbox
 @onready var sword_hitbox_shape: CollisionShape2D = $SwordHitbox/CollisionShape2D
+@onready var gun_sprite: Sprite2D = $GunSprite
 
 # Add these variables near the top with the others
 var knockback_velocity: Vector2 = Vector2.ZERO
@@ -35,6 +38,7 @@ var _sword_hitbox_base_position: Vector2 = Vector2.ZERO
 
 var is_attacking := false
 var is_dead := false
+var has_gun: bool = false
 
 # Reference to the current flicker tween so we can cancel/replace it
 var _flicker_tween: Tween = null
@@ -81,20 +85,57 @@ func _physics_process(delta: float) -> void:
 	# ——— INPUT (only runs when not in knockback) ———
 	if Input.is_action_just_pressed("ui_accept") and is_on_floor() and not is_attacking:
 		velocity.y = JUMP_VELOCITY
-
-	var direction := Input.get_axis("ui_left", "ui_right")
-	if direction:
-		velocity.x = direction * SPEED
-		animated_sprite.flip_h = direction < 0
+	
+	# Horizontal movement: only while right mouse button is held
+	var direction: float = 0.0
+	if Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT):
+		var mouse_pos: Vector2 = get_global_mouse_position()
+		var dx: float = mouse_pos.x - global_position.x
+		var dead_zone: float = 4.0
+		if abs(dx) > dead_zone:
+			direction = sign(dx)
+			velocity.x = direction * SPEED
+			animated_sprite.flip_h = direction < 0
+		else:
+			velocity.x = move_toward(velocity.x, 0, SPEED)
 	else:
 		velocity.x = move_toward(velocity.x, 0, SPEED)
-
-	# Attack
-	if Input.is_action_just_pressed("attack") and not is_attacking and not is_dead:
-		if direction != 0 or velocity.x != 0:
-			_start_attack_moving()
-		else:
-			_start_attack_idle()
+	
+	# Attack input (left mouse / attack action)
+	var attack_pressed: bool = Input.is_action_just_pressed("attack")
+	var gun_attack_pressed: bool = has_gun and attack_pressed
+	
+	if has_gun:
+		# With gun: left-click shoots instead of melee; allow rapid fire on every click
+		if gun_attack_pressed and not is_dead:
+			_start_gun_attack()
+	else:
+		# Without gun: normal melee attack
+		if attack_pressed and not is_attacking and not is_dead:
+			if direction != 0 or velocity.x != 0:
+				_start_attack_moving()
+			else:
+				_start_attack_idle()
+	
+	# Gun aiming: rotate held gun toward mouse cursor
+	if has_gun and gun_sprite:
+		var to_mouse: Vector2 = get_global_mouse_position() - gun_sprite.global_position
+		if to_mouse.length() > 0.0:
+			var angle: float = to_mouse.angle()
+			var target_angle: float = angle
+			var facing_right: bool = to_mouse.x >= 0.0
+			if facing_right:
+				# Aim within [-90°, 90°] while facing right
+				target_angle = clamp(angle, -PI / 2.0, PI / 2.0)
+				gun_sprite.scale.x = 1.0
+				animated_sprite.flip_h = false
+			else:
+				# Mirror horizontally when aiming left, still keep rotation in [-90°, 90°]
+				var local_angle: float = angle + PI
+				target_angle = clamp(local_angle, -PI / 2.0, PI / 2.0)
+				gun_sprite.scale.x = -1.0
+				animated_sprite.flip_h = true
+			gun_sprite.rotation = target_angle
 
 	# ——— ANIMATION CHOICE ———
 	if is_attacking:
@@ -131,6 +172,11 @@ func _start_attack_idle() -> void:
 		AudioUtils.play_random_pitch(slash_player, 0.7, 1.6)
 	animated_sprite.play(anim)
 
+func _start_gun_attack() -> void:
+	is_attacking = true
+	animated_sprite.play("GUN_ATTACK")
+	_fire_player_bullet()
+
 func _start_attack_moving() -> void:
 	is_attacking = true
 	if slash_player:
@@ -148,9 +194,46 @@ func _on_animation_finished() -> void:
 		animated_sprite.frame = animated_sprite.sprite_frames.get_frame_count("DEATH") - 1
 		return
 	
-	if anim.begins_with("ATTACK"):
+	if anim == "ATTACK1" or anim == "ATTACK2" or anim == "ATTACK3":
 		_apply_damage_to_enemies()
 		is_attacking = false
+	elif anim == "GUN_ATTACK":
+		is_attacking = false
+
+
+func _fire_player_bullet() -> void:
+	if PLAYER_BULLET_SCENE == null or gun_sprite == null:
+		return
+	var bullet := PLAYER_BULLET_SCENE.instantiate()
+	if bullet == null:
+		return
+	# Direction: from gun toward mouse at fire time
+	var dir: Vector2 = Vector2.RIGHT
+	var mouse_pos := get_global_mouse_position()
+	if mouse_pos != gun_sprite.global_position:
+		dir = (mouse_pos - gun_sprite.global_position).normalized()
+	bullet.direction = dir
+	# Spawn at muzzle point: small offset along gun's current forward direction
+	var muzzle_offset: float = 16.0
+	var spawn_pos: Vector2 = gun_sprite.global_position + dir * muzzle_offset
+	bullet.global_position = spawn_pos
+	bullet.rotation = dir.angle()
+	# Tag shooter so bullet won’t damage the player
+	bullet.shooter = self
+	# Play gun-shot sound at the gun position with random pitch
+	if PLAYER_GUN_SHOT_SOUND:
+		var scene_for_sound := get_tree().current_scene
+		if scene_for_sound:
+			var audio := AudioStreamPlayer2D.new()
+			audio.stream = PLAYER_GUN_SHOT_SOUND
+			audio.position = gun_sprite.global_position
+			scene_for_sound.add_child(audio)
+			AudioUtils.play_random_pitch(audio, 0.9, 1.2)
+			audio.finished.connect(audio.queue_free)
+	# Finally, add the bullet to the scene
+	var scene := get_tree().current_scene
+	if scene:
+		scene.add_child(bullet)
 
 
 # ——— DAMAGE ———
@@ -191,6 +274,14 @@ func add_cash(amount: int) -> void:
 		return
 	cash += amount
 	emit_signal("cash_changed", cash)
+
+
+func pickup_gun() -> void:
+	if has_gun:
+		return
+	has_gun = true
+	if gun_sprite:
+		gun_sprite.visible = true
 
 
 # ——— RED FLICKER (2 fast flashes) ———

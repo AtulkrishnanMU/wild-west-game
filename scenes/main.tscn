@@ -1,4 +1,4 @@
-[gd_scene load_steps=18 format=3 uid="uid://c2rwbherxxm7a"]
+[gd_scene load_steps=16 format=3 uid="uid://c2rwbherxxm7a"]
 
 [ext_resource type="Script" uid="uid://bsk8ihu2iql4c" path="res://scripts/main.gd" id="1_ig7tw"]
 [ext_resource type="PackedScene" uid="uid://c5a3w2pm50uds" path="res://scenes/player.tscn" id="2_0wfyh"]
@@ -10,18 +10,6 @@
 [ext_resource type="PackedScene" uid="uid://cgi4k0orycx0" path="res://scenes/axe_enemy.tscn" id="9_85g3d"]
 [ext_resource type="PackedScene" uid="uid://20gk72vk5hmc" path="res://scenes/gun_enemy.tscn" id="9_choun"]
 [ext_resource type="AudioStream" uid="uid://dhgnu5ofxo1mw" path="res://music/default.mp3" id="9_default"]
-
-[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_tefeu"]
-texture = ExtResource("2_tbgi4")
-0:2/size_in_atlas = Vector2i(2, 2)
-0:2/0 = 0
-2:2/size_in_atlas = Vector2i(2, 2)
-2:2/0 = 0
-4:4/size_in_atlas = Vector2i(2, 2)
-4:4/0 = 0
-
-[sub_resource type="TileSet" id="TileSet_o6xl0"]
-sources/1 = SubResource("TileSetAtlasSource_tefeu")
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_o6xl0"]
 texture = ExtResource("2_tefeu")
@@ -536,14 +524,8 @@ offset_right = 300.0
 offset_bottom = 37.0
 text = "100%"
 
-[node name="Background" type="TileMap" parent="."]
-visible = false
-position = Vector2(26, 26)
-tile_set = SubResource("TileSet_o6xl0")
-format = 2
-layer_0/tile_data = PackedInt32Array(24, 262145, 4, 65526, 1, 2, 17, 1, 2, 44, 1, 2)
-
 [node name="Ground" type="TileMap" parent="."]
+position = Vector2(-64, 0)
 tile_set = SubResource("TileSet_jbj1t")
 format = 2
 layer_0/tile_data = PackedInt32Array(327674, 1, 0, 262154, 1, 0, 262170, 1, 0, 262186, 1, 0, 589818, 1, 0, 524298, 1, 0, 524314, 1, 0, 524330, 1, 0)
@@ -562,28 +544,22 @@ script = ExtResource("3_sugp2")
 
 [node name="Camera2D" type="Camera2D" parent="."]
 position = Vector2(4, -5)
-zoom = Vector2(2.785, 2.785)
+zoom = Vector2(2.075, 2.075)
 position_smoothing_enabled = true
 
 [node name="TitleLayer" parent="." instance=ExtResource("8_choun")]
 
+[node name="Gun_enemy" parent="." instance=ExtResource("9_choun")]
+position = Vector2(302, 23)
+
 [node name="Axe_enemy" parent="." instance=ExtResource("9_85g3d")]
-position = Vector2(650, 3)
+position = Vector2(583, 10)
 
 [node name="Axe_enemy2" parent="." instance=ExtResource("9_85g3d")]
-position = Vector2(740, 0)
+position = Vector2(626, 14)
 
 [node name="Axe_enemy3" parent="." instance=ExtResource("9_85g3d")]
-position = Vector2(569, -4)
+position = Vector2(668, 17)
 
 [node name="Axe_enemy4" parent="." instance=ExtResource("9_85g3d")]
-position = Vector2(703, -52)
-
-[node name="Axe_enemy5" parent="." instance=ExtResource("9_85g3d")]
-position = Vector2(512, -16)
-
-[node name="Axe_enemy6" parent="." instance=ExtResource("9_85g3d")]
-position = Vector2(610, -47)
-
-[node name="Gun_enemy" parent="." instance=ExtResource("9_choun")]
-position = Vector2(694, 12)
+position = Vector2(708, 12)

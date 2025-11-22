@@ -1,6 +1,7 @@
 extends "res://scripts/enemy.gd"
 
 const BULLET_SCENE := preload("res://scenes/bullet.tscn")
+const GUN_SCENE := preload("res://scenes/gun.tscn")
 const GUN_SHOT_SOUND := preload("res://sounds/gun-shot.mp3")
 const RELOAD_SOUND_PATH := "res://sounds/reload.mp3"
 
@@ -47,6 +48,19 @@ func _update_gun_aim() -> void:
 	if to_player.length() == 0.0:
 		return
 	var angle: float = to_player.angle()
+	var target_angle: float = angle
+	var facing_right: bool = to_player.x >= 0.0
+	if facing_right:
+		# Aim within [-90°, 90°] while facing right
+		target_angle = clamp(angle, -PI / 2.0, PI / 2.0)
+		animated_sprite.flip_h = false
+		gun_sprite.scale.x = 1.0
+	else:
+		# Mirror horizontally when aiming left, still keep rotation in [-90°, 90°]
+		var local_angle: float = angle + PI
+		target_angle = clamp(local_angle, -PI / 2.0, PI / 2.0)
+		animated_sprite.flip_h = true
+		gun_sprite.scale.x = -1.0
 
 	# Smoothly tween gun rotation toward the desired angle
 	if _aim_tween and _aim_tween.is_valid():
@@ -54,16 +68,7 @@ func _update_gun_aim() -> void:
 	_aim_tween = create_tween()
 	_aim_tween.set_trans(Tween.TRANS_SINE)
 	_aim_tween.set_ease(Tween.EASE_OUT)
-	_aim_tween.tween_property(gun_sprite, "rotation", angle, 0.1)
-
-	var degrees: float = rad_to_deg(angle)
-	var facing_right: bool = abs(degrees) <= 90.0
-	animated_sprite.flip_h = not facing_right
-	# Flip the gun vertically so it stays visually correct when the enemy turns
-	if animated_sprite.flip_h:
-		gun_sprite.scale.y = -1.0
-	else:
-		gun_sprite.scale.y = 1.0
+	_aim_tween.tween_property(gun_sprite, "rotation", target_angle, 0.1)
 
 func _start_attack_close() -> void:
 	if is_attacking:
@@ -134,35 +139,27 @@ func _fire_bullet() -> void:
 func take_damage(amount: int) -> void:
 	var was_dead := is_dead
 	super.take_damage(amount)
-	# On first transition to dead, detach the gun so it no longer follows the body
+	# On first transition to dead, spawn a Gun pickup at this enemy's position
 	if not was_dead and is_dead:
-		_detach_gun()
+		_spawn_gun_pickup()
 
-func _detach_gun() -> void:
-	if _gun_detached or gun_sprite == null:
+func _spawn_gun_pickup() -> void:
+	if _gun_detached or gun_sprite == null or GUN_SCENE == null:
 		return
 	_gun_detached = true
-	# Reparent the gun sprite to the current scene so it stays where it fell
 	var scene := get_tree().current_scene
 	if scene == null:
 		return
-	# Place the gun slightly above the dead body's final position
+	var pickup := GUN_SCENE.instantiate()
+	if pickup == null:
+		return
+	# Place the pickup slightly above the dead body's final position
 	var body_pos := global_position
 	var gun_global_pos := body_pos + Vector2(0.0, -12.0)
-	gun_sprite.get_parent().remove_child(gun_sprite)
-	scene.add_child(gun_sprite)
-	gun_sprite.global_position = gun_global_pos
-	# Reset any vertical flip so it looks correct on the ground
-	gun_sprite.scale.y = abs(gun_sprite.scale.y)
-	# Add a gentle floating tween above the corpse
-	if _gun_float_tween and _gun_float_tween.is_valid():
-		_gun_float_tween.kill()
-	_gun_float_tween = create_tween()
-	_gun_float_tween.set_loops()
-	var up_pos := gun_global_pos + Vector2(0.0, -3.0)
-	var down_pos := gun_global_pos + Vector2(0.0, 3.0)
-	_gun_float_tween.tween_property(gun_sprite, "global_position", up_pos, 0.35)
-	_gun_float_tween.tween_property(gun_sprite, "global_position", down_pos, 0.35)
+	pickup.global_position = gun_global_pos
+	scene.add_child(pickup)
+	# Remove the enemy's own gun sprite
+	gun_sprite.queue_free()
 
 func _play_gun_recoil(shot_dir: Vector2) -> void:
 	if gun_sprite == null:
