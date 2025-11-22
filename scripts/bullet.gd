@@ -3,6 +3,7 @@ extends Area2D
 @export var speed: float = 520.0
 @export var damage: int = 20
 @export var safe_enemy_player_distance: float = 32.0
+@export var safe_enemy_shooter_distance: float = 100.0
 var direction: Vector2 = Vector2.RIGHT
 var shooter: Node = null
 
@@ -31,6 +32,10 @@ func _apply_damage(target: Node) -> void:
 		var player := _get_player()
 		if player and player.global_position.distance_to(target.global_position) < safe_enemy_player_distance:
 			return
+		# Also do not damage enemies that are very close to the shooter
+		if shooter and shooter.is_in_group("enemies"):
+			if shooter.global_position.distance_to(target.global_position) < safe_enemy_shooter_distance:
+				return
 	if target.has_method("take_damage"):
 		target.take_damage(damage)
 	queue_free()

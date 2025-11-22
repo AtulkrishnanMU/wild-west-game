@@ -12,11 +12,12 @@ var HURT_SOUND: AudioStream = null
 const MAX_HEALTH := 200
 var health: int = MAX_HEALTH
 var cash: int = 0
+var controls_enabled: bool = true
 
 @onready var animated_sprite: AnimatedSprite2D = $AnimatedSprite2D
 @onready var slash_player: AudioStreamPlayer2D = $SlashPlayer
 @onready var hit_player: AudioStreamPlayer2D = $HitPlayer
-@onready var camera: Camera2D = $Camera2D
+@onready var camera: Camera2D = get_parent().get_node_or_null("Camera2D")
 @onready var sword_hitbox: Area2D = $SwordHitbox
 @onready var sword_hitbox_shape: CollisionShape2D = $SwordHitbox/CollisionShape2D
 
@@ -69,6 +70,12 @@ func _physics_process(delta: float) -> void:
 		if knockback_timer <= 0.0:
 			knockback_velocity = Vector2.ZERO
 		return  # skip normal input while being knocked back
+
+	# ——— DISABLED CONTROLS (e.g. during intro) ———
+	if not controls_enabled:
+		velocity.x = move_toward(velocity.x, 0, SPEED)
+		move_and_slide()
+		return
 
 	# ——— INPUT (only runs when not in knockback) ———
 	if Input.is_action_just_pressed("ui_accept") and is_on_floor() and not is_attacking:

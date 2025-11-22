@@ -1,3 +1,4 @@
+class_name Enemy
 extends CharacterBody2D
 var SPEED: float = 150.0
 const GRAVITY: float = 900.0
@@ -17,10 +18,14 @@ var health: int = MAX_HEALTH
 var FAR_JUMP_DISTANCE: float = 140.0
 var ATTACK_RANGE_DISTANCE: float = ATTACK_RANGE
 var is_dead: bool = false
+var has_been_visible_with_player := false
+var is_active := false
 @onready var animated_sprite: AnimatedSprite2D = $AnimatedSprite2D
 @onready var slash_player: AudioStreamPlayer2D = $SlashEnemyPlayer
 @onready var hit_player: AudioStreamPlayer2D = $HitEnemyPlayer
 @onready var player: CharacterBody2D = get_parent().get_node("Player")
+@onready var notifier: VisibleOnScreenNotifier2D = $VisibilityNotifier2D
+@onready var player_notifier: VisibleOnScreenNotifier2D = player.get_node("VisibilityNotifier2D")
 @onready var sprite_material: ShaderMaterial = animated_sprite.material
 @onready var attack_hitbox: Area2D = $AttackHitbox
 @onready var attack_hitbox_shape: CollisionShape2D = $AttackHitbox/CollisionShape2D
@@ -50,6 +55,24 @@ func _ready() -> void:
 		attack_hitbox.body_exited.connect(_on_attack_hitbox_body_exited)
 
 func _physics_process(delta: float) -> void:
+
+	# ─────────────────────────────────────────────
+	# SCREEN-ACTIVATION: Enemy AI OFF until both are visible
+	# ─────────────────────────────────────────────
+	_check_visibility_activation()
+
+	if not is_active:
+		# Before activation: enemy stays idle + gravity works
+		if not is_on_floor():
+			velocity.y += GRAVITY * delta
+
+		velocity.x = 0.0
+		animated_sprite.play("IDLE")
+		move_and_slide()
+		return
+	# ─────────────────────────────────────────────
+
+
 	if is_dead:
 		# When dead, still fall with gravity but slowly come to a horizontal stop
 		if not is_on_floor():
@@ -65,7 +88,6 @@ func _physics_process(delta: float) -> void:
 	# If the player is dead, stop attacking and stay idle
 	if player.is_dead:
 		is_attacking = false
-		# Still fall with gravity even though AI is disabled
 		if not is_on_floor():
 			velocity.y += GRAVITY * delta
 		velocity.x = move_toward(velocity.x, 0.0, SPEED * delta)
@@ -77,7 +99,7 @@ func _physics_process(delta: float) -> void:
 	if not is_on_floor():
 		velocity.y += GRAVITY * delta
 
-	# Knockback: during a short window, just slide with current velocity
+	# Knockback window
 	if _knockback_timer > 0.0:
 		_knockback_timer -= delta
 		move_and_slide()
@@ -93,31 +115,28 @@ func _physics_process(delta: float) -> void:
 	var direction: float = sign(distance_x)
 	var vertical_distance: float = abs(player.global_position.y - global_position.y)
 
-	# If we are almost exactly overlapping the player, step back slightly using REV_WALK
+	# Avoid exact overlapping
 	var overlap_x_threshold := 6.0
 	var overlap_y_threshold := 24.0
-	# Require a small but non-zero horizontal offset so we don't get stuck when perfectly aligned
 	if vertical_distance < overlap_y_threshold and abs_distance > 1.0 and abs_distance < overlap_x_threshold:
-		# Cancel any attack attempt because we must reposition
 		is_attacking = false
-
 		var back_dir := -direction
 		velocity.x = back_dir * SPEED * 0.8
-
 		if is_on_floor():
 			animated_sprite.flip_h = direction < 0
 			if animated_sprite.sprite_frames.has_animation("REV_WALK"):
 				animated_sprite.play("REV_WALK")
 			else:
 				animated_sprite.play("RUN")
-
 		move_and_slide()
 		return
 
 	# ── Movement & Attack Logic ──
+
 	if not is_attacking:
+
 		if abs_distance > ATTACK_RANGE_DISTANCE:
-			# Occasionally do a jumping lunge toward the player when they are REALLY far away
+			# Far → chance to lunge jump
 			if abs_distance > FAR_JUMP_DISTANCE and is_on_floor() and randf() < 0.3:
 				velocity.y = JUMP_SPEED
 				velocity.x = direction * SPEED * 1.2
@@ -128,23 +147,27 @@ func _physics_process(delta: float) -> void:
 				velocity.x = direction * SPEED
 				animated_sprite.flip_h = direction < 0
 				animated_sprite.play("RUN")
+
 				# Occasional running swing
 				if randf() < 0.012:
 					_start_attack_running()
+
 		else:
 			# Close enough → standing attack
 			velocity.x = 0.0
 			_start_attack_close()
+
 	else:
-		# Slowly stop while attacking
+		# While attacking, slow movement
 		velocity.x = move_toward(velocity.x, 0.0, SPEED * 2.0 * delta)
 
-	# Keep attack hitbox in front of the enemy based on facing direction
+	# Keep hitbox in front of enemy
 	if attack_hitbox:
 		var sign_x := -1.0 if animated_sprite.flip_h else 1.0
 		attack_hitbox.position = Vector2(_attack_hitbox_base_position.x * sign_x, _attack_hitbox_base_position.y)
 
 	move_and_slide()
+
 
 func _start_attack_close() -> void:
 	if is_attacking:
@@ -320,3 +343,12 @@ func _play_enemy_hurt_sound() -> void:
 	scene.add_child(audio)
 	audio.play()
 	audio.finished.connect(audio.queue_free)
+	
+func _check_visibility_activation():
+	if has_been_visible_with_player:
+		return  # Already activated once
+
+	# If both player AND this enemy are on screen at the same time
+	if notifier and player_notifier and notifier.is_on_screen() and player_notifier.is_on_screen():
+		has_been_visible_with_player = true
+		is_active = true

@@ -281,14 +281,16 @@ material = SubResource("ShaderMaterial_enemy_hit")
 position = Vector2(1, -11)
 scale = Vector2(1.0950521, 1.0950521)
 sprite_frames = SubResource("SpriteFrames_j0dkt")
-animation = &"REV_WALK"
+animation = &"JUMP"
 autoplay = "IDLE"
-frame = 5
-frame_progress = 1.0
+frame = 3
+frame_progress = 0.48017055
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
 position = Vector2(-2, -1)
 shape = SubResource("CircleShape2D_xwavj")
+
+[node name="VisibilityNotifier2D" type="VisibleOnScreenNotifier2D" parent="."]
 
 [node name="SlashEnemyPlayer" type="AudioStreamPlayer2D" parent="."]
 stream = ExtResource("9_4jqqw")

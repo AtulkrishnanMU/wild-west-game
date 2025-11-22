@@ -416,6 +416,8 @@ frame_progress = 0.08411842
 position = Vector2(-2, 3)
 shape = SubResource("CircleShape2D_xwavj")
 
+[node name="VisibilityNotifier2D" type="VisibleOnScreenNotifier2D" parent="."]
+
 [node name="AttackHitbox" type="Area2D" parent="."]
 collision_layer = 32
 collision_mask = 2

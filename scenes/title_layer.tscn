@@ -1,0 +1,17 @@
+[gd_scene load_steps=2 format=3 uid="uid://dvueqafah81v0"]
+
+[ext_resource type="Texture2D" uid="uid://7kw2ikwmpkom" path="res://assets/title.png" id="1_ammj3"]
+
+[node name="TitleLayer" type="CanvasLayer"]
+
+[node name="PressLabel" type="Label" parent="."]
+offset_left = 471.0
+offset_top = 324.0
+offset_right = 711.0
+offset_bottom = 364.0
+text = "PRESS ENTER"
+horizontal_alignment = 1
+
+[node name="TitleSprite" type="Sprite2D" parent="."]
+position = Vector2(590, 278)
+texture = ExtResource("1_ammj3")
