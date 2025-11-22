@@ -10,6 +10,7 @@ const DAMAGE_COOLDOWN: float = 0.20       # Prevents insane damage spam
 const ENEMY_KNOCKBACK_SPEED: float = 120.0
 const MAX_HEALTH := 50
 const CASH_SCENE := preload("res://scenes/cash.tscn")
+const BLOOD_SCENE := preload("res://scenes/blood_splash.tscn")
 const AudioUtils = preload("res://scripts/audio_utils.gd")
 var ENEMY_DEATH_SOUND_1: AudioStream = null
 var ENEMY_DEATH_SOUND_2: AudioStream = null
@@ -241,6 +242,17 @@ func _on_attack_hitbox_body_exited(body: Node) -> void:
 func take_damage(amount: int) -> void:
 	if is_dead:
 		return
+	
+	# Spawn blood splash at enemy position
+	if BLOOD_SCENE:
+		var blood := BLOOD_SCENE.instantiate()
+		var scene := get_tree().current_scene
+		if blood and scene:
+			var offset := Vector2(randf_range(-4.0, 4.0), randf_range(-4.0, 4.0))
+			blood.global_position = global_position + offset
+			var facing_dir := Vector2.LEFT if animated_sprite.flip_h else Vector2.RIGHT
+			blood.rotation = facing_dir.angle()
+			scene.add_child(blood)
 	
 	health = max(health - amount, 0)
 	if hit_player:

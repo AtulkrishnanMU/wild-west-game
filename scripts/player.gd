@@ -3,6 +3,7 @@ extends CharacterBody2D
 const SPEED = 300.0
 const JUMP_VELOCITY = -400.0
 const AudioUtils = preload("res://scripts/audio_utils.gd")
+const BLOOD_SCENE := preload("res://scenes/blood_splash.tscn")
 signal health_changed(current: int, max: int)
 signal cash_changed(current: int)
 
@@ -155,6 +156,17 @@ func _on_animation_finished() -> void:
 # ——— DAMAGE ———
 func take_damage(amount: int) -> void:
 	if is_dead: return
+	
+	# Spawn blood splash at player position
+	if BLOOD_SCENE:
+		var blood := BLOOD_SCENE.instantiate()
+		var scene := get_tree().current_scene
+		if blood and scene:
+			var offset := Vector2(randf_range(-4.0, 4.0), randf_range(-4.0, 4.0))
+			blood.global_position = global_position + offset
+			var facing_dir := Vector2.LEFT if animated_sprite.flip_h else Vector2.RIGHT
+			blood.rotation = facing_dir.angle()
+			scene.add_child(blood)
 
 	health = max(health - amount, 0)
 	if hit_player:

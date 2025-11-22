@@ -1,4 +1,4 @@
-[gd_scene load_steps=17 format=3 uid="uid://c2rwbherxxm7a"]
+[gd_scene load_steps=18 format=3 uid="uid://c2rwbherxxm7a"]
 
 [ext_resource type="Script" uid="uid://bsk8ihu2iql4c" path="res://scripts/main.gd" id="1_ig7tw"]
 [ext_resource type="PackedScene" uid="uid://c5a3w2pm50uds" path="res://scenes/player.tscn" id="2_0wfyh"]
@@ -7,6 +7,7 @@
 [ext_resource type="Script" uid="uid://c0x381uf5lvt" path="res://scripts/player.gd" id="3_sugp2"]
 [ext_resource type="Texture2D" uid="uid://blo15ir152i86" path="res://assets/tileset/desert/Desert1_3x.png" id="7_choun"]
 [ext_resource type="PackedScene" uid="uid://dvueqafah81v0" path="res://scenes/title_layer.tscn" id="8_choun"]
+[ext_resource type="PackedScene" uid="uid://cgi4k0orycx0" path="res://scenes/axe_enemy.tscn" id="9_85g3d"]
 [ext_resource type="PackedScene" uid="uid://20gk72vk5hmc" path="res://scenes/gun_enemy.tscn" id="9_choun"]
 [ext_resource type="AudioStream" uid="uid://dhgnu5ofxo1mw" path="res://music/default.mp3" id="9_default"]
 
@@ -566,8 +567,23 @@ position_smoothing_enabled = true
 
 [node name="TitleLayer" parent="." instance=ExtResource("8_choun")]
 
-[node name="Gun_enemy" parent="." instance=ExtResource("9_choun")]
-position = Vector2(736, -39)
+[node name="Axe_enemy" parent="." instance=ExtResource("9_85g3d")]
+position = Vector2(650, 3)
 
-[node name="Gun_enemy2" parent="." instance=ExtResource("9_choun")]
-position = Vector2(703, -16)
+[node name="Axe_enemy2" parent="." instance=ExtResource("9_85g3d")]
+position = Vector2(740, 0)
+
+[node name="Axe_enemy3" parent="." instance=ExtResource("9_85g3d")]
+position = Vector2(569, -4)
+
+[node name="Axe_enemy4" parent="." instance=ExtResource("9_85g3d")]
+position = Vector2(703, -52)
+
+[node name="Axe_enemy5" parent="." instance=ExtResource("9_85g3d")]
+position = Vector2(512, -16)
+
+[node name="Axe_enemy6" parent="." instance=ExtResource("9_85g3d")]
+position = Vector2(610, -47)
+
+[node name="Gun_enemy" parent="." instance=ExtResource("9_choun")]
+position = Vector2(694, 12)
