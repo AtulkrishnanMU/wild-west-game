@@ -2,11 +2,17 @@ extends "res://scripts/enemy.gd"
 
 const BULLET_SCENE := preload("res://scenes/bullet.tscn")
 const GUN_SHOT_SOUND := preload("res://sounds/gun-shot.mp3")
+const RELOAD_SOUND_PATH := "res://sounds/reload.mp3"
 
 @onready var gun_sprite: Sprite2D = $Gun
 var _aim_tween: Tween = null
 var _recoil_tween: Tween = null
+var _reload_tween: Tween = null
 var _gun_base_position: Vector2 = Vector2.ZERO
+var _gun_detached: bool = false
+var _gun_float_tween: Tween = null
+var _shots_since_reload: int = 0
+var _is_reloading: bool = false
 
 func _ready() -> void:
 	# Call base enemy _ready first
@@ -25,6 +31,12 @@ func _ready() -> void:
 func _physics_process(delta: float) -> void:
 	# Run base enemy movement/attack logic
 	super._physics_process(delta)
+	# Once dead, stop aiming logic so the gun doesn't keep tracking the player
+	if is_dead:
+		return
+	# While reloading, temporarily pause aiming so the reload rotation is visible
+	if _is_reloading:
+		return
 	# Then update gun aiming
 	_update_gun_aim()
 
@@ -110,9 +122,47 @@ func _fire_bullet() -> void:
 			scene_for_sound.add_child(audio)
 			AudioUtils.play_random_pitch(audio, 0.9, 1.2)
 			audio.finished.connect(audio.queue_free)
+	# Track number of shots and trigger reload every 5 bullets
+	_shots_since_reload += 1
+	if _shots_since_reload >= 5:
+		_shots_since_reload = 0
+		_start_reload_animation()
 	var scene := get_tree().current_scene
 	if scene:
 		scene.add_child(bullet)
+
+func take_damage(amount: int) -> void:
+	var was_dead := is_dead
+	super.take_damage(amount)
+	# On first transition to dead, detach the gun so it no longer follows the body
+	if not was_dead and is_dead:
+		_detach_gun()
+
+func _detach_gun() -> void:
+	if _gun_detached or gun_sprite == null:
+		return
+	_gun_detached = true
+	# Reparent the gun sprite to the current scene so it stays where it fell
+	var scene := get_tree().current_scene
+	if scene == null:
+		return
+	# Place the gun slightly above the dead body's final position
+	var body_pos := global_position
+	var gun_global_pos := body_pos + Vector2(0.0, -12.0)
+	gun_sprite.get_parent().remove_child(gun_sprite)
+	scene.add_child(gun_sprite)
+	gun_sprite.global_position = gun_global_pos
+	# Reset any vertical flip so it looks correct on the ground
+	gun_sprite.scale.y = abs(gun_sprite.scale.y)
+	# Add a gentle floating tween above the corpse
+	if _gun_float_tween and _gun_float_tween.is_valid():
+		_gun_float_tween.kill()
+	_gun_float_tween = create_tween()
+	_gun_float_tween.set_loops()
+	var up_pos := gun_global_pos + Vector2(0.0, -3.0)
+	var down_pos := gun_global_pos + Vector2(0.0, 3.0)
+	_gun_float_tween.tween_property(gun_sprite, "global_position", up_pos, 0.35)
+	_gun_float_tween.tween_property(gun_sprite, "global_position", down_pos, 0.35)
 
 func _play_gun_recoil(shot_dir: Vector2) -> void:
 	if gun_sprite == null:
@@ -124,3 +174,39 @@ func _play_gun_recoil(shot_dir: Vector2) -> void:
 	var back_pos := _gun_base_position - shot_dir.normalized() * recoil_distance
 	_recoil_tween.tween_property(gun_sprite, "position", back_pos, 0.04)
 	_recoil_tween.tween_property(gun_sprite, "position", _gun_base_position, 0.06)
+
+func _start_reload_animation() -> void:
+	if gun_sprite == null:
+		return
+	# If already reloading, don't stack another reload
+	if _is_reloading:
+		return
+	_is_reloading = true
+	# Stop any existing reload tween
+	if _reload_tween and _reload_tween.is_valid():
+		_reload_tween.kill()
+	# Base the reload rotation on the current gun rotation
+	var start_rotation: float = gun_sprite.rotation
+	# Rotate about 20 degrees; flip sign when facing left so the motion feels natural
+	var angle_offset: float = deg_to_rad(20.0)
+	if animated_sprite and animated_sprite.flip_h:
+		angle_offset = -angle_offset
+	_reload_tween = create_tween()
+	_reload_tween.tween_property(gun_sprite, "rotation", start_rotation + angle_offset, 0.08)
+	_reload_tween.tween_property(gun_sprite, "rotation", start_rotation, 0.08)
+	_reload_tween.finished.connect(_on_reload_finished)
+	# Play reload sound at the gun position (loaded at runtime to avoid parse-time errors)
+	var scene_for_sound := get_tree().current_scene
+	if scene_for_sound and RELOAD_SOUND_PATH != "":
+		var reload_stream := load(RELOAD_SOUND_PATH)
+		if reload_stream:
+			var audio := AudioStreamPlayer2D.new()
+			audio.stream = reload_stream
+			audio.position = gun_sprite.global_position
+			scene_for_sound.add_child(audio)
+			AudioUtils.play_random_pitch(audio, 0.95, 1.05)
+			audio.finished.connect(audio.queue_free)
+
+func _on_reload_finished() -> void:
+	_is_reloading = false
+	_reload_tween = null

@@ -17,6 +17,8 @@ var cash: int = 0
 @onready var slash_player: AudioStreamPlayer2D = $SlashPlayer
 @onready var hit_player: AudioStreamPlayer2D = $HitPlayer
 @onready var camera: Camera2D = $Camera2D
+@onready var sword_hitbox: Area2D = $SwordHitbox
+@onready var sword_hitbox_shape: CollisionShape2D = $SwordHitbox/CollisionShape2D
 
 # Add these variables near the top with the others
 var knockback_velocity: Vector2 = Vector2.ZERO
@@ -27,6 +29,7 @@ var camera_shake_amount: float = 1.0
 var camera_shake_time: float = 0.1
 var _camera_shake_timer: float = 0.0
 var _camera_original_offset: Vector2 = Vector2.ZERO
+var _sword_hitbox_base_position: Vector2 = Vector2.ZERO
 
 var is_attacking := false
 var is_dead := false
@@ -41,6 +44,8 @@ func _ready() -> void:
 	emit_signal("cash_changed", cash)
 	if camera:
 		_camera_original_offset = camera.offset
+	if sword_hitbox:
+		_sword_hitbox_base_position = sword_hitbox.position
 	PLAYER_DEATH_SOUND = load("res://sounds/player-death.mp3")
 	HURT_SOUND = load("res://sounds/hurt.mp3")
 
@@ -102,6 +107,10 @@ func _physics_process(delta: float) -> void:
 	else:
 		if camera:
 			camera.offset = _camera_original_offset
+	# Keep sword hitbox in front of the player based on facing direction
+	if sword_hitbox:
+		var sign_x := -1.0 if animated_sprite.flip_h else 1.0
+		sword_hitbox.position = Vector2(_sword_hitbox_base_position.x * sign_x, _sword_hitbox_base_position.y)
 
 	move_and_slide()
 
@@ -185,22 +194,22 @@ func _flicker_red() -> void:
 	_flicker_tween.tween_property(animated_sprite, "modulate", Color.WHITE, 0.07)
 
 
+
 func _apply_damage_to_enemies() -> void:
-	var hit_range_h: float = 45.0
-	var hit_range_v: float = 40.0
+	if sword_hitbox == null:
+		return
 	var base_damage: int = 15
 	var facing: int = -1 if animated_sprite.flip_h else 1
 	var hit_something := false
-
-	for enemy in get_tree().get_nodes_in_group("enemies"):
-		if not enemy.has_method("take_damage"):
+	for body in sword_hitbox.get_overlapping_bodies():
+		if not body.is_in_group("enemies"):
 			continue
-		var dx: float = enemy.global_position.x - global_position.x
-		var dy: float = abs(enemy.global_position.y - global_position.y)
-		if dx * facing > 0 and abs(dx) <= hit_range_h and dy <= hit_range_v:
-			enemy.take_damage(base_damage)
-			hit_something = true
-
+		if not body.has_method("take_damage"):
+			continue
+		body.take_damage(base_damage)
+		hit_something = true
+		# Only hit each enemy once per attack resolution
+	
 	if hit_something:
 		# Strong, satisfying self-knockback (horizontal only)
 		var knockback_strength := 180.0

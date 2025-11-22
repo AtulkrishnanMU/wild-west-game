@@ -22,10 +22,14 @@ var is_dead: bool = false
 @onready var hit_player: AudioStreamPlayer2D = $HitEnemyPlayer
 @onready var player: CharacterBody2D = get_parent().get_node("Player")
 @onready var sprite_material: ShaderMaterial = animated_sprite.material
+@onready var attack_hitbox: Area2D = $AttackHitbox
+@onready var attack_hitbox_shape: CollisionShape2D = $AttackHitbox/CollisionShape2D
 var is_attacking: bool = false
 var damage_cooldown_timer: float = 0.0
 var _hit_tween: Tween = null
 var _knockback_timer: float = 0.0
+var _attack_hitbox_base_position: Vector2 = Vector2.ZERO
+var _player_in_attack_hitbox: bool = false
 
 func _ready() -> void:
 	randomize()
@@ -40,6 +44,10 @@ func _ready() -> void:
 	ENEMY_DEATH_SOUND_1 = load("res://sounds/enemy-death.mp3")
 	ENEMY_DEATH_SOUND_2 = load("res://sounds/enemy-death2.mp3")
 	ENEMY_HURT_SOUND = load("res://sounds/hurt.mp3")
+	if attack_hitbox:
+		_attack_hitbox_base_position = attack_hitbox.position
+		attack_hitbox.body_entered.connect(_on_attack_hitbox_body_entered)
+		attack_hitbox.body_exited.connect(_on_attack_hitbox_body_exited)
 
 func _physics_process(delta: float) -> void:
 	if is_dead:
@@ -131,6 +139,11 @@ func _physics_process(delta: float) -> void:
 		# Slowly stop while attacking
 		velocity.x = move_toward(velocity.x, 0.0, SPEED * 2.0 * delta)
 
+	# Keep attack hitbox in front of the enemy based on facing direction
+	if attack_hitbox:
+		var sign_x := -1.0 if animated_sprite.flip_h else 1.0
+		attack_hitbox.position = Vector2(_attack_hitbox_base_position.x * sign_x, _attack_hitbox_base_position.y)
+
 	move_and_slide()
 
 func _start_attack_close() -> void:
@@ -175,11 +188,7 @@ func _on_animation_finished() -> void:
 
 # Centered hitbox (no forward offset – enemy must be close)
 func _is_player_in_attack_range() -> bool:
-	if player == null:
-		return false
-	var dx: float = abs(player.global_position.x - global_position.x)
-	var dy: float = abs(player.global_position.y - global_position.y)
-	return dx < DAMAGE_H_RANGE and dy < DAMAGE_V_RANGE
+	return _player_in_attack_hitbox
 
 func _apply_damage_to_player() -> void:
 	if not player.has_method("take_damage"):
@@ -197,6 +206,14 @@ func _apply_damage_to_player() -> void:
 	var dir: float = sign(player.global_position.x - global_position.x)
 	player.velocity.x = dir * 150.0
 	player.take_damage(dmg)
+
+func _on_attack_hitbox_body_entered(body: Node) -> void:
+	if body == player:
+		_player_in_attack_hitbox = true
+
+func _on_attack_hitbox_body_exited(body: Node) -> void:
+	if body == player:
+		_player_in_attack_hitbox = false
 
 func take_damage(amount: int) -> void:
 	if is_dead:
