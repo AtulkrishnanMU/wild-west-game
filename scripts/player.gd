@@ -2,8 +2,12 @@ extends CharacterBody2D
 
 const SPEED = 300.0
 const JUMP_VELOCITY = -400.0
+const AudioUtils = preload("res://scripts/audio_utils.gd")
 signal health_changed(current: int, max: int)
 signal cash_changed(current: int)
+
+var PLAYER_DEATH_SOUND: AudioStream = null
+var HURT_SOUND: AudioStream = null
 
 const MAX_HEALTH := 200
 var health: int = MAX_HEALTH
@@ -37,6 +41,8 @@ func _ready() -> void:
 	emit_signal("cash_changed", cash)
 	if camera:
 		_camera_original_offset = camera.offset
+	PLAYER_DEATH_SOUND = load("res://sounds/player-death.mp3")
+	HURT_SOUND = load("res://sounds/hurt.mp3")
 
 
 func _physics_process(delta: float) -> void:
@@ -105,8 +111,7 @@ func _start_attack_idle() -> void:
 	is_attacking = true
 	var anim = "ATTACK1" if randf() < 0.5 else "ATTACK2"
 	if slash_player:
-		slash_player.pitch_scale = randf_range(0.7, 1.6)
-		slash_player.play()
+		AudioUtils.play_random_pitch(slash_player, 0.7, 1.6)
 	animated_sprite.play(anim)
 
 func _start_attack_moving() -> void:
@@ -137,8 +142,7 @@ func take_damage(amount: int) -> void:
 
 	health = max(health - amount, 0)
 	if hit_player:
-		hit_player.pitch_scale = randf_range(0.7, 1.6)
-		hit_player.play()
+		AudioUtils.play_random_pitch(hit_player, 0.7, 1.6)
 	emit_signal("health_changed", health, MAX_HEALTH)
 
 	if health <= 0:
@@ -146,9 +150,12 @@ func take_damage(amount: int) -> void:
 			is_dead = true
 			is_attacking = false
 			animated_sprite.play("DEATH")
+			_play_player_death_sound()
 	else:
 		# Only visual feedback — everything else continues uninterrupted
 		_flicker_red()
+		if randf() < 0.1:
+			_play_hurt_sound()
 
 
 func add_cash(amount: int) -> void:
@@ -205,3 +212,32 @@ func _apply_damage_to_enemies() -> void:
 
 func _start_camera_shake() -> void:
 	_camera_shake_timer = camera_shake_time
+
+
+func _play_player_death_sound() -> void:
+	if PLAYER_DEATH_SOUND == null:
+		return
+	var scene := get_tree().current_scene
+	if scene == null:
+		return
+	var audio := AudioStreamPlayer2D.new()
+	audio.stream = PLAYER_DEATH_SOUND
+	audio.position = global_position
+	scene.add_child(audio)
+	AudioUtils.play_random_pitch(audio, 0.9, 1.1)
+	audio.finished.connect(audio.queue_free)
+
+
+func _play_hurt_sound() -> void:
+	if HURT_SOUND == null:
+		return
+	var scene := get_tree().current_scene
+	if scene == null:
+		return
+	var audio := AudioStreamPlayer2D.new()
+	audio.stream = HURT_SOUND
+	audio.position = global_position
+	audio.pitch_scale = randf_range(0.9, 1.1)
+	scene.add_child(audio)
+	audio.play()
+	audio.finished.connect(audio.queue_free)

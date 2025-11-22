@@ -1,14 +1,15 @@
-[gd_scene load_steps=55 format=3 uid="uid://cgi4k0orycx0"]
+[gd_scene load_steps=62 format=3 uid="uid://cgi4k0orycx0"]
 
-[ext_resource type="Texture2D" uid="uid://cag4imwhq5jd4" path="res://assets/characters/1 Woodcutter/Woodcutter_attack1.png" id="1_xwavj"]
-[ext_resource type="Texture2D" uid="uid://cuuyuoribgk3l" path="res://assets/characters/1 Woodcutter/Woodcutter_attack2.png" id="2_nenq2"]
-[ext_resource type="Texture2D" uid="uid://covkdw65s6r4o" path="res://assets/characters/1 Woodcutter/Woodcutter_attack3.png" id="3_md484"]
-[ext_resource type="Texture2D" uid="uid://b35ebjpe3b0uy" path="res://assets/characters/1 Woodcutter/Woodcutter_idle.png" id="4_ipns3"]
-[ext_resource type="Texture2D" uid="uid://38a2p5uku1u5" path="res://assets/characters/1 Woodcutter/Woodcutter_jump.png" id="5_8qclf"]
-[ext_resource type="Texture2D" uid="uid://c1rg6pcdbkvsv" path="res://assets/characters/1 Woodcutter/Woodcutter_death.png" id="5_w8i8w"]
-[ext_resource type="Texture2D" uid="uid://cfkgv10wege1p" path="res://assets/characters/1 Woodcutter/Woodcutter_run.png" id="6_w8i8w"]
-[ext_resource type="Script" uid="uid://btvp64teqwxqa" path="res://scripts/enemy.gd" id="7_enemy"]
+[ext_resource type="Texture2D" uid="uid://cag4imwhq5jd4" path="res://assets/characters/axe enemy/Woodcutter_attack1.png" id="1_xwavj"]
+[ext_resource type="Texture2D" uid="uid://cuuyuoribgk3l" path="res://assets/characters/axe enemy/Woodcutter_attack2.png" id="2_nenq2"]
+[ext_resource type="Texture2D" uid="uid://covkdw65s6r4o" path="res://assets/characters/axe enemy/Woodcutter_attack3.png" id="3_md484"]
+[ext_resource type="Texture2D" uid="uid://b35ebjpe3b0uy" path="res://assets/characters/axe enemy/Woodcutter_idle.png" id="4_ipns3"]
+[ext_resource type="Texture2D" uid="uid://38a2p5uku1u5" path="res://assets/characters/axe enemy/Woodcutter_jump.png" id="5_8qclf"]
+[ext_resource type="Texture2D" uid="uid://c1rg6pcdbkvsv" path="res://assets/characters/axe enemy/Woodcutter_death.png" id="5_w8i8w"]
+[ext_resource type="Texture2D" uid="uid://cfkgv10wege1p" path="res://assets/characters/axe enemy/Woodcutter_run.png" id="6_w8i8w"]
+[ext_resource type="Script" uid="uid://n5sqd0f1dra3" path="res://scripts/axe_enemy.gd" id="7_enemy"]
 [ext_resource type="AudioStream" uid="uid://db3ihxencpmdn" path="res://sounds/enemy-slash.mp3" id="8_md484"]
+[ext_resource type="Texture2D" uid="uid://bpkk3o8c6rb8" path="res://assets/characters/axe enemy/Woodcutter_walk.png" id="9_ak0ug"]
 [ext_resource type="AudioStream" uid="uid://bo4b2xs1nbs0n" path="res://sounds/hit.mp3" id="9_hit"]
 
 [sub_resource type="Shader" id="Shader_enemy_hit"]
@@ -162,6 +163,30 @@ region = Rect2(192, 0, 48, 48)
 [sub_resource type="AtlasTexture" id="AtlasTexture_2tuss"]
 atlas = ExtResource("5_8qclf")
 region = Rect2(240, 0, 48, 48)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_ak0ug"]
+atlas = ExtResource("9_ak0ug")
+region = Rect2(240, 0, 48, 48)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_pt6xg"]
+atlas = ExtResource("9_ak0ug")
+region = Rect2(192, 0, 48, 48)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_jirf6"]
+atlas = ExtResource("9_ak0ug")
+region = Rect2(144, 0, 48, 48)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_25ora"]
+atlas = ExtResource("9_ak0ug")
+region = Rect2(96, 0, 48, 48)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_eour3"]
+atlas = ExtResource("9_ak0ug")
+region = Rect2(48, 0, 48, 48)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_0u4m6"]
+atlas = ExtResource("9_ak0ug")
+region = Rect2(0, 0, 48, 48)
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_7v6cf"]
 atlas = ExtResource("6_w8i8w")
@@ -323,6 +348,29 @@ animations = [{
 }, {
 "frames": [{
 "duration": 1.0,
+"texture": SubResource("AtlasTexture_ak0ug")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_pt6xg")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_jirf6")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_25ora")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_eour3")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_0u4m6")
+}],
+"loop": false,
+"name": &"REV_WALK",
+"speed": 10.0
+}, {
+"frames": [{
+"duration": 1.0,
 "texture": SubResource("AtlasTexture_7v6cf")
 }, {
 "duration": 1.0,
@@ -356,10 +404,10 @@ script = ExtResource("7_enemy")
 material = SubResource("ShaderMaterial_enemy_hit")
 position = Vector2(6, -7)
 sprite_frames = SubResource("SpriteFrames_j0dkt")
-animation = &"JUMP"
+animation = &"REV_WALK"
 autoplay = "IDLE"
-frame = 3
-frame_progress = 0.3465484
+frame = 5
+frame_progress = 0.08411842
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
 position = Vector2(-2, 3)

@@ -20,6 +20,7 @@ func _ready() -> void:
 	var music := get_node_or_null("Music")
 	if music and music.stream:
 		music.stream.loop = true
+		music.volume_db = -8.0
 	_on_player_health_changed(player.health, player.MAX_HEALTH)
 	
 func _input(event: InputEvent) -> void:

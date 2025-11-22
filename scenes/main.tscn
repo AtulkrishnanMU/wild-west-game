@@ -6,7 +6,7 @@
 [ext_resource type="Texture2D" uid="uid://d256rn4drqn6m" path="res://assets/tileset/desert/Desert1_2x.png" id="2_tefeu"]
 [ext_resource type="Script" uid="uid://c0x381uf5lvt" path="res://scripts/player.gd" id="3_sugp2"]
 [ext_resource type="Texture2D" uid="uid://blo15ir152i86" path="res://assets/tileset/desert/Desert1_3x.png" id="7_choun"]
-[ext_resource type="PackedScene" uid="uid://cgi4k0orycx0" path="res://scenes/axe_enemy.tscn" id="8_tipki"]
+[ext_resource type="PackedScene" uid="uid://20gk72vk5hmc" path="res://scenes/gun_enemy.tscn" id="9_85g3d"]
 [ext_resource type="AudioStream" uid="uid://dhgnu5ofxo1mw" path="res://music/default.mp3" id="9_default"]
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_tefeu"]
@@ -563,17 +563,5 @@ position = Vector2(4, -5)
 zoom = Vector2(2.785, 2.785)
 position_smoothing_enabled = true
 
-[node name="Axe_enemy" parent="." instance=ExtResource("8_tipki")]
-position = Vector2(-112, 24)
-
-[node name="Axe_enemy2" parent="." instance=ExtResource("8_tipki")]
-position = Vector2(-69, 29)
-
-[node name="Axe_enemy3" parent="." instance=ExtResource("8_tipki")]
-position = Vector2(185, 10)
-
-[node name="Axe_enemy4" parent="." instance=ExtResource("8_tipki")]
-position = Vector2(295, 14)
-
-[node name="Axe_enemy5" parent="." instance=ExtResource("8_tipki")]
-position = Vector2(99, -38)
+[node name="Gun_enemy" parent="." instance=ExtResource("9_85g3d")]
+position = Vector2(-175, -34)

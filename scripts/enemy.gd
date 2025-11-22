@@ -9,7 +9,13 @@ const DAMAGE_COOLDOWN: float = 0.20       # Prevents insane damage spam
 const ENEMY_KNOCKBACK_SPEED: float = 120.0
 const MAX_HEALTH := 50
 const CASH_SCENE := preload("res://scenes/cash.tscn")
+const AudioUtils = preload("res://scripts/audio_utils.gd")
+var ENEMY_DEATH_SOUND_1: AudioStream = null
+var ENEMY_DEATH_SOUND_2: AudioStream = null
+var ENEMY_HURT_SOUND: AudioStream = null
 var health: int = MAX_HEALTH
+var FAR_JUMP_DISTANCE: float = 140.0
+var ATTACK_RANGE_DISTANCE: float = ATTACK_RANGE
 var is_dead: bool = false
 @onready var animated_sprite: AnimatedSprite2D = $AnimatedSprite2D
 @onready var slash_player: AudioStreamPlayer2D = $SlashEnemyPlayer
@@ -31,10 +37,15 @@ func _ready() -> void:
 		animated_sprite.material = local_mat
 		sprite_material = local_mat
 	animated_sprite.animation_finished.connect(_on_animation_finished)
+	ENEMY_DEATH_SOUND_1 = load("res://sounds/enemy-death.mp3")
+	ENEMY_DEATH_SOUND_2 = load("res://sounds/enemy-death2.mp3")
+	ENEMY_HURT_SOUND = load("res://sounds/hurt.mp3")
 
 func _physics_process(delta: float) -> void:
 	if is_dead:
-		# Slowly come to a stop and do nothing else once dead
+		# When dead, still fall with gravity but slowly come to a horizontal stop
+		if not is_on_floor():
+			velocity.y += GRAVITY * delta
 		velocity.x = move_toward(velocity.x, 0.0, SPEED * delta)
 		move_and_slide()
 		return
@@ -46,6 +57,9 @@ func _physics_process(delta: float) -> void:
 	# If the player is dead, stop attacking and stay idle
 	if player.is_dead:
 		is_attacking = false
+		# Still fall with gravity even though AI is disabled
+		if not is_on_floor():
+			velocity.y += GRAVITY * delta
 		velocity.x = move_toward(velocity.x, 0.0, SPEED * delta)
 		animated_sprite.play("IDLE")
 		move_and_slide()
@@ -69,13 +83,34 @@ func _physics_process(delta: float) -> void:
 	var distance_x: float = to_player.x
 	var abs_distance: float = abs(distance_x)
 	var direction: float = sign(distance_x)
+	var vertical_distance: float = abs(player.global_position.y - global_position.y)
+
+	# If we are almost exactly overlapping the player, step back slightly using REV_WALK
+	var overlap_x_threshold := 6.0
+	var overlap_y_threshold := 24.0
+	# Require a small but non-zero horizontal offset so we don't get stuck when perfectly aligned
+	if vertical_distance < overlap_y_threshold and abs_distance > 1.0 and abs_distance < overlap_x_threshold:
+		# Cancel any attack attempt because we must reposition
+		is_attacking = false
+
+		var back_dir := -direction
+		velocity.x = back_dir * SPEED * 0.8
+
+		if is_on_floor():
+			animated_sprite.flip_h = direction < 0
+			if animated_sprite.sprite_frames.has_animation("REV_WALK"):
+				animated_sprite.play("REV_WALK")
+			else:
+				animated_sprite.play("RUN")
+
+		move_and_slide()
+		return
 
 	# ── Movement & Attack Logic ──
 	if not is_attacking:
-		if abs_distance > ATTACK_RANGE:
+		if abs_distance > ATTACK_RANGE_DISTANCE:
 			# Occasionally do a jumping lunge toward the player when they are REALLY far away
-			var far_jump_distance := 140.0
-			if abs_distance > far_jump_distance and is_on_floor() and randf() < 0.3:
+			if abs_distance > FAR_JUMP_DISTANCE and is_on_floor() and randf() < 0.3:
 				velocity.y = JUMP_SPEED
 				velocity.x = direction * SPEED * 1.2
 				animated_sprite.flip_h = direction < 0
@@ -111,8 +146,7 @@ func _start_attack_close() -> void:
 	else:
 		attack_anim = "ATTACK3"
 	if slash_player:
-		slash_player.pitch_scale = randf_range(0.7, 1.6)
-		slash_player.play()
+		AudioUtils.play_random_pitch(slash_player, 0.7, 1.6)
 	animated_sprite.play(attack_anim)
 
 func _start_attack_running() -> void:
@@ -170,8 +204,9 @@ func take_damage(amount: int) -> void:
 	
 	health = max(health - amount, 0)
 	if hit_player:
-		hit_player.pitch_scale = randf_range(0.7, 1.6)
-		hit_player.play()
+		AudioUtils.play_random_pitch(hit_player, 0.7, 1.6)
+	if health > 0 and randf() < 0.1:
+		_play_enemy_hurt_sound()
 	
 	# FLASH WHITE ON EVERY HIT (including killing blow)
 	_flash_white()
@@ -195,7 +230,9 @@ func take_damage(amount: int) -> void:
 		animated_sprite.play("DEATH")
 		if randf() < 0.2:
 			_start_kill_slowmo()
-		_drop_cash_on_death()
+		# Always drop cash on death, but defer to avoid physics flush issues
+		call_deferred("_drop_cash_on_death")
+		_play_enemy_death_sound()
 
 func _flash_white() -> void:
 	if _hit_tween and _hit_tween.is_valid():
@@ -233,3 +270,36 @@ func _drop_cash_on_death() -> void:
 		var offset := Vector2(randf_range(-16.0, 16.0), randf_range(-4.0, 4.0))
 		cash.global_position = global_position + offset
 		scene.add_child(cash)
+
+
+func _play_enemy_death_sound() -> void:
+	var scene := get_tree().current_scene
+	if scene == null:
+		return
+	var audio := AudioStreamPlayer2D.new()
+	var choice := randf()
+	if choice < 0.5 and ENEMY_DEATH_SOUND_1:
+		audio.stream = ENEMY_DEATH_SOUND_1
+	elif ENEMY_DEATH_SOUND_2:
+		audio.stream = ENEMY_DEATH_SOUND_2
+	else:
+		return
+	audio.position = global_position
+	scene.add_child(audio)
+	AudioUtils.play_random_pitch(audio, 0.9, 1.1)
+	audio.finished.connect(audio.queue_free)
+
+
+func _play_enemy_hurt_sound() -> void:
+	if ENEMY_HURT_SOUND == null:
+		return
+	var scene := get_tree().current_scene
+	if scene == null:
+		return
+	var audio := AudioStreamPlayer2D.new()
+	audio.stream = ENEMY_HURT_SOUND
+	audio.position = global_position
+	audio.pitch_scale = randf_range(0.9, 1.1)
+	scene.add_child(audio)
+	audio.play()
+	audio.finished.connect(audio.queue_free)
