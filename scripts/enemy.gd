@@ -1,5 +1,6 @@
 class_name Enemy
 extends CharacterBody2D
+signal enemy_killed(enemy: Node)
 var SPEED: float = 150.0
 const GRAVITY: float = 900.0
 const JUMP_SPEED: float = -360.0
@@ -9,6 +10,8 @@ const DAMAGE_V_RANGE: float = 50.0        # Good vertical coverage (jumping, etc
 const DAMAGE_COOLDOWN: float = 0.20       # Prevents insane damage spam
 const ENEMY_KNOCKBACK_SPEED: float = 120.0
 const MAX_HEALTH := 50
+# Softer, less saturated green for final corpse tint
+const CORPSE_DECAY_COLOR: Color = Color(0.62, 0.82, 0.68, 1.0)
 const CASH_SCENE := preload("res://scenes/cash.tscn")
 const BLOOD_SCENE := preload("res://scenes/blood_splash.tscn")
 const AudioUtils = preload("res://scripts/audio_utils.gd")
@@ -33,6 +36,7 @@ var is_active := false
 var is_attacking: bool = false
 var damage_cooldown_timer: float = 0.0
 var _hit_tween: Tween = null
+var _decay_tween: Tween = null
 var _knockback_timer: float = 0.0
 var _attack_hitbox_base_position: Vector2 = Vector2.ZERO
 var _player_in_attack_hitbox: bool = false
@@ -46,6 +50,8 @@ func _ready() -> void:
 		var local_mat := sprite_material.duplicate()
 		animated_sprite.material = local_mat
 		sprite_material = local_mat
+		# Ensure decay tint starts as neutral white so alive enemies are unmodified
+		sprite_material.set_shader_parameter("decay_tint", Color(1, 1, 1, 1))
 	animated_sprite.animation_finished.connect(_on_animation_finished)
 	ENEMY_DEATH_SOUND_1 = load("res://sounds/enemy-death.mp3")
 	ENEMY_DEATH_SOUND_2 = load("res://sounds/enemy-death2.mp3")
@@ -117,7 +123,7 @@ func _physics_process(delta: float) -> void:
 	var vertical_distance: float = abs(player.global_position.y - global_position.y)
 
 	# Avoid exact overlapping
-	var overlap_x_threshold := 6.0
+	var overlap_x_threshold := 10.0
 	var overlap_y_threshold := 24.0
 	if vertical_distance < overlap_y_threshold and abs_distance > 1.0 and abs_distance < overlap_x_threshold:
 		is_attacking = false
@@ -273,6 +279,8 @@ func take_damage(amount: int) -> void:
 		is_dead = true
 		is_attacking = false
 		velocity = Vector2.ZERO
+		# Notify listeners (e.g., Endless mode) that this enemy was killed
+		emit_signal("enemy_killed", self)
 		# Remove from enemies group so player can no longer hit the corpse
 		if is_in_group("enemies"):
 			remove_from_group("enemies")
@@ -283,11 +291,24 @@ func take_damage(amount: int) -> void:
 		if player:
 			animated_sprite.flip_h = (player.global_position.x < global_position.x)
 		animated_sprite.play("DEATH")
+		_start_corpse_decay()
 		if randf() < 0.2:
 			_start_kill_slowmo()
 		# Always drop cash on death, but defer to avoid physics flush issues
 		call_deferred("_drop_cash_on_death")
 		_play_enemy_death_sound()
+
+func _start_corpse_decay() -> void:
+	if _decay_tween and _decay_tween.is_valid():
+		_decay_tween.kill()
+	if sprite_material == null:
+		return
+	_decay_tween = create_tween()
+	_decay_tween.set_trans(Tween.TRANS_SINE)
+	_decay_tween.set_ease(Tween.EASE_IN_OUT)
+	# Fade the dedicated decay_tint parameter toward green; base enemies stay unchanged.
+	_decay_tween.tween_property(sprite_material, "shader_parameter/decay_tint", CORPSE_DECAY_COLOR, 10.0)
+
 
 func _flash_white() -> void:
 	if _hit_tween and _hit_tween.is_valid():

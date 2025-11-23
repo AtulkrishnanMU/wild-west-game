@@ -10,18 +10,23 @@
 [sub_resource type="Shader" id="Shader_enemy_hit"]
 code = "shader_type canvas_item;
 uniform float hit_silhouette = 0.0;
+uniform vec4 decay_tint = vec4(1.0);
 void fragment() {
     vec4 tex = texture(TEXTURE, UV);
+    vec4 tinted = tex * decay_tint; // apply only explicit decay tint
     if (hit_silhouette > 0.5) {
-        COLOR = vec4(vec3(1.0), tex.a);
+        // White silhouette flash, preserve alpha from tinted sprite
+        COLOR = vec4(vec3(1.0), tinted.a);
     } else {
-        COLOR = tex;
+        // Normal rendering with (optional) decay tint
+        COLOR = tinted;
     }
 }"
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_enemy_hit"]
 shader = SubResource("Shader_enemy_hit")
 shader_parameter/hit_silhouette = 0.0
+shader_parameter/decay_tint = Vector4(1, 1, 1, 1)
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_om804"]
 atlas = ExtResource("2_bypnf")
@@ -287,7 +292,7 @@ frame = 3
 frame_progress = 0.48017055
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
-position = Vector2(-2, -1)
+position = Vector2(-2, -3)
 shape = SubResource("CircleShape2D_xwavj")
 
 [node name="VisibilityNotifier2D" type="VisibleOnScreenNotifier2D" parent="."]
@@ -307,5 +312,5 @@ collision_layer = 32
 collision_mask = 2
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="AttackHitbox"]
-position = Vector2(-1, -3.5)
+position = Vector2(-1, -6.5)
 shape = SubResource("RectangleShape2D_bypnf")

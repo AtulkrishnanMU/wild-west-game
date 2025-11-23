@@ -509,3 +509,11 @@ stream = ExtResource("10_hit")
 visible = false
 position = Vector2(6, 6)
 texture = ExtResource("11_gun")
+
+[node name="ReloadButton" type="Button" parent="."]
+visible = false
+offset_left = -31.0
+offset_top = -45.0
+offset_right = 40.0
+offset_bottom = -14.0
+text = "RELOAD"

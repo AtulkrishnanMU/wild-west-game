@@ -35,6 +35,9 @@ func _apply_damage(target: Node) -> void:
 		# Also do not damage enemies that are very close to the shooter
 		if shooter.global_position.distance_to(target.global_position) < safe_enemy_shooter_distance:
 			return
+	# Do not damage enemies that are not yet active on screen
+	if target.is_in_group("enemies") and ("is_active" in target) and not target.is_active:
+		return
 	if target.has_method("take_damage"):
 		target.take_damage(damage)
 	queue_free()

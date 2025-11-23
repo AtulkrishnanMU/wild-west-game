@@ -32,36 +32,9 @@ func _on_body_entered(body: Node) -> void:
 		return
 	body.add_cash(CASH_AMOUNT)
 	_play_cash_sound(body)
-	_spawn_cash_popup(body)
+	if body.has_method("_spawn_floating_popup"):
+		body._spawn_floating_popup("+%d" % CASH_AMOUNT, Color(1.0, 0.84, 0.0))
 	queue_free()
-
-
-func _spawn_cash_popup(player: Node) -> void:
-	if player == null:
-		return
-	var scene := get_tree().current_scene
-	if scene == null:
-		return
-
-	# World-space popup just above the player
-	var popup_root := Node2D.new()
-	popup_root.position = player.global_position + Vector2(0, -20)
-	scene.add_child(popup_root)
-
-	var label := Label.new()
-	label.text = "+%d" % CASH_AMOUNT
-	# Golden color, smaller pixel font
-	label.modulate = Color(1.0, 0.84, 0.0)
-	var font := load("res://fonts/PixelOperator8.ttf")
-	if font:
-		label.add_theme_font_override("font", font)
-		label.add_theme_font_size_override("font_size", 8)
-	popup_root.add_child(label)
-
-	var tween := get_tree().create_tween()
-	tween.tween_property(popup_root, "position:y", popup_root.position.y - 20.0, 0.4)
-	tween.tween_property(label, "modulate:a", 0.0, 0.4)
-	tween.finished.connect(popup_root.queue_free)
 
 
 func _play_cash_sound(player: Node) -> void:

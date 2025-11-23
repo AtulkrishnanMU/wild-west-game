@@ -88,26 +88,12 @@ offset_bottom = 37.0
 max_value = 200.0
 value = 200.0
 
-[node name="HealCooldownBar" type="ProgressBar" parent="UI"]
-offset_left = 10.0
-offset_top = 38.0
-offset_right = 210.0
-offset_bottom = 55.0
-max_value = 1.0
-value = 1.0
-
 [node name="CashLabel" type="Label" parent="UI"]
 offset_left = 10.0
-offset_top = 58.0
+offset_top = 40.0
 offset_right = 210.0
-offset_bottom = 85.0
+offset_bottom = 67.0
 text = "CASH: 0"
-
-[node name="BulletIcons" type="HBoxContainer" parent="UI"]
-offset_left = 10.0
-offset_top = 88.0
-offset_right = 210.0
-offset_bottom = 110.0
 
 [node name="HealthPercentLabel" type="Label" parent="UI"]
 offset_left = 220.0
@@ -137,7 +123,7 @@ position_smoothing_enabled = true
 [node name="TitleLayer" parent="." instance=ExtResource("8_choun")]
 
 [node name="Gun_enemy" parent="." instance=ExtResource("9_choun")]
-position = Vector2(-268, 13)
+position = Vector2(302, 23)
 
 [node name="Axe_enemy" parent="." instance=ExtResource("9_85g3d")]
 position = Vector2(583, 10)

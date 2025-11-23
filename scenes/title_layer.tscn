@@ -6,11 +6,29 @@
 
 [node name="PressLabel" type="Label" parent="."]
 offset_left = 471.0
+offset_top = 300.0
+offset_right = 711.0
+offset_bottom = 324.0
+
+horizontal_alignment = 1
+
+[node name="Menu" type="VBoxContainer" parent="."]
+offset_left = 471.0
 offset_top = 324.0
 offset_right = 711.0
-offset_bottom = 364.0
-text = "PRESS ENTER"
-horizontal_alignment = 1
+offset_bottom = 444.0
+
+[node name="ContinueButton" type="Button" parent="Menu"]
+text = "CONTINUE"
+
+[node name="NewGameButton" type="Button" parent="Menu"]
+text = "NEW GAME"
+
+[node name="TutorialButton" type="Button" parent="Menu"]
+text = "TUTORIAL"
+
+[node name="EndlessButton" type="Button" parent="Menu"]
+text = "ENDLESS"
 
 [node name="TitleSprite" type="Sprite2D" parent="."]
 position = Vector2(590, 278)

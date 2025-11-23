@@ -141,7 +141,7 @@ func take_damage(amount: int) -> void:
 	super.take_damage(amount)
 	# On first transition to dead, spawn a Gun pickup at this enemy's position
 	if not was_dead and is_dead:
-		_spawn_gun_pickup()
+		call_deferred("_spawn_gun_pickup")
 
 func _spawn_gun_pickup() -> void:
 	if _gun_detached or gun_sprite == null or GUN_SCENE == null:

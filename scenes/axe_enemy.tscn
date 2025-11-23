@@ -15,12 +15,16 @@
 [sub_resource type="Shader" id="Shader_enemy_hit"]
 code = "shader_type canvas_item;
 uniform float hit_silhouette = 0.0;
+uniform vec4 decay_tint = vec4(1.0);
 void fragment() {
     vec4 tex = texture(TEXTURE, UV);
+    vec4 tinted = tex * decay_tint; // apply only explicit decay tint
     if (hit_silhouette > 0.5) {
-        COLOR = vec4(vec3(1.0), tex.a);
+        // White silhouette flash, preserve alpha from tinted sprite
+        COLOR = vec4(vec3(1.0), tinted.a);
     } else {
-        COLOR = tex;
+        // Normal rendering with (optional) decay tint
+        COLOR = tinted;
     }
 }"
 
