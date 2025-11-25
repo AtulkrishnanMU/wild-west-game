@@ -1,4 +1,4 @@
-[gd_scene load_steps=12 format=3 uid="uid://k80bhni6g5cb"]
+[gd_scene load_steps=14 format=3 uid="uid://k80bhni6g5cb"]
 
 [ext_resource type="Script" uid="uid://dg784kskbh7wj" path="res://scripts/cutscenes/intro_cutscene.gd" id="1"]
 [ext_resource type="AudioStream" uid="uid://cob865tpr0s6e" path="res://sounds/text-typing.mp3" id="2"]
@@ -11,6 +11,8 @@
 [ext_resource type="Texture2D" uid="uid://da5g0ish5fxq8" path="res://assets/buildings/city 2/6.png" id="8"]
 [ext_resource type="AudioStream" uid="uid://bk608uagpts6b" path="res://sounds/heartbeat-sound.mp3" id="9"]
 [ext_resource type="Script" uid="uid://spo66r0tmdvk" path="res://scripts/effects/RainLayer.gd" id="10"]
+[ext_resource type="AudioStream" uid="uid://d3xihhaho5fy6" path="res://sounds/rain.mp3" id="11"]
+[ext_resource type="Texture2D" uid="uid://cughwm7hetm54" path="res://assets/talk_sprites/player/normal.png" id="13_qtmnn"]
 
 [node name="IntroCutscene" type="Control"]
 layout_mode = 3
@@ -52,6 +54,11 @@ position = Vector2(577.7778, 321.99997)
 scale = Vector2(0.50617284, 0.5061728)
 texture = ExtResource("2_8hq43")
 
+[node name="Normal" type="Sprite2D" parent="Letterboxing"]
+position = Vector2(-615.9509, 401.0487)
+scale = Vector2(0.80259144, 0.8025915)
+texture = ExtResource("13_qtmnn")
+
 [node name="DialogueLabel" type="RichTextLabel" parent="."]
 z_index = 200
 layout_mode = 1
@@ -60,10 +67,10 @@ anchor_left = 0.1
 anchor_top = 0.7
 anchor_right = 0.9
 anchor_bottom = 0.9
-offset_left = 14.799995
-offset_top = 93.399994
-offset_right = 20.0
-offset_bottom = 52.0
+offset_left = 254.79999
+offset_top = 91.399994
+offset_right = 260.0
+offset_bottom = 50.0
 bbcode_enabled = true
 autowrap_mode = 2
 
@@ -72,3 +79,8 @@ stream = ExtResource("2")
 
 [node name="HeartbeatPlayer" type="AudioStreamPlayer" parent="."]
 stream = ExtResource("9")
+
+[node name="SfxPlayer" type="AudioStreamPlayer" parent="."]
+
+[node name="RainPlayer" type="AudioStreamPlayer" parent="."]
+stream = ExtResource("11")
