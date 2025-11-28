@@ -9,7 +9,6 @@ offset_left = 471.0
 offset_top = 300.0
 offset_right = 711.0
 offset_bottom = 324.0
-
 horizontal_alignment = 1
 
 [node name="Menu" type="VBoxContainer" parent="."]
@@ -19,17 +18,22 @@ offset_right = 711.0
 offset_bottom = 444.0
 
 [node name="ContinueButton" type="Button" parent="Menu"]
+layout_mode = 2
 text = "CONTINUE"
 
 [node name="NewGameButton" type="Button" parent="Menu"]
+layout_mode = 2
 text = "NEW GAME"
 
 [node name="TutorialButton" type="Button" parent="Menu"]
+layout_mode = 2
 text = "TUTORIAL"
 
 [node name="EndlessButton" type="Button" parent="Menu"]
+layout_mode = 2
 text = "ENDLESS"
 
 [node name="TitleSprite" type="Sprite2D" parent="."]
-position = Vector2(590, 278)
+position = Vector2(590, 289)
+scale = Vector2(0.35826772, 0.35826772)
 texture = ExtResource("1_ammj3")

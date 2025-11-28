@@ -1,10 +1,9 @@
-[gd_scene load_steps=6 format=3 uid="uid://53t4jcnyolpe"]
+[gd_scene load_steps=5 format=3 uid="uid://53t4jcnyolpe"]
 
 [ext_resource type="Script" uid="uid://dkgdd0yvfosfh" path="res://scripts/cutscenes/prologue_cutscene.gd" id="1"]
 [ext_resource type="AudioStream" uid="uid://cob865tpr0s6e" path="res://sounds/text-typing.mp3" id="2"]
 [ext_resource type="AudioStream" uid="uid://bk608uagpts6b" path="res://sounds/heartbeat-sound.mp3" id="3"]
 [ext_resource type="Texture2D" uid="uid://dfv8rwfrplaa5" path="res://assets/letterboxing.png" id="4_8krdq"]
-[ext_resource type="Texture2D" uid="uid://cughwm7hetm54" path="res://assets/talk_sprites/player/normal.png" id="5_srr5b"]
 
 [node name="PrologueCutscene" type="Control"]
 layout_mode = 3
@@ -45,8 +44,3 @@ stream = ExtResource("2")
 stream = ExtResource("3")
 
 [node name="SfxPlayer" type="AudioStreamPlayer" parent="."]
-
-[node name="Normal" type="Sprite2D" parent="."]
-position = Vector2(217, 325.99997)
-scale = Vector2(0.4973958, 0.49739584)
-texture = ExtResource("5_srr5b")

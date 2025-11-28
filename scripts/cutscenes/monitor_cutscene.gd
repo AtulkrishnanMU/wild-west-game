@@ -1,0 +1,286 @@
+extends Node2D
+
+# References to nodes
+@onready var dialogue_label: RichTextLabel = $CanvasLayer/RichTextLabel
+@onready var typing_player: AudioStreamPlayer = $TypingPlayer
+
+# Typing effect
+var _full_text: String = ""
+var _display_text: String = ""
+var _can_advance: bool = false
+var _char_index: int = 0
+var _typing_speed: float = 0.0001  # Time between characters in seconds
+var _typing_timer: float = 0.0
+var _is_typing: bool = false
+var _next_scene_path: String = ""
+var _current_bbcode_tags: Array[String] = []
+
+# Cursor effect
+var _cursor_timer: float = 0.0
+var _cursor_blink_speed: float = 0.5  # Blink every 0.5 seconds
+var _cursor_visible: bool = true
+var _cursor_char: String = "▮"
+
+# Glitch effect
+var _glitch_timer: float = 0.0
+var _is_glitching: bool = false
+var _glitch_duration: float = 0.05  # How long the glitch lasts
+var _glitch_chars: String = "!@#$%^&*()_+-=[]{}|;:,.<>/?~`"
+var _glitch_chance: float = 0.01  # 1% chance of glitch per character
+
+# Typing sound variations
+var _sound_variation_timer: float = 0.0
+var _sound_variation_interval: float = 1.0  # Change sound every 1 second
+
+func _ready() -> void:
+	# Initialize the cutscene
+	_setup_cutscene()
+	
+func _setup_cutscene() -> void:
+	# Set up the monospace font and default color
+	var font = preload("res://fonts/PixelOperator8.ttf")
+	# Apply font to all possible font types to ensure full coverage
+	dialogue_label.add_theme_font_override("normal_font", font)
+	dialogue_label.add_theme_font_override("bold_font", font)
+	dialogue_label.add_theme_font_override("italics_font", font)
+	dialogue_label.add_theme_font_override("bold_italics_font", font)
+	dialogue_label.add_theme_font_override("mono_font", font)
+	
+	# Set consistent font size and line separation
+	dialogue_label.add_theme_font_size_override("normal_font_size", 12)
+	dialogue_label.add_theme_font_size_override("bold_font_size", 12)
+	dialogue_label.add_theme_font_size_override("italics_font_size", 12)
+	dialogue_label.add_theme_font_size_override("bold_italics_font_size", 12)
+	dialogue_label.add_theme_font_size_override("mono_font_size", 12)
+	
+	dialogue_label.add_theme_constant_override("line_separation", 8)
+	dialogue_label.add_theme_constant_override("line_height", 28)
+	dialogue_label.add_theme_constant_override("paragraph_separation", 16)
+	dialogue_label.visible = true
+	# Enable BBCode for rich text formatting
+	dialogue_label.bbcode_enabled = true
+	
+	# Set the typing sound to digital-typing.mp3
+	if typing_player:
+		var typing_sound = preload("res://sounds/digital-typing.mp3")
+		if typing_sound:
+			typing_player.stream = typing_sound
+			typing_player.stream.loop = true
+
+	# Set the full text with proper formatting and colors
+	# Using simplified BBCode that RichTextLabel can handle
+	_full_text = """[color=#00ff00][b]SYSWARN v4.3 | IRON VERSE SECURITY NETWORK[/b]
+------------------------------------------------------------
+TIMESTAMP: 2087-11-28 03:17:44 UTC
+EVENT ID: IVN-EB-7713-A
+CLASSIFICATION: LEVEL OMEGA BREACH
+
+[color=#ff0000]>>> ALERT: CONTAINMENT FAILURE DETECTED
+>>> PRISONER 7H-3R13-004K HAS ESCAPED[/color]
+
+SECTOR 7: BREACH AT 03:16:02
+SECURITY GRID: PARTIAL FAILURE
+INTERNAL SENSORS: DEGRADED
+
+NODE STATUS:
+  PRIMARY: 10.0.7.1 [OFFLINE]
+  BACKUP: 10.0.7.2 [DEGRADED]
+  FIREWALL: /sys/security/fw_rule_001.cfg [BYPASSED]
+
+ACCESS LOG:
+  03:15:32 AUTH_SUCCESS root@10.0.7.254 -> /admin/
+  03:15:48 AUTH_FAIL 7H-3R13-004K@10.0.7.13 -> /secure/
+  03:16:02 BREACH 7H-3R13-004K@10.0.7.13 -> /containment/
+  03:16:51 EXIT 7H-3R13-004K@UNKNOWN -> /surface/vent_alpha_4/
+
+AUTOMATED MESSAGE. DO NOT REPLY.
+------------------------------------------------------------[/color]"""
+
+	# Start typing the text
+	_start_typing()
+
+func _start_typing() -> void:
+	_is_typing = true
+	_char_index = 0
+	_display_text = ""
+	_current_bbcode_tags = []
+	dialogue_label.text = ""
+	dialogue_label.text = ""
+	_can_advance = false
+	
+	# Start playing the typing sound if available
+	if typing_player and not typing_player.playing:
+		typing_player.play()
+
+func _process(delta: float) -> void:
+	# Handle typing sound variations
+	if typing_player and typing_player.playing:
+		_sound_variation_timer += delta
+		if _sound_variation_timer >= _sound_variation_interval:
+			_sound_variation_timer = 0.0
+			# Random pitch between 0.8 and 1.2
+			typing_player.pitch_scale = randf_range(0.8, 1.2)
+			# Random volume between -10dB and -2dB
+			typing_player.volume_db = randf_range(-10.0, -2.0)
+	
+	# Handle cursor blinking when typing or when typing is complete
+	if _is_typing or _can_advance:
+		_cursor_timer += delta
+		if _cursor_timer >= _cursor_blink_speed:
+			_cursor_timer = 0.0
+			_cursor_visible = not _cursor_visible
+	
+	if _is_glitching:
+		_glitch_timer += delta
+		if _glitch_timer >= _glitch_duration:
+			_is_glitching = false
+			dialogue_label.text = _full_text.substr(0, _char_index + 1)
+		return
+		
+	if not _is_typing and not _can_advance:
+		# Hide cursor when not typing and not ready to advance
+		if _cursor_visible:
+			_cursor_visible = false
+			_update_display_text()
+		return
+		
+	_typing_timer += delta
+	if _typing_timer >= _typing_speed:
+		_typing_timer = 0.0
+		
+		# Get the next character
+		if _char_index >= _full_text.length():
+			# Finished typing
+			_is_typing = false
+			_can_advance = true
+			if typing_player and typing_player.playing:
+				typing_player.stop()
+			_update_display_text()
+			return
+		
+		# Get the next character
+		var next_char = _full_text[_char_index]
+		
+		# Handle BBCode tags - just skip them for now
+		if next_char == '[':
+			var tag_end = _full_text.find("]", _char_index)
+			if tag_end != -1:
+				_char_index = tag_end + 1
+				return  # Skip processing this frame to avoid showing partial tags
+		
+		# Check for glitch
+		if randf() < _glitch_chance and next_char not in ["\n", " ", "[", "]"]:
+			_trigger_glitch()
+			return
+		
+		# Add the character to the display text
+		_char_index += 1
+		_update_display_text()
+		
+		# Skip delay for newlines and spaces
+		if next_char in ["\n", " "]:
+			_typing_timer = -_typing_speed  # Negative to process next char immediately
+
+func _update_display_text() -> void:
+	if _char_index >= _full_text.length():
+		dialogue_label.text = _full_text
+		# Add blinking cursor at the end when typing is complete
+		if _can_advance and _cursor_visible:
+			# Get the last color from the full text
+			var current_color = "#00ff00"  # Default green
+			var color_stack: Array[String] = ["#00ff00"]
+			var i = 0
+			
+			while i < _full_text.length():
+				if _full_text.substr(i, 7) == "[color=":
+					var end_tag = _full_text.find("]", i)
+					if end_tag != -1:
+						var color_tag = _full_text.substr(i, end_tag - i + 1)
+						var color_start = color_tag.find("#")
+						if color_start != -1:
+							var color_end = color_tag.find("]", color_start)
+							if color_end != -1:
+								var color = color_tag.substr(color_start, color_end - color_start)
+								color_stack.append(color)
+						i = end_tag + 1
+				elif _full_text.substr(i, 8) == "[/color]":
+					if color_stack.size() > 1:
+						color_stack.pop_back()
+					i += 8
+				else:
+					i += 1
+			
+			if color_stack.size() > 0:
+				current_color = color_stack.back()
+			
+			dialogue_label.text += "[color=" + current_color + "]" + _cursor_char + "[/color]"
+		return
+	
+	# Get current color context by analyzing the text up to cursor
+	var current_color = "#00ff00"  # Default green
+	var text_up_to_cursor = _full_text.substr(0, _char_index)
+	
+	# Track color stack to handle nested tags
+	var color_stack: Array[String] = ["#00ff00"]
+	var i = 0
+	
+	while i < text_up_to_cursor.length():
+		if text_up_to_cursor.substr(i, 7) == "[color=":
+			var end_tag = text_up_to_cursor.find("]", i)
+			if end_tag != -1:
+				var color_tag = text_up_to_cursor.substr(i, end_tag - i + 1)
+				# Extract color value from tag
+				var color_start = color_tag.find("#")
+				if color_start != -1:
+					var color_end = color_tag.find("]", color_start)
+					if color_end != -1:
+						var color = color_tag.substr(color_start, color_end - color_start)
+						color_stack.append(color)
+				i = end_tag + 1
+		elif text_up_to_cursor.substr(i, 8) == "[/color]":
+			if color_stack.size() > 1:
+				color_stack.pop_back()
+			i += 8
+		else:
+			i += 1
+	
+	# Get the current active color
+	if color_stack.size() > 0:
+		current_color = color_stack.back()
+	
+	# Build display text with cursor
+	var display_text = text_up_to_cursor
+	if _is_typing and _cursor_visible:
+		display_text += "[color=" + current_color + "]" + _cursor_char + "[/color]"
+	
+	dialogue_label.text = display_text
+
+func _trigger_glitch() -> void:
+	_is_glitching = true
+	_glitch_timer = 0.0
+	
+	# Create glitch text
+	var glitch_text = _full_text.substr(0, _char_index)
+	# Add some random glitch characters
+	for i in range(randi() % 3 + 1):  # 1-3 glitch characters
+		glitch_text += _glitch_chars[randi() % _glitch_chars.length()]
+	
+	dialogue_label.text = glitch_text
+
+func _unhandled_input(event: InputEvent) -> void:
+	var pressed_accept := event.is_action_pressed("ui_accept")
+	var pressed_space: bool = event is InputEventKey and event.pressed and event.keycode == KEY_SPACE
+	
+	if pressed_accept or pressed_space:
+		if _can_advance:
+			# Go to next scene or end cutscene
+			if _next_scene_path and _next_scene_path != "":
+				get_tree().change_scene_to_file(_next_scene_path)
+		else:
+			# Skip typing animation by showing all text immediately
+			_is_typing = false
+			dialogue_label.text = _full_text
+			if typing_player and typing_player.playing:
+				typing_player.stop()
+			_can_advance = true
+			return
