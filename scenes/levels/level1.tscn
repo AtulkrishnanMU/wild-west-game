@@ -67,9 +67,6 @@ offset_right = 300.0
 offset_bottom = 37.0
 text = "100%"
 
-[node name="Player" parent="." instance=ExtResource("2_player")]
-position = Vector2(480, 405)
-
 [node name="Gun_enemy" parent="." instance=ExtResource("5_gun_enemy")]
 position = Vector2(1059, 418)
 
@@ -79,16 +76,10 @@ zoom = Vector2(2.225, 2.225)
 position_smoothing_enabled = true
 
 [node name="AlertAlarm" parent="." instance=ExtResource("5_dywbp")]
-position = Vector2(1120, 285)
-
-[node name="Axe_enemy" parent="." instance=ExtResource("7_2r1tl")]
-position = Vector2(1630, 483)
+position = Vector2(1166, 363.00003)
 
 [node name="Axe_enemy2" parent="." instance=ExtResource("7_2r1tl")]
-position = Vector2(1515, 471)
+position = Vector2(1719, 537)
 
-[node name="Axe_enemy3" parent="." instance=ExtResource("7_2r1tl")]
-position = Vector2(1678, 494)
-
-[node name="Axe_enemy4" parent="." instance=ExtResource("7_2r1tl")]
-position = Vector2(1573, 481)
+[node name="Player" parent="." instance=ExtResource("2_player")]
+position = Vector2(480, 405)

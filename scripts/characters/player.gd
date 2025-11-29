@@ -68,6 +68,11 @@ var is_dead := false
 var has_gun: bool = false
 var is_healing: bool = false
 
+# Cursor management
+var gun_cursor_texture: Texture2D = null
+var normal_cursor_shape: Input.CursorShape = Input.CURSOR_ARROW
+var _was_holding_gun: bool = false
+
 # Reference to the current flicker tween so we can cancel/replace it
 var _flicker_tween: Tween = null
 
@@ -89,6 +94,9 @@ func _ready() -> void:
 	heal_player = AudioStreamPlayer2D.new()
 	heal_player.stream = HEAL_SOUND
 	add_child(heal_player)
+	
+	# Load gun cursor texture
+	gun_cursor_texture = load("res://assets/objects/gun_aim.png")
 
 func _physics_process(delta: float) -> void:
 	if not is_on_floor():
@@ -239,6 +247,9 @@ func _physics_process(delta: float) -> void:
 				gun_sprite.scale.x = -1.0
 				animated_sprite.flip_h = true
 			gun_sprite.rotation = target_angle
+	
+	# Update cursor based on gun state
+	_update_cursor()
 
 	# ——— ANIMATION CHOICE ———
 	if is_healing:
@@ -419,6 +430,7 @@ func _drop_player_gun() -> void:
 		gun_sprite.visible = false
 	# Clear bullets from UI
 	emit_signal("bullets_changed", 0, PLAYER_MAG_SIZE)
+	_update_cursor()
 	# Spawn a ground gun pickup as if the player threw it away
 	var scene := get_tree().current_scene
 	if scene == null:
@@ -508,6 +520,7 @@ func pickup_gun() -> void:
 	_player_is_reloading = false
 	print("[PLAYER GUN] Gun picked up. reload_count reset to ", _player_reload_count)
 	emit_signal("bullets_changed", PLAYER_MAG_SIZE, PLAYER_MAG_SIZE)
+	_update_cursor()
 
 
 # ——— RED FLICKER (2 fast flashes) ———
@@ -619,3 +632,13 @@ func get_heal_cooldown_progress() -> float:
 		var elapsed := _heal_cooldown - _heal_cooldown_timer
 		return clamp(elapsed / _heal_cooldown, 0.0, 1.0)
 	return 1.0
+
+
+# ——— CURSOR MANAGEMENT ———
+func _update_cursor() -> void:
+	if has_gun and gun_cursor_texture:
+		# Set custom cursor when holding gun
+		Input.set_custom_mouse_cursor(gun_cursor_texture, Input.CURSOR_ARROW, Vector2(16, 16))
+	else:
+		# Reset to normal cursor when not holding gun
+		Input.set_custom_mouse_cursor(null, Input.CURSOR_ARROW)
