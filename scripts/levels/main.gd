@@ -4,15 +4,12 @@ var pressed: bool = false
 var intro_done: bool = false
 var intro_running: bool = false
 var intro_camera_height: float = 220.0
-var camera_follow_speed: float = 12.0
 var press_blink_time: float = 0.0
 var press_blink_speed: float = 4.0
 var INTRO_GUN_SOUND: AudioStream = null
 
-@onready var camera: Camera2D = $Camera2D
 @onready var title_layer: CanvasLayer = $TitleLayer
 @onready var press_label: Label = $TitleLayer/PressLabel
-@onready var ui_layer: CanvasLayer = $UI
 @onready var btn_continue: Button = $TitleLayer/Menu/ContinueButton
 @onready var btn_new_game: Button = $TitleLayer/Menu/NewGameButton
 @onready var btn_tutorial: Button = $TitleLayer/Menu/TutorialButton
@@ -27,19 +24,17 @@ func _ready() -> void:
 	cash_label = $"UI/CashLabel"
 	health_percent_label = $"UI/HealthPercentLabel"
 	bullet_icons = $"UI/BulletIcons"
+	ui_layer = $"UI"
 
-	player.health_changed.connect(_on_player_health_changed)
-	player.cash_changed.connect(_on_player_cash_changed)
-	if player.has_signal("bullets_changed"):
-		player.bullets_changed.connect(_on_player_bullets_changed)
-	player.controls_enabled = false
+	# Use common UI setup
+	setup_ui()
+	
+	# Use common level setup
+	setup_level()
+	
+	# Apply font to main menu specific UI elements
 	var ui_font := load("res://fonts/PixelOperator8.ttf")
 	if ui_font:
-		health_bar.add_theme_font_override("font", ui_font)
-		if heal_cooldown_bar:
-			heal_cooldown_bar.add_theme_font_override("font", ui_font)
-		cash_label.add_theme_font_override("font", ui_font)
-		health_percent_label.add_theme_font_override("font", ui_font)
 		if press_label:
 			press_label.add_theme_font_override("font", ui_font)
 		if btn_continue:
@@ -50,22 +45,13 @@ func _ready() -> void:
 			btn_tutorial.add_theme_font_override("font", ui_font)
 		if btn_endless:
 			btn_endless.add_theme_font_override("font", ui_font)
-	health_bar.show_percentage = false
-	if heal_cooldown_bar:
-		heal_cooldown_bar.show_percentage = false
-		heal_cooldown_bar.min_value = 0.0
-		heal_cooldown_bar.max_value = 1.0
-	var music := get_node_or_null("Music")
-	if music and music.stream:
-		music.stream.loop = true
-		music.volume_db = -8.0
+	
+	player.controls_enabled = false
 	INTRO_GUN_SOUND = load("res://sounds/intro-gun-shot.mp3")
-	_on_player_health_changed(player.health, player.MAX_HEALTH)
 
 	# Set up intro camera and title UI
 	if camera and player:
 		camera.global_position = player.global_position + Vector2(0, -intro_camera_height)
-		camera.make_current()
 
 	if title_layer:
 		title_layer.visible = true
@@ -88,10 +74,13 @@ func _input(event: InputEvent) -> void:
 
 # Called every frame. 'delta' is the elapsed time since the previous frame.
 func _process(delta: float) -> void:
-	# Simple camera follow after intro is complete
-	if intro_done and camera and player:
-		camera.global_position = camera.global_position.lerp(player.global_position, camera_follow_speed * delta)
-	update_heal_cooldown_bar()
+	# Use common level process only after intro is complete
+	if intro_done:
+		camera_follow_enabled = true
+		process_level(delta)
+	else:
+		# During intro, only update heal cooldown bar
+		update_heal_cooldown_bar()
 
 
 func _start_intro_pan() -> void:

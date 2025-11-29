@@ -36,11 +36,11 @@ func fade_to_scene(path: String, fade_out_time: float = 1.5, fade_in_time: float
 	_target_scene = path
 	_fade_out_time = fade_out_time
 	_fade_in_time = fade_in_time
-	# Ensure overlay starts transparent
+	# Start transparent for proper fade-out effect
 	_overlay.modulate.a = 0.0
 	_overlay.visible = true
 	var tween := create_tween()
-	# Fade from transparent to black
+	# Fade from transparent to black (fade-out from current scene)
 	tween.tween_property(_overlay, "modulate:a", 1.0, _fade_out_time)
 	# After fade-out, change scene, then fade back in
 	tween.tween_callback(Callable(self, "_do_change_scene"))

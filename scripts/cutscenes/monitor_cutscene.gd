@@ -79,15 +79,18 @@ func _ready() -> void:
 				tm = Node.new()
 				tm.name = "TransitionManager"
 				tm.set_script(tm_script)
-				root.add_child(tm)
+				root.add_child.call_deferred(tm)
+				# Wait for the node to be added before using it
+				await tree.process_frame
 		if tm:
-			tm.fade_in(1.5)
-			# Fade in PC screen faster than text
+			tm.fade_in(1.0)  # Faster 1 second fade-in
+			# Fade in PC screen and text after fade-in starts
+			await get_tree().create_timer(0.5).timeout  # Wait for fade-in to start
 			var tween := create_tween()
 			if pc_screen:
-				tween.tween_property(pc_screen, "modulate:a", 1.0, 0.8)  # PC screen fades in over 0.8s
+				tween.tween_property(pc_screen, "modulate:a", 1.0, 0.5)  # PC screen fades in over 0.5s
 			if dialogue_label:
-				tween.tween_property(dialogue_label, "modulate:a", 1.0, 1.5)  # Text fades in over 1.5s
+				tween.tween_property(dialogue_label, "modulate:a", 1.0, 1.0)  # Text fades in over 1.0s
 	
 func _setup_cutscene() -> void:
 	# Set up the BigBlueTerm437NerdFontMono font for authentic terminal appearance
@@ -139,6 +142,9 @@ func _setup_cutscene() -> void:
 		if typing_sound:
 			typing_player.stream = typing_sound
 			typing_player.stream.loop = true
+
+	# Set the next scene to level 1
+	_next_scene_path = "res://scenes/levels/level1.tscn"
 
 	# Set the full text with proper formatting and colors
 	# Using simplified BBCode that RichTextLabel can handle
@@ -330,24 +336,8 @@ func _unhandled_input(event: InputEvent) -> void:
 	
 	if pressed_accept or pressed_space:
 		if _can_advance:
-			# Use TransitionManager for fade-out/fade-in when changing scenes
-			if _next_scene_path and _next_scene_path != "":
-				var tree := get_tree()
-				if tree:
-					var root := tree.get_root()
-					var tm := root.get_node_or_null("TransitionManager")
-					if not tm:
-						var tm_script := load("res://scripts/TransitionManager.gd")
-						if tm_script:
-							tm = Node.new()
-							tm.name = "TransitionManager"
-							tm.set_script(tm_script)
-							root.add_child(tm)
-					if tm:
-						tm.fade_to_scene(_next_scene_path, 1.5, 1.5)
-					else:
-						# Fallback: hard cut if TransitionManager couldn't be created
-						tree.change_scene_to_file(_next_scene_path)
+			# Immediately start transition without delay
+			_transition_to_level1()
 		else:
 			# Skip typing animation by showing all text immediately
 			_is_typing = false
@@ -356,3 +346,55 @@ func _unhandled_input(event: InputEvent) -> void:
 				typing_player.stop()
 			_can_advance = true
 			return
+
+func _transition_to_level1() -> void:
+	# Create parallel tweens for simultaneous fade-out
+	var tween := create_tween()
+	tween.set_parallel(true)  # Allow all tweens to run simultaneously
+	
+	# Fade out visuals
+	if dialogue_label:
+		tween.tween_property(dialogue_label, "modulate:a", 0.0, 1.0)  # Text fades out over 1.0s
+	if pc_screen:
+		tween.tween_property(pc_screen, "modulate:a", 0.0, 2.0)  # PC screen fades out over 1.0s
+	
+	# Fade out audio simultaneously
+	if typing_player:
+		tween.tween_property(typing_player, "volume_db", -80.0, 1.0)  # Fade typing sound to silence
+	if _pc_sound_player:
+		tween.tween_property(_pc_sound_player, "volume_db", -80.0, 1.0)  # Fade PC sound to silence
+	if _alert_sound_player:
+		tween.tween_property(_alert_sound_player, "volume_db", -80.0, 1.0)  # Fade alert sound to silence
+	
+	# Wait for all fade-outs to complete, then do scene transition
+	await tween.finished
+	
+	# Stop all audio after fade-out
+	if typing_player and typing_player.playing:
+		typing_player.stop()
+	if _pc_sound_player and _pc_sound_player.playing:
+		_pc_sound_player.stop()
+	if _alert_sound_player and _alert_sound_player.playing:
+		_alert_sound_player.stop()
+	
+	# Use TransitionManager for fade-out/fade-in when changing scenes
+	if _next_scene_path and _next_scene_path != "":
+		var tree := get_tree()
+		if tree:
+			var root := tree.get_root()
+			var tm := root.get_node_or_null("TransitionManager")
+			if not tm:
+				var tm_script := load("res://scripts/TransitionManager.gd")
+				if tm_script:
+					tm = Node.new()
+					tm.name = "TransitionManager"
+					tm.set_script(tm_script)
+					root.add_child.call_deferred(tm)
+					# Wait for the node to be added before using it
+					await tree.process_frame
+			if tm:
+				# Faster transitions - 0.8s fade out, 0.8s fade in
+				tm.fade_to_scene(_next_scene_path, 0.8, 0.8)
+			else:
+				# Fallback: hard cut if TransitionManager couldn't be created
+				tree.change_scene_to_file(_next_scene_path)
