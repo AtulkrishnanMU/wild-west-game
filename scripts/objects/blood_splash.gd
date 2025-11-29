@@ -6,7 +6,7 @@ const DROPLET_COUNT := 12
 var direction: Vector2 = Vector2.RIGHT  # Default direction, can be set from outside
 
 func _ready() -> void:
-	_spawn_blood_droplets()
+	call_deferred("_spawn_blood_droplets")
 
 func set_direction(dir: Vector2) -> void:
 	direction = dir.normalized()
