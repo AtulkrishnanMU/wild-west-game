@@ -1,4 +1,4 @@
-[gd_scene load_steps=5 format=3 uid="uid://53t4jcnyolpe"]
+[gd_scene load_steps=5 format=3 uid="uid://p7jn27gmapr5"]
 
 [ext_resource type="Script" uid="uid://dkgdd0yvfosfh" path="res://scripts/cutscenes/prologue_cutscene.gd" id="1"]
 [ext_resource type="AudioStream" uid="uid://cob865tpr0s6e" path="res://sounds/text-typing.mp3" id="2"]

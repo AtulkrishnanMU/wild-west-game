@@ -3,6 +3,7 @@ extends Node2D
 # References to nodes
 @onready var dialogue_label: RichTextLabel = $CanvasLayer/RichTextLabel
 @onready var typing_player: AudioStreamPlayer = $TypingPlayer
+@onready var pc_screen: Sprite2D = $CanvasLayer/PcScreen
 var _pc_sound_player: AudioStreamPlayer
 var _alert_sound_player: AudioStreamPlayer
 
@@ -22,7 +23,7 @@ var _chars_per_frame: int = 2  # Type 2 characters at once for faster typing
 var _cursor_timer: float = 0.0
 var _cursor_blink_speed: float = 0.5  # Blink every 0.5 seconds
 var _cursor_visible: bool = true
-var _cursor_char: String = "▮"
+var _cursor_char: String = "_"
 
 # Glitch effect
 var _glitch_timer: float = 0.0
@@ -36,12 +37,39 @@ var _sound_variation_timer: float = 0.0
 var _sound_variation_interval: float = 1.0  # Change sound every 1 second
 
 func _ready() -> void:
+	# Hide all canvas layer elements initially
+	if dialogue_label:
+		dialogue_label.modulate.a = 0.0
+	if pc_screen:
+		pc_screen.modulate.a = 0.0
+	
 	# Initialize the cutscene
 	_setup_cutscene()
 	
+	# Trigger fade-in effect for monitor cutscene
+	var tree := get_tree()
+	if tree:
+		var root := tree.get_root()
+		var tm := root.get_node_or_null("TransitionManager")
+		if not tm:
+			var tm_script := load("res://scripts/TransitionManager.gd")
+			if tm_script:
+				tm = Node.new()
+				tm.name = "TransitionManager"
+				tm.set_script(tm_script)
+				root.add_child(tm)
+		if tm:
+			tm.fade_in(1.5)
+			# Also fade in the canvas layer elements
+			var tween := create_tween()
+			if dialogue_label:
+				tween.tween_property(dialogue_label, "modulate:a", 1.0, 1.5)
+			if pc_screen:
+				tween.tween_property(pc_screen, "modulate:a", 1.0, 1.5)
+	
 func _setup_cutscene() -> void:
 	# Set up the monospace font and default color
-	var font = preload("res://fonts/PixelOperator8.ttf")
+	var font = preload("res://fonts/raster.ttf")
 	# Apply font to all possible font types to ensure full coverage
 	dialogue_label.add_theme_font_override("normal_font", font)
 	dialogue_label.add_theme_font_override("bold_font", font)
@@ -50,15 +78,15 @@ func _setup_cutscene() -> void:
 	dialogue_label.add_theme_font_override("mono_font", font)
 	
 	# Set consistent font size and line separation
-	dialogue_label.add_theme_font_size_override("normal_font_size", 12)
-	dialogue_label.add_theme_font_size_override("bold_font_size", 12)
-	dialogue_label.add_theme_font_size_override("italics_font_size", 12)
-	dialogue_label.add_theme_font_size_override("bold_italics_font_size", 12)
-	dialogue_label.add_theme_font_size_override("mono_font_size", 12)
+	dialogue_label.add_theme_font_size_override("normal_font_size", 15)
+	dialogue_label.add_theme_font_size_override("bold_font_size", 15)
+	dialogue_label.add_theme_font_size_override("italics_font_size", 15)
+	dialogue_label.add_theme_font_size_override("bold_italics_font_size", 15)
+	dialogue_label.add_theme_font_size_override("mono_font_size", 15)
 	
 	dialogue_label.add_theme_constant_override("line_separation", 8)
-	dialogue_label.add_theme_constant_override("line_height", 28)
-	dialogue_label.add_theme_constant_override("paragraph_separation", 16)
+	dialogue_label.add_theme_constant_override("line_height", 20)
+	dialogue_label.add_theme_constant_override("paragraph_separation", 4)
 	dialogue_label.visible = true
 	# Enable BBCode for rich text formatting
 	dialogue_label.bbcode_enabled = true
@@ -92,32 +120,20 @@ func _setup_cutscene() -> void:
 
 	# Set the full text with proper formatting and colors
 	# Using simplified BBCode that RichTextLabel can handle
-	_full_text = """[color=#00ff00][b]SYSWARN v4.3 | IRON VERSE SECURITY NETWORK[/b]
-------------------------------------------------------------
-TIMESTAMP: 2087-11-28 03:17:44 UTC
-EVENT ID: IVN-EB-7713-A
-CLASSIFICATION: LEVEL OMEGA BREACH
+	_full_text = """[color=#00ff00]╔════════════════════════════════════════════════════════════════════════╗
+║                                                                            SYSWARN v4.3  
+╚════════════════════════════════════════════════════════════════════════╝[/color]
+timestamp:      2087-11-28 03:17:44 UTC
+event_id:       IVN-EB-7713-A
+classification: [color=#ff0000]LEVEL OMEGA BREACH[/color]
 
-[color=#ff0000]>>> ALERT: CONTAINMENT FAILURE DETECTED
->>> PRISONER 7H-3R13-004K HAS ESCAPED[/color]
+[color=#ff0000]>>> CONTAINMENT FAILURE
+>>> PRISONER 7H-3R13-004K ESCAPED[/color]
 
-SECTOR 7: BREACH AT 03:16:02
-SECURITY GRID: PARTIAL FAILURE
-INTERNAL SENSORS: DEGRADED
-
-NODE STATUS:
-  PRIMARY: 10.0.7.1 [OFFLINE]
-  BACKUP: 10.0.7.2 [DEGRADED]
-  FIREWALL: /sys/security/fw_rule_001.cfg [BYPASSED]
-
-ACCESS LOG:
-  03:15:32 AUTH_SUCCESS root@10.0.7.254 -> /admin/
-  03:15:48 AUTH_FAIL 7H-3R13-004K@10.0.7.13 -> /secure/
-  03:16:02 BREACH 7H-3R13-004K@10.0.7.13 -> /containment/
-  03:16:51 EXIT 7H-3R13-004K@UNKNOWN -> /surface/vent_alpha_4/
-
-AUTOMATED MESSAGE. DO NOT REPLY.
-------------------------------------------------------------[/color]"""
+breach_time:    03:16:02  sector_7
+primary_node:   10.0.7.1    [color=#ff0000]OFFLINE[/color]
+backup_node:    10.0.7.2    [color=#ffff00]DEGRADED[/color]
+firewall:       [color=#ff0000]BYPASSED[/color]"""
 
 	# Start typing the text
 	_start_typing()
@@ -300,9 +316,24 @@ func _unhandled_input(event: InputEvent) -> void:
 	
 	if pressed_accept or pressed_space:
 		if _can_advance:
-			# Go to next scene or end cutscene
+			# Use TransitionManager for fade-out/fade-in when changing scenes
 			if _next_scene_path and _next_scene_path != "":
-				get_tree().change_scene_to_file(_next_scene_path)
+				var tree := get_tree()
+				if tree:
+					var root := tree.get_root()
+					var tm := root.get_node_or_null("TransitionManager")
+					if not tm:
+						var tm_script := load("res://scripts/TransitionManager.gd")
+						if tm_script:
+							tm = Node.new()
+							tm.name = "TransitionManager"
+							tm.set_script(tm_script)
+							root.add_child(tm)
+					if tm:
+						tm.fade_to_scene(_next_scene_path, 1.5, 1.5)
+					else:
+						# Fallback: hard cut if TransitionManager couldn't be created
+						tree.change_scene_to_file(_next_scene_path)
 		else:
 			# Skip typing animation by showing all text immediately
 			_is_typing = false

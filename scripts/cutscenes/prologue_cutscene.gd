@@ -117,9 +117,47 @@ func _start_main_text() -> void:
 func _on_minimum_time_elapsed() -> void:
 	_title_can_skip = true
 
+func _skip_cutscene() -> void:
+	# Stop all audio
+	if typing_player and typing_player.playing:
+		typing_player.stop()
+	if heartbeat_player and heartbeat_player.playing:
+		heartbeat_player.stop()
+	if _thud_sound and _thud_sound.playing:
+		_thud_sound.stop()
+	
+	# Clean up title label if it exists
+	if _title_label:
+		_title_label.queue_free()
+	
+	# Go directly to next scene
+	if _next_scene_path != "":
+		var tree := get_tree()
+		if tree:
+			var root := tree.get_root()
+			var tm := root.get_node_or_null("TransitionManager")
+			if not tm:
+				var tm_script := load("res://scripts/TransitionManager.gd")
+				if tm_script:
+					tm = Node.new()
+					tm.name = "TransitionManager"
+					tm.set_script(tm_script)
+					root.add_child(tm)
+			if tm:
+				tm.fade_to_scene(_next_scene_path, 1.0, 1.0)
+			else:
+				tree.change_scene_to_file(_next_scene_path)
+
 func _unhandled_input(event: InputEvent) -> void:
 	var pressed_accept := event.is_action_pressed("ui_accept")
 	var pressed_space: bool = event is InputEventKey and event.pressed and event.keycode == KEY_SPACE
+	var pressed_escape: bool = event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE
+	
+	# Skip button (ESC) - bypass all dialogue and go to next scene
+	if pressed_escape:
+		_skip_cutscene()
+		return
+		
 	if not (pressed_accept or pressed_space):
 		return
 		
