@@ -67,6 +67,11 @@ var is_attacking := false
 var is_dead := false
 var has_gun: bool = false
 var is_healing: bool = false
+var is_air_attacking := false
+var air_attack_target: Node = null
+var air_attack_speed: float = 1000.0
+var air_attack_horizontal_distance: float = 700.0  # Constant horizontal range
+var air_attack_tween: Tween = null
 
 # Cursor management
 var gun_cursor_texture: Texture2D = null
@@ -215,7 +220,10 @@ func _physics_process(delta: float) -> void:
 		var attack_pressed: bool = Input.is_action_just_pressed("attack")
 		var gun_attack_pressed: bool = has_gun and attack_pressed
 		
-		if has_gun:
+		# Check for air attack (in air + left click)
+		if attack_pressed and not is_on_floor() and not is_dead and not is_air_attacking and not has_gun:
+			_start_air_attack()
+		elif has_gun:
 			# With gun: left-click shoots instead of melee; allow rapid fire on every click
 			# Block shooting while the player gun is reloading
 			if gun_attack_pressed and not is_dead and not _player_is_reloading:
@@ -254,6 +262,8 @@ func _physics_process(delta: float) -> void:
 	# ——— ANIMATION CHOICE ———
 	if is_healing:
 		animated_sprite.play("HEAL")
+	elif is_air_attacking:
+		animated_sprite.play("JUMP")  # Use jump animation during air attack
 	elif is_attacking:
 		# attack animations handled by animation_finished
 		pass
@@ -278,6 +288,9 @@ func _physics_process(delta: float) -> void:
 		var sign_x := -1.0 if animated_sprite.flip_h else 1.0
 		sword_hitbox.position = Vector2(_sword_hitbox_base_position.x * sign_x, _sword_hitbox_base_position.y)
 
+	# Update air attack if active
+	_update_air_attack()
+
 	move_and_slide()
 
 
@@ -300,6 +313,126 @@ func _start_attack_moving() -> void:
 		slash_player.pitch_scale = randf_range(0.7, 1.6)
 		slash_player.play()
 	animated_sprite.play("ATTACK3")
+
+
+# ——— AIR ATTACK ———
+func _start_air_attack() -> void:
+	if is_air_attacking:
+		return
+	
+	# Find nearest enemy (optional, for aiming)
+	air_attack_target = _find_nearest_enemy()
+	
+	is_air_attacking = true
+	is_attacking = false  # Override normal attack state
+	
+	# Always perform downward diagonal attack with constant horizontal distance
+	var horizontal_direction: float = 1.0  # Default right
+	
+	# If enemy exists, aim toward them horizontally
+	if air_attack_target != null:
+		var to_enemy: Vector2 = air_attack_target.global_position - global_position
+		horizontal_direction = sign(to_enemy.x)
+	
+	# Use player's current facing direction as fallback
+	if animated_sprite.flip_h:
+		horizontal_direction = -1.0
+	
+	# Calculate target position for straight diagonal movement
+	var target_x: float = global_position.x + (horizontal_direction * air_attack_horizontal_distance)
+	var target_y: float = global_position.y + (air_attack_horizontal_distance * 0.8)  # Downward diagonal
+	var target_position: Vector2 = Vector2(target_x, target_y)
+	
+	# Face the attack direction
+	animated_sprite.flip_h = horizontal_direction < 0
+	
+	# Create motion tween for timing control while maintaining physics
+	if air_attack_tween and air_attack_tween.is_valid():
+		air_attack_tween.kill()
+	
+	air_attack_tween = create_tween()
+	air_attack_tween.set_trans(Tween.TRANS_LINEAR)
+	air_attack_tween.set_ease(Tween.EASE_OUT)
+	
+	var duration: float = 0.3  # Fixed duration for consistent speed
+	
+	# Calculate constant velocity for perfect diagonal movement
+	velocity.x = horizontal_direction * (air_attack_horizontal_distance / duration)
+	velocity.y = (air_attack_horizontal_distance * 0.8) / duration
+	
+	# Use tween only for timing - physics will handle the movement
+	air_attack_tween.tween_callback(_stop_air_attack_velocity).set_delay(duration)
+	air_attack_tween.finished.connect(_on_air_attack_tween_finished)
+
+func _find_nearest_enemy() -> Node:
+	var enemies := get_tree().get_nodes_in_group("enemies")
+	var nearest: Node = null
+	var nearest_distance: float = INF
+	
+	for enemy in enemies:
+		if enemy.is_dead or not enemy.is_active:
+			continue
+		var distance: float = global_position.distance_to(enemy.global_position)
+		if distance < nearest_distance:
+			nearest_distance = distance
+			nearest = enemy
+	
+	return nearest
+
+func _update_air_attack() -> void:
+	if not is_air_attacking:
+		return
+	
+	# Check if we've collided with any enemy during tween movement
+	var enemies := get_tree().get_nodes_in_group("enemies")
+	for enemy in enemies:
+		if enemy.is_dead or not enemy.is_active:
+			continue
+		var distance: float = global_position.distance_to(enemy.global_position)
+		if distance < 60.0:  # Increased collision threshold for forgiving diagonal attack
+			air_attack_target = enemy  # Set target for damage application
+			_apply_air_attack_damage()
+			_end_air_attack()
+			return
+	
+	# End air attack if player touches ground
+	if is_on_floor():
+		_end_air_attack()
+
+func _stop_air_attack_velocity() -> void:
+	velocity = Vector2.ZERO
+
+func _on_air_attack_tween_finished() -> void:
+	_end_air_attack()
+
+func _apply_air_attack_damage() -> void:
+	if air_attack_target and air_attack_target.has_method("take_damage"):
+		air_attack_target.take_damage(20)
+		
+		# Create impact effect
+		if BLOOD_SCENE:
+			var blood := BLOOD_SCENE.instantiate()
+			var scene := get_tree().current_scene
+			if blood and scene:
+				blood.global_position = air_attack_target.global_position
+				var facing_dir: Vector2 = (air_attack_target.global_position - global_position).normalized()
+				blood.set_direction(facing_dir)
+				scene.add_child(blood)
+		
+		# Camera shake for impact
+		_start_camera_shake()
+
+func _end_air_attack() -> void:
+	is_air_attacking = false
+	air_attack_target = null
+	
+	# Kill the tween if it's still running
+	if air_attack_tween and air_attack_tween.is_valid():
+		air_attack_tween.kill()
+	air_attack_tween = null
+	
+	# Reset velocity to prevent any residual movement
+	velocity = Vector2.ZERO
 
 
 # ——— ANIMATION FINISHED ———
