@@ -475,7 +475,11 @@ layer_0/tile_data = PackedInt32Array(327674, 1, 0, 262154, 1, 0, 262170, 1, 0, 2
 metadata/_edit_group_ = true
 
 [node name="Player" parent="." instance=ExtResource("2_player")]
-position = Vector2(480, 383)
+position = Vector2(480, 405)
 
 [node name="Gun_enemy" parent="." instance=ExtResource("5_gun_enemy")]
-position = Vector2(545, 405)
+position = Vector2(1059, 418)
+
+[node name="Camera2D" type="Camera2D" parent="."]
+position = Vector2(473, 411)
+zoom = Vector2(1.43, 1.43)
