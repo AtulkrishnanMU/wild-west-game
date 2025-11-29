@@ -37,7 +37,7 @@ var _sound_variation_timer: float = 0.0
 var _sound_variation_interval: float = 1.0  # Change sound every 1 second
 
 func _ready() -> void:
-	# Hide all canvas layer elements initially
+	# Hide dialogue label and PC screen initially
 	if dialogue_label:
 		dialogue_label.modulate.a = 0.0
 	if pc_screen:
@@ -60,16 +60,16 @@ func _ready() -> void:
 				root.add_child(tm)
 		if tm:
 			tm.fade_in(1.5)
-			# Also fade in the canvas layer elements
+			# Fade in PC screen faster than text
 			var tween := create_tween()
-			if dialogue_label:
-				tween.tween_property(dialogue_label, "modulate:a", 1.0, 1.5)
 			if pc_screen:
-				tween.tween_property(pc_screen, "modulate:a", 1.0, 1.5)
+				tween.tween_property(pc_screen, "modulate:a", 1.0, 0.8)  # PC screen fades in over 0.8s
+			if dialogue_label:
+				tween.tween_property(dialogue_label, "modulate:a", 1.0, 1.5)  # Text fades in over 1.5s
 	
 func _setup_cutscene() -> void:
-	# Set up the monospace font and default color
-	var font = preload("res://fonts/raster.ttf")
+	# Set up the BigBlueTerm437NerdFontMono font for authentic terminal appearance
+	var font = preload("res://fonts/BigBlueTerm437NerdFontMono-Regular.ttf")
 	# Apply font to all possible font types to ensure full coverage
 	dialogue_label.add_theme_font_override("normal_font", font)
 	dialogue_label.add_theme_font_override("bold_font", font)
@@ -121,7 +121,7 @@ func _setup_cutscene() -> void:
 	# Set the full text with proper formatting and colors
 	# Using simplified BBCode that RichTextLabel can handle
 	_full_text = """[color=#00ff00]╔════════════════════════════════════════════════════════════════════════╗
-║                                                                            SYSWARN v4.3  
+║                                  SYSWARN v4.3  
 ╚════════════════════════════════════════════════════════════════════════╝[/color]
 timestamp:      2087-11-28 03:17:44 UTC
 event_id:       IVN-EB-7713-A

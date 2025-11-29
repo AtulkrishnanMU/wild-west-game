@@ -23,9 +23,9 @@ color = Color(0, 0, 0, 1)
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = 285.0
+offset_left = 205.0
 offset_top = 111.0
-offset_right = 73.65674
+offset_right = -6.3432617
 offset_bottom = -47.0
 grow_horizontal = 2
 grow_vertical = 2
@@ -35,7 +35,6 @@ scroll_active = false
 scroll_following = true
 
 [node name="PcScreen" type="Sprite2D" parent="CanvasLayer"]
-visible = false
-position = Vector2(578.96375, 330.49994)
-scale = Vector2(0.90416646, 0.90416664)
+position = Vector2(569.33344, 318.5)
+scale = Vector2(0.6180556, 0.61805564)
 texture = ExtResource("3_y00di")
