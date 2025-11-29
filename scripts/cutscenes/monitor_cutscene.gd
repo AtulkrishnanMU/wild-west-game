@@ -4,6 +4,8 @@ extends Node2D
 @onready var dialogue_label: RichTextLabel = $CanvasLayer/RichTextLabel
 @onready var typing_player: AudioStreamPlayer = $TypingPlayer
 @onready var pc_screen: Sprite2D = $CanvasLayer/PcScreen
+@onready var pixel1: ColorRect = $CanvasLayer/Pixel1
+@onready var pixel2: ColorRect = $CanvasLayer/Pixel2
 var _pc_sound_player: AudioStreamPlayer
 var _alert_sound_player: AudioStreamPlayer
 
@@ -36,12 +38,32 @@ var _glitch_chance: float = 0.01  # 1% chance of glitch per character
 var _sound_variation_timer: float = 0.0
 var _sound_variation_interval: float = 1.0  # Change sound every 1 second
 
+# Text glitch effect (disabled)
+var _text_glitch_timer: float = 0.0
+var _text_glitch_interval: float = 0.0  # Disabled
+var _text_glitch_duration: float = 0.0  # Disabled
+var _text_glitch_active: bool = false
+var _next_glitch_time: float = 0.0
+
+# Pixel blinking effect
+var _pixel_blink_timer: float = 0.0
+var _pixel_blink_speed: float = 0.3  # Blink every 0.3 seconds (faster)
+var _pixel_visible: bool = true
+var _pixel_min_opacity: float = 0.3  # Minimum opacity during blink (30%)
+var _pixel_max_opacity: float = 1.0  # Maximum opacity (100%)
+
 func _ready() -> void:
 	# Hide dialogue label and PC screen initially
 	if dialogue_label:
 		dialogue_label.modulate.a = 0.0
 	if pc_screen:
 		pc_screen.modulate.a = 0.0
+	
+	# Initialize pixels
+	if pixel1 and pixel2:
+		pixel1.modulate.a = _pixel_max_opacity
+		pixel2.modulate.a = _pixel_max_opacity
+	
 	
 	# Initialize the cutscene
 	_setup_cutscene()
@@ -152,6 +174,18 @@ func _start_typing() -> void:
 		typing_player.play()
 
 func _process(delta: float) -> void:
+	# Handle pixel blinking effect
+	if pixel1 and pixel2:
+		_pixel_blink_timer += delta
+		if _pixel_blink_timer >= _pixel_blink_speed:
+			_pixel_blink_timer = 0.0
+			_pixel_visible = not _pixel_visible
+			
+			# Set opacity based on visibility state
+			var target_opacity = _pixel_max_opacity if _pixel_visible else _pixel_min_opacity
+			pixel1.modulate.a = target_opacity
+			pixel2.modulate.a = target_opacity
+	
 	# Handle typing sound variations
 	if typing_player and typing_player.playing:
 		_sound_variation_timer += delta
@@ -162,6 +196,7 @@ func _process(delta: float) -> void:
 			# Random volume between -10dB and -2dB
 			typing_player.volume_db = randf_range(-10.0, -2.0)
 	
+	
 	# Handle cursor blinking when typing or when typing is complete
 	if _is_typing or _can_advance:
 		_cursor_timer += delta
@@ -169,12 +204,6 @@ func _process(delta: float) -> void:
 			_cursor_timer = 0.0
 			_cursor_visible = not _cursor_visible
 	
-	if _is_glitching:
-		_glitch_timer += delta
-		if _glitch_timer >= _glitch_duration:
-			_is_glitching = false
-			dialogue_label.text = _full_text.substr(0, _char_index + 1)
-		return
 		
 	if not _is_typing and not _can_advance:
 		# Hide cursor when not typing and not ready to advance
@@ -209,10 +238,6 @@ func _process(delta: float) -> void:
 					_char_index = tag_end + 1
 					continue  # Skip to next iteration
 			
-			# Check for glitch (only on first character of the batch)
-			if i == 0 and randf() < _glitch_chance and next_char not in ["\n", " ", "[", "]"]:
-				_trigger_glitch()
-				return
 			
 			# Add the character to the display text
 			_char_index += 1
@@ -298,17 +323,6 @@ func _update_display_text() -> void:
 	
 	dialogue_label.text = display_text
 
-func _trigger_glitch() -> void:
-	_is_glitching = true
-	_glitch_timer = 0.0
-	
-	# Create glitch text
-	var glitch_text = _full_text.substr(0, _char_index)
-	# Add some random glitch characters
-	for i in range(randi() % 3 + 1):  # 1-3 glitch characters
-		glitch_text += _glitch_chars[randi() % _glitch_chars.length()]
-	
-	dialogue_label.text = glitch_text
 
 func _unhandled_input(event: InputEvent) -> void:
 	var pressed_accept := event.is_action_pressed("ui_accept")
