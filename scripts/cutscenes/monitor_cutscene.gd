@@ -358,24 +358,22 @@ func _transition_to_level1() -> void:
 	if pc_screen:
 		tween.tween_property(pc_screen, "modulate:a", 0.0, 2.0)  # PC screen fades out over 1.0s
 	
-	# Fade out audio simultaneously
-	if typing_player:
-		tween.tween_property(typing_player, "volume_db", -80.0, 1.0)  # Fade typing sound to silence
+	# Fade out audio simultaneously (but keep alert sound for smooth transition)
+	tween.set_parallel(true)
+	tween.tween_property(typing_player, "volume_db", -80.0, 1.0)  # Fade typing sound to silence
 	if _pc_sound_player:
 		tween.tween_property(_pc_sound_player, "volume_db", -80.0, 1.0)  # Fade PC sound to silence
-	if _alert_sound_player:
-		tween.tween_property(_alert_sound_player, "volume_db", -80.0, 1.0)  # Fade alert sound to silence
+	# NOTE: Keep alert sound playing for smooth transition to level1
 	
 	# Wait for all fade-outs to complete, then do scene transition
 	await tween.finished
 	
-	# Stop all audio after fade-out
+	# Stop all audio after fade-out (except alert sound for smooth transition)
 	if typing_player and typing_player.playing:
 		typing_player.stop()
 	if _pc_sound_player and _pc_sound_player.playing:
 		_pc_sound_player.stop()
-	if _alert_sound_player and _alert_sound_player.playing:
-		_alert_sound_player.stop()
+	# NOTE: Keep alert sound playing for smooth transition to level1
 	
 	# Use TransitionManager for fade-out/fade-in when changing scenes
 	if _next_scene_path and _next_scene_path != "":

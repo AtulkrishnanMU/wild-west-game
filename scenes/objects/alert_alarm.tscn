@@ -1,0 +1,28 @@
+[gd_scene load_steps=5 format=3 uid="uid://cdxxulv2n0q04"]
+
+[ext_resource type="Script" uid="uid://ypyry8osnps8" path="res://scripts/objects/alert_alarm.gd" id="1_alarm_script"]
+[ext_resource type="Texture2D" uid="uid://cfvp3t4a08xpg" path="res://assets/objects/siren.png" id="2_0ed71"]
+[ext_resource type="AudioStream" uid="uid://u6117mfvyy8l" path="res://sounds/alert.mp3" id="3_0ed71"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_1"]
+size = Vector2(32, 48)
+
+[node name="AlertAlarm" type="Area2D"]
+scale = Vector2(0.5225932, 0.5225932)
+script = ExtResource("1_alarm_script")
+collision_layer = 4
+collision_mask = 0
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+modulate = Color(1, 0.2, 0.2, 1)
+position = Vector2(4.7683716e-07, 1.4305115e-06)
+scale = Vector2(0.19435057, 0.20352049)
+texture = ExtResource("2_0ed71")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("RectangleShape2D_1")
+
+[node name="AudioStreamPlayer2D" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("3_0ed71")
+volume_db = -5.0
+autoplay = true

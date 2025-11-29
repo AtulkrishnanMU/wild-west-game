@@ -18,7 +18,7 @@ var INTRO_GUN_SOUND: AudioStream = null
 # Called when the node enters the scene tree for the first time.
 func _ready() -> void:
 	# Initialize shared UI references for Level base class
-	player = $Player
+	player = get_node_or_null("Player")
 	health_bar = $"UI/HealthBar"
 	heal_cooldown_bar = $"UI/HealCooldownBar"
 	cash_label = $"UI/CashLabel"
@@ -26,11 +26,13 @@ func _ready() -> void:
 	bullet_icons = $"UI/BulletIcons"
 	ui_layer = $"UI"
 
-	# Use common UI setup
-	setup_ui()
+	# Use common UI setup only if player exists
+	if player:
+		setup_ui()
 	
-	# Use common level setup
-	setup_level()
+	# Use common level setup only if player exists
+	if player:
+		setup_level()
 	
 	# Apply font to main menu specific UI elements
 	var ui_font := load("res://fonts/PixelOperator8.ttf")
@@ -46,7 +48,8 @@ func _ready() -> void:
 		if btn_endless:
 			btn_endless.add_theme_font_override("font", ui_font)
 	
-	player.controls_enabled = false
+	if player:
+		player.controls_enabled = false
 	INTRO_GUN_SOUND = load("res://sounds/intro-gun-shot.mp3")
 
 	# Set up intro camera and title UI

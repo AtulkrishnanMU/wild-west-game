@@ -468,7 +468,7 @@ func take_damage(amount: int) -> void:
 			var offset := Vector2(randf_range(-4.0, 4.0), randf_range(-4.0, 4.0))
 			blood.global_position = global_position + offset
 			var facing_dir := Vector2.LEFT if animated_sprite.flip_h else Vector2.RIGHT
-			blood.rotation = facing_dir.angle()
+			blood.set_direction(facing_dir)
 			scene.add_child(blood)
 
 	health = max(health - amount, 0)

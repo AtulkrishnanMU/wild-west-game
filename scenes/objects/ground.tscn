@@ -1,0 +1,22 @@
+[gd_scene load_steps=4 format=3 uid="uid://cqe8lfti15rhf"]
+
+[ext_resource type="Texture2D" uid="uid://bs7iv2dsvwxnn" path="res://assets/tileset/interior.png" id="1_viejq"]
+
+[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_ds0u5"]
+texture = ExtResource("1_viejq")
+20:9/size_in_atlas = Vector2i(17, 8)
+20:9/0 = 0
+20:9/0/physics_layer_0/polygon_0/points = PackedVector2Array(-138.18178, -51.375275, 138.18176, -51.375275, 139.95334, 65.54776, -134.63864, 63.7762)
+
+[sub_resource type="TileSet" id="TileSet_jbj1t"]
+physics_layer_0/collision_layer = 1
+terrain_set_0/mode = 0
+terrain_set_0/terrain_0/name = "Terrain 0"
+terrain_set_0/terrain_0/color = Color(0.5, 0.34375, 0.25, 1)
+sources/0 = SubResource("TileSetAtlasSource_ds0u5")
+
+[node name="Ground" type="TileMap"]
+tile_set = SubResource("TileSet_jbj1t")
+format = 2
+layer_0/tile_data = PackedInt32Array(262170, 1, 0, 262186, 1, 0, 589818, 1, 0, 524314, 1, 0, 524330, 1, 0, 393212, 1310720, 9, 327693, 1310720, 9, 327710, 1310720, 9, 327727, 1310720, 9, 393195, 1310720, 9)
+metadata/_edit_group_ = true

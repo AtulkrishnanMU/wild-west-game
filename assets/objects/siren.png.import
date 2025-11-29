@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bpvwybxbpagle"
-path="res://.godot/imported/PNG0000.PNG-e670e5f9456a2c567c0e078ac6ce541c.ctex"
+uid="uid://cfvp3t4a08xpg"
+path="res://.godot/imported/siren.png-57675ee332e8d20d9d1e592c0448d71c.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/tileset/desert/PNG0000.PNG"
-dest_files=["res://.godot/imported/PNG0000.PNG-e670e5f9456a2c567c0e078ac6ce541c.ctex"]
+source_file="res://assets/objects/siren.png"
+dest_files=["res://.godot/imported/siren.png-57675ee332e8d20d9d1e592c0448d71c.ctex"]
 
 [params]
 
