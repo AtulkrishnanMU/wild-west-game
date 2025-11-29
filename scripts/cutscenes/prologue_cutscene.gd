@@ -6,6 +6,9 @@ var _title_label: Label
 var _thud_sound: AudioStreamPlayer
 var _main_text_started: bool = false
 var _title_timer: SceneTreeTimer
+var _title_minimum_time: float = 3.0
+var _title_elapsed_time: float = 0.0
+var _title_can_skip: bool = false
 
 func _ready() -> void:
 	# Hide cursor initially
@@ -54,8 +57,12 @@ func _ready() -> void:
 	_next_scene_path = "res://scenes/cutscenes/monitor_cutscene.tscn"
 
 	# Set up a timer to show the title after a delay
-	var title_timer = get_tree().create_timer(1.5)  # 1.5 second delay
-	title_timer.timeout.connect(_on_title_timer_timeout)
+	_title_timer = get_tree().create_timer(1.5)  # 1.5 second delay
+	_title_timer.timeout.connect(_on_title_timer_timeout)
+	
+	# Set up timer for minimum title display time
+	var min_time_timer = get_tree().create_timer(_title_minimum_time)
+	min_time_timer.timeout.connect(_on_minimum_time_elapsed)
 	
 	# Set up heartbeat fade in after a short delay
 	if heartbeat_player:
@@ -107,6 +114,9 @@ func _start_main_text() -> void:
 		if _title_label:
 			_title_label.queue_free()
 
+func _on_minimum_time_elapsed() -> void:
+	_title_can_skip = true
+
 func _unhandled_input(event: InputEvent) -> void:
 	var pressed_accept := event.is_action_pressed("ui_accept")
 	var pressed_space: bool = event is InputEventKey and event.pressed and event.keycode == KEY_SPACE
@@ -114,11 +124,16 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 		
 	if _title_showing:
-		_title_showing = false
-		var tween = create_tween()
-		tween.tween_property(_title_label, "modulate:a", 0.0, 0.3).set_trans(Tween.TRANS_LINEAR)
-		tween.tween_callback(_start_main_text)
-		return
+		# Only allow skipping after minimum time has elapsed
+		if _title_can_skip:
+			_title_showing = false
+			var tween = create_tween()
+			tween.tween_property(_title_label, "modulate:a", 0.0, 0.3).set_trans(Tween.TRANS_LINEAR)
+			tween.tween_callback(_start_main_text)
+			return
+		else:
+			# Don't allow skipping before minimum time
+			return
 
 	if _awaiting_break_continue:
 		super._unhandled_input(event)

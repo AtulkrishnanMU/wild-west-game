@@ -3,6 +3,8 @@ extends Node2D
 # References to nodes
 @onready var dialogue_label: RichTextLabel = $CanvasLayer/RichTextLabel
 @onready var typing_player: AudioStreamPlayer = $TypingPlayer
+var _pc_sound_player: AudioStreamPlayer
+var _alert_sound_player: AudioStreamPlayer
 
 # Typing effect
 var _full_text: String = ""
@@ -14,6 +16,7 @@ var _typing_timer: float = 0.0
 var _is_typing: bool = false
 var _next_scene_path: String = ""
 var _current_bbcode_tags: Array[String] = []
+var _chars_per_frame: int = 2  # Type 2 characters at once for faster typing
 
 # Cursor effect
 var _cursor_timer: float = 0.0
@@ -60,6 +63,26 @@ func _setup_cutscene() -> void:
 	# Enable BBCode for rich text formatting
 	dialogue_label.bbcode_enabled = true
 	
+	# Set up PC background sound
+	_pc_sound_player = AudioStreamPlayer.new()
+	add_child(_pc_sound_player)
+	var pc_sound = preload("res://sounds/PC_sound.mp3")
+	if pc_sound:
+		_pc_sound_player.stream = pc_sound
+		_pc_sound_player.volume_db = -10.0  # Adjust volume as needed
+		_pc_sound_player.stream.loop = true
+		_pc_sound_player.play()
+	
+	# Set up alert background sound
+	_alert_sound_player = AudioStreamPlayer.new()
+	add_child(_alert_sound_player)
+	var alert_sound = preload("res://sounds/alert.mp3")
+	if alert_sound:
+		_alert_sound_player.stream = alert_sound
+		_alert_sound_player.volume_db = -8.0  # Slightly louder than PC sound
+		_alert_sound_player.stream.loop = true
+		_alert_sound_player.play()
+
 	# Set the typing sound to digital-typing.mp3
 	if typing_player:
 		var typing_sound = preload("res://sounds/digital-typing.mp3")
@@ -148,38 +171,42 @@ func _process(delta: float) -> void:
 	if _typing_timer >= _typing_speed:
 		_typing_timer = 0.0
 		
-		# Get the next character
-		if _char_index >= _full_text.length():
-			# Finished typing
-			_is_typing = false
-			_can_advance = true
-			if typing_player and typing_player.playing:
-				typing_player.stop()
-			_update_display_text()
-			return
+		# Type multiple characters at once
+		for i in range(_chars_per_frame):
+			# Get the next character
+			if _char_index >= _full_text.length():
+				# Finished typing
+				_is_typing = false
+				_can_advance = true
+				if typing_player and typing_player.playing:
+					typing_player.stop()
+				_update_display_text()
+				return
+			
+			# Get the next character
+			var next_char = _full_text[_char_index]
+			
+			# Handle BBCode tags - just skip them for now
+			if next_char == '[':
+				var tag_end = _full_text.find("]", _char_index)
+				if tag_end != -1:
+					_char_index = tag_end + 1
+					continue  # Skip to next iteration
+			
+			# Check for glitch (only on first character of the batch)
+			if i == 0 and randf() < _glitch_chance and next_char not in ["\n", " ", "[", "]"]:
+				_trigger_glitch()
+				return
+			
+			# Add the character to the display text
+			_char_index += 1
+			
+			# Skip delay for newlines and spaces (only on last character)
+			if next_char in ["\n", " "] and i == _chars_per_frame - 1:
+				_typing_timer = -_typing_speed  # Negative to process next batch immediately
+				break
 		
-		# Get the next character
-		var next_char = _full_text[_char_index]
-		
-		# Handle BBCode tags - just skip them for now
-		if next_char == '[':
-			var tag_end = _full_text.find("]", _char_index)
-			if tag_end != -1:
-				_char_index = tag_end + 1
-				return  # Skip processing this frame to avoid showing partial tags
-		
-		# Check for glitch
-		if randf() < _glitch_chance and next_char not in ["\n", " ", "[", "]"]:
-			_trigger_glitch()
-			return
-		
-		# Add the character to the display text
-		_char_index += 1
 		_update_display_text()
-		
-		# Skip delay for newlines and spaces
-		if next_char in ["\n", " "]:
-			_typing_timer = -_typing_speed  # Negative to process next char immediately
 
 func _update_display_text() -> void:
 	if _char_index >= _full_text.length():
