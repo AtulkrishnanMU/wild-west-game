@@ -28,6 +28,7 @@ signal bullets_changed(current: int, max: int)
 var PLAYER_DEATH_SOUND: AudioStream = null
 var HURT_SOUND: AudioStream = null
 var BLOOD_SPLAT_SOUND: AudioStream = null
+var RUNNING_SOUND: AudioStream = null
 
 const MAX_HEALTH := 200
 var health: int = MAX_HEALTH
@@ -38,6 +39,7 @@ var was_on_floor: bool = false  # Track if player was on floor in previous frame
 @onready var animated_sprite: AnimatedSprite2D = $AnimatedSprite2D
 @onready var slash_player: AudioStreamPlayer2D = $SlashPlayer
 @onready var hit_player: AudioStreamPlayer2D = $HitPlayer
+@onready var running_player: AudioStreamPlayer2D = get_node_or_null("RunningPlayer")
 @onready var camera: Camera2D = get_parent().get_node_or_null("Camera2D")
 @onready var sword_hitbox: Area2D = $SwordHitbox
 @onready var sword_hitbox_shape: CollisionShape2D = $SwordHitbox/CollisionShape2D
@@ -104,6 +106,7 @@ func _ready() -> void:
 	PLAYER_DEATH_SOUND = load("res://sounds/player-death.mp3")
 	HURT_SOUND = load("res://sounds/hurt.mp3")
 	BLOOD_SPLAT_SOUND = load("res://sounds/blood-splat.mp3")
+	RUNNING_SOUND = load("res://sounds/running.mp3")
 	
 	
 	# Load gun cursor texture
@@ -290,10 +293,13 @@ func _physics_process(delta: float) -> void:
 		pass
 	elif not is_on_floor():
 		animated_sprite.play("JUMP")
+		_stop_running_sound()
 	elif velocity.x != 0:
 		animated_sprite.play("RUN")
+		_play_running_sound()
 	else:
 		animated_sprite.play("IDLE")
+		_stop_running_sound()
 
 	if _camera_shake_timer > 0.0:
 		_camera_shake_timer -= delta
@@ -786,6 +792,18 @@ func _play_hurt_sound() -> void:
 	audio.play()
 	audio.finished.connect(audio.queue_free)
 
+
+func _play_running_sound() -> void:
+	if RUNNING_SOUND == null or running_player == null:
+		return
+	if not running_player.playing:
+		running_player.stream = RUNNING_SOUND
+		AudioUtils.play_random_pitch(running_player, 0.9, 1.1)
+		running_player.play()
+
+func _stop_running_sound() -> void:
+	if running_player and running_player.playing:
+		running_player.stop()
 
 func _play_blood_splat_sound() -> void:
 	if BLOOD_SPLAT_SOUND == null:

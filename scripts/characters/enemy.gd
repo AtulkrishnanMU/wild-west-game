@@ -24,6 +24,7 @@ var ENEMY_DEATH_SOUND_1: AudioStream = null
 var ENEMY_DEATH_SOUND_2: AudioStream = null
 var ENEMY_HURT_SOUND: AudioStream = null
 var BLOOD_SPLAT_SOUND: AudioStream = null
+var RUNNING_SOUND: AudioStream = null
 var health: int = MAX_HEALTH
 var FAR_JUMP_DISTANCE: float = 140.0
 var ATTACK_RANGE_DISTANCE: float = ATTACK_RANGE
@@ -34,6 +35,7 @@ var was_on_floor: bool = false  # Track if enemy was on floor in previous frame
 @onready var animated_sprite: AnimatedSprite2D = $AnimatedSprite2D
 @onready var slash_player: AudioStreamPlayer2D = $SlashEnemyPlayer
 @onready var hit_player: AudioStreamPlayer2D = $HitEnemyPlayer
+@onready var running_player: AudioStreamPlayer2D = get_node_or_null("RunningPlayer")
 @onready var player: CharacterBody2D = get_parent().get_node("Player")
 @onready var notifier: VisibleOnScreenNotifier2D = $VisibilityNotifier2D
 @onready var player_notifier: VisibleOnScreenNotifier2D = player.get_node("VisibilityNotifier2D")
@@ -65,6 +67,7 @@ func _ready() -> void:
 	ENEMY_DEATH_SOUND_2 = load("res://sounds/enemy-death2.mp3")
 	ENEMY_HURT_SOUND = load("res://sounds/hurt.mp3")
 	BLOOD_SPLAT_SOUND = load("res://sounds/blood-splat.mp3")
+	RUNNING_SOUND = load("res://sounds/running.mp3")
 	if attack_hitbox:
 		_attack_hitbox_base_position = attack_hitbox.position
 		attack_hitbox.body_entered.connect(_on_attack_hitbox_body_entered)
@@ -162,8 +165,10 @@ func _physics_process(delta: float) -> void:
 			animated_sprite.flip_h = direction < 0
 			if animated_sprite.sprite_frames.has_animation("REV_WALK"):
 				animated_sprite.play("REV_WALK")
+				_play_running_sound()
 			else:
 				animated_sprite.play("RUN")
+				_play_running_sound()
 		move_and_slide()
 		return
 
@@ -185,6 +190,7 @@ func _physics_process(delta: float) -> void:
 				velocity.x = CharacterUtils.apply_smooth_movement(self, target_speed, SPEED, delta, ACCELERATION, DECELERATION, AIR_ACCELERATION)
 				animated_sprite.flip_h = direction < 0
 				animated_sprite.play("RUN")
+				_play_running_sound()
 
 				# Occasional running swing
 				if randf() < 0.012:
@@ -193,6 +199,7 @@ func _physics_process(delta: float) -> void:
 		else:
 			# Close enough → standing attack
 			velocity.x = CharacterUtils.apply_smooth_movement(self, 0.0, SPEED, delta, ACCELERATION, DECELERATION, AIR_ACCELERATION)
+			_stop_running_sound()
 			_start_attack_close()
 
 	else:
@@ -419,6 +426,18 @@ func _play_enemy_death_sound() -> void:
 	AudioUtils.play_random_pitch(audio, 0.9, 1.1)
 	audio.finished.connect(audio.queue_free)
 
+
+func _play_running_sound() -> void:
+	if RUNNING_SOUND == null or running_player == null:
+		return
+	if not running_player.playing:
+		running_player.stream = RUNNING_SOUND
+		AudioUtils.play_random_pitch(running_player, 0.9, 1.1)
+		running_player.play()
+
+func _stop_running_sound() -> void:
+	if running_player and running_player.playing:
+		running_player.stop()
 
 func _play_blood_splat_sound() -> void:
 	if BLOOD_SPLAT_SOUND == null:
