@@ -46,6 +46,7 @@ var _decay_tween: Tween = null
 var _knockback_timer: float = 0.0
 var _attack_hitbox_base_position: Vector2 = Vector2.ZERO
 var _player_in_attack_hitbox: bool = false
+var _dead_collision_shape: CollisionShape2D = null
 
 func _ready() -> void:
 	randomize()
@@ -66,6 +67,9 @@ func _ready() -> void:
 		_attack_hitbox_base_position = attack_hitbox.position
 		attack_hitbox.body_entered.connect(_on_attack_hitbox_body_entered)
 		attack_hitbox.body_exited.connect(_on_attack_hitbox_body_exited)
+	
+	# Try to find dead collision shape
+	_dead_collision_shape = get_node_or_null("DeadCollisionShape2D")
 
 func _physics_process(delta: float) -> void:
 
@@ -278,8 +282,15 @@ func take_damage(amount: int) -> void:
 		if blood and scene:
 			var offset := Vector2(randf_range(-4.0, 4.0), randf_range(-4.0, 4.0))
 			blood.global_position = global_position + offset
-			var facing_dir := Vector2.LEFT if animated_sprite.flip_h else Vector2.RIGHT
-			blood.set_direction(facing_dir)
+			
+			# Set blood direction based on enemy state
+			if is_dead:
+				# Dead enemies: fountain effect (upward)
+				blood.set_direction(Vector2(0.0, -1.0))  # Straight up with slight random spread
+			else:
+				# Alive enemies: normal sideways blood based on facing direction
+				var facing_dir := Vector2.LEFT if animated_sprite.flip_h else Vector2.RIGHT
+				blood.set_direction(facing_dir)
 			scene.add_child(blood)
 	
 	if is_dead:
@@ -309,9 +320,9 @@ func take_damage(amount: int) -> void:
 		# Remove from enemies group so player can no longer hit the corpse
 		if is_in_group("enemies"):
 			remove_from_group("enemies")
-		# Remove enemy from collision layers so it no longer blocks player/bullets,
-		# but keep its mask so it can still collide with the ground and fall normally.
-		collision_layer = 0
+		
+		# Switch to dead collision setup using call_deferred to avoid physics flushing errors
+		call_deferred("_switch_to_dead_collision")
 		# Face the player on death if possible
 		if player:
 			animated_sprite.flip_h = (player.global_position.x < global_position.x)
@@ -356,6 +367,19 @@ func _restore_time_scale_after_kill() -> void:
 	await get_tree().create_timer(0.35).timeout
 	Engine.time_scale = 1.0
 
+
+func _switch_to_dead_collision() -> void:
+	# Switch to dead collision setup
+	var alive_collision_shape = get_node_or_null("CollisionShape2D")
+	if alive_collision_shape:
+		alive_collision_shape.disabled = true
+	if _dead_collision_shape:
+		_dead_collision_shape.disabled = false
+		# Set dead collision to layer 8 (dead enemies layer)
+		collision_layer = 8
+	else:
+		# Fallback: keep enemy layer for bullet collisions if no dead shape exists
+		collision_layer = 2  # Keep enemy layer for bullet collisions
 
 func _drop_cash_on_death() -> void:
 	if CASH_SCENE == null:

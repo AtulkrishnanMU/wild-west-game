@@ -1,4 +1,4 @@
-[gd_scene load_steps=63 format=3 uid="uid://cgi4k0orycx0"]
+[gd_scene load_steps=64 format=3 uid="uid://cgi4k0orycx0"]
 
 [ext_resource type="Texture2D" uid="uid://cag4imwhq5jd4" path="res://assets/characters/axe enemy/Woodcutter_attack1.png" id="1_xwavj"]
 [ext_resource type="Texture2D" uid="uid://cuuyuoribgk3l" path="res://assets/characters/axe enemy/Woodcutter_attack2.png" id="2_nenq2"]
@@ -31,6 +31,7 @@ void fragment() {
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_enemy_hit"]
 shader = SubResource("Shader_enemy_hit")
 shader_parameter/hit_silhouette = 0.0
+shader_parameter/decay_tint = Vector4(1, 1, 1, 1)
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_otmr2"]
 atlas = ExtResource("1_xwavj")
@@ -400,6 +401,9 @@ animations = [{
 [sub_resource type="CircleShape2D" id="CircleShape2D_xwavj"]
 radius = 13.0
 
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_dead_collision"]
+size = Vector2(34, 6.5)
+
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_ak0ug"]
 size = Vector2(19, 34)
 
@@ -411,14 +415,19 @@ script = ExtResource("7_enemy")
 material = SubResource("ShaderMaterial_enemy_hit")
 position = Vector2(6, -7)
 sprite_frames = SubResource("SpriteFrames_j0dkt")
-animation = &"REV_WALK"
+animation = &"DEATH"
 autoplay = "IDLE"
 frame = 5
-frame_progress = 0.08411842
+frame_progress = 0.09607561
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
 position = Vector2(-2, 3)
 shape = SubResource("CircleShape2D_xwavj")
+
+[node name="DeadCollisionShape2D" type="CollisionShape2D" parent="."]
+position = Vector2(4, 14.25)
+shape = SubResource("RectangleShape2D_dead_collision")
+disabled = true
 
 [node name="VisibilityNotifier2D" type="VisibleOnScreenNotifier2D" parent="."]
 

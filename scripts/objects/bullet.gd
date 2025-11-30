@@ -13,6 +13,10 @@ func _ready() -> void:
 	direction = direction.normalized()
 	area_entered.connect(_on_area_entered)
 	body_entered.connect(_on_body_entered)
+	
+	# Ensure bullet can hit both alive and dead enemies by adding their layers
+	collision_mask |= 2  # Add alive enemy layer (bitwise OR)
+	collision_mask |= 8  # Add dead enemy layer (bitwise OR)
 
 func _physics_process(delta: float) -> void:
 	global_position += direction * speed * delta

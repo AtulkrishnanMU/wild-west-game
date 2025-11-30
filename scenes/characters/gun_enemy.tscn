@@ -1,4 +1,4 @@
-[gd_scene load_steps=42 format=3 uid="uid://20gk72vk5hmc"]
+[gd_scene load_steps=43 format=3 uid="uid://20gk72vk5hmc"]
 
 [ext_resource type="Script" uid="uid://w2yfh1hm6ylv" path="res://scripts/characters/gun_enemy.gd" id="1_fc5su"]
 [ext_resource type="Texture2D" uid="uid://b4lei4qqw7cm4" path="res://assets/characters/2 Punk/Punk_all.png" id="2_bypnf"]
@@ -188,7 +188,7 @@ animations = [{
 }],
 "loop": false,
 "name": &"DEATH",
-"speed": 5.0
+"speed": 10.0
 }, {
 "frames": [{
 "duration": 1.0,
@@ -274,8 +274,11 @@ animations = [{
 [sub_resource type="CircleShape2D" id="CircleShape2D_xwavj"]
 radius = 16.0
 
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_dead_collision"]
+size = Vector2(37, 7)
+
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_bypnf"]
-size = Vector2(18, 37)
+size = Vector2(18, 41)
 
 [node name="Gun_enemy" type="CharacterBody2D"]
 collision_layer = 4
@@ -286,14 +289,17 @@ material = SubResource("ShaderMaterial_enemy_hit")
 position = Vector2(1, -11)
 scale = Vector2(1.0950521, 1.0950521)
 sprite_frames = SubResource("SpriteFrames_j0dkt")
-animation = &"JUMP"
+animation = &"IDLE"
 autoplay = "IDLE"
-frame = 3
-frame_progress = 0.48017055
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
 position = Vector2(-2, -3)
 shape = SubResource("CircleShape2D_xwavj")
+
+[node name="DeadCollisionShape2D" type="CollisionShape2D" parent="."]
+position = Vector2(0, 12.5)
+shape = SubResource("RectangleShape2D_dead_collision")
+disabled = true
 
 [node name="VisibilityNotifier2D" type="VisibleOnScreenNotifier2D" parent="."]
 
@@ -312,5 +318,5 @@ collision_layer = 32
 collision_mask = 2
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="AttackHitbox"]
-position = Vector2(-1, -6.5)
+position = Vector2(-1, -4.5)
 shape = SubResource("RectangleShape2D_bypnf")
