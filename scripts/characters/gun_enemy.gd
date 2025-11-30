@@ -1,4 +1,5 @@
-extends "res://scripts/characters/enemy.gd"
+extends "res://scripts/characters/shooter_enemy.gd"
+class_name GunEnemy
 
 const BULLET_SCENE := preload("res://scenes/objects/bullet.tscn")
 const GUN_SCENE := preload("res://scenes/objects/gun.tscn")

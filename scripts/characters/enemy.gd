@@ -4,8 +4,8 @@ signal enemy_killed(enemy: Node)
 var SPEED: float = 150.0
 const GRAVITY: float = 900.0
 const JUMP_SPEED: float = -360.0
-const ATTACK_RANGE: float = 18.0          # When enemy stops chasing and starts attacking
-const DAMAGE_H_RANGE: float = 45.0        # Tight but fair – enemy must be close
+const ATTACK_RANGE: float = 25.0          # Increased attack range
+const DAMAGE_H_RANGE: float = 60.0        # Increased horizontal range
 const DAMAGE_V_RANGE: float = 50.0        # Good vertical coverage (jumping, etc.)
 const DAMAGE_COOLDOWN: float = 0.20       # Prevents insane damage spam
 const ENEMY_KNOCKBACK_SPEED: float = 120.0
@@ -203,13 +203,15 @@ func _physics_process(delta: float) -> void:
 			_start_attack_close()
 
 	else:
-		# While attacking, slow movement
-		velocity.x = CharacterUtils.apply_smooth_movement(self, 0.0, SPEED, delta, ACCELERATION * 2.0, DECELERATION * 2.0, AIR_ACCELERATION)
+		# Handle attack movement (implemented by child classes)
+		_get_attack_movement(delta)
 
-	# Keep hitbox in front of enemy
+	# Keep hitbox more centered for better coverage from both sides
 	if attack_hitbox:
 		var sign_x := -1.0 if animated_sprite.flip_h else 1.0
-		attack_hitbox.position = Vector2(_attack_hitbox_base_position.x * sign_x, _attack_hitbox_base_position.y)
+		# Position hitbox more centered instead of purely in front
+		var offset_x = _attack_hitbox_base_position.x * sign_x * 0.5  # Less forward offset
+		attack_hitbox.position = Vector2(offset_x, _attack_hitbox_base_position.y)
 
 	move_and_slide()
 
@@ -328,6 +330,7 @@ func take_damage(amount: int) -> void:
 		is_attacking = false
 		velocity = Vector2.ZERO
 		# Notify listeners (e.g., Endless mode) that this enemy was killed
+		print("[ENEMY] Emitting enemy_killed signal for: ", name)
 		emit_signal("enemy_killed", self)
 		# Remove from enemies group so player can no longer hit the corpse
 		if is_in_group("enemies"):
@@ -480,3 +483,8 @@ func _check_visibility_activation():
 	if notifier.is_on_screen():
 		has_been_visible_with_player = true
 		is_active = true
+
+# Virtual method for attack movement - override in child classes
+func _get_attack_movement(delta: float) -> void:
+	# Default implementation: stay in place
+	velocity.x = CharacterUtils.apply_smooth_movement(self, 0.0, SPEED, delta, ACCELERATION * 2.0, DECELERATION * 2.0, AIR_ACCELERATION)

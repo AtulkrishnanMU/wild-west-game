@@ -467,9 +467,10 @@ animations = [{
 }]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_tuyoq"]
-size = Vector2(18, 32)
+size = Vector2(22, 32)
 
 [node name="Player" type="CharacterBody2D"]
+position = Vector2(1, 0)
 collision_layer = 2
 script = ExtResource("1_jej6c")
 
@@ -483,14 +484,14 @@ frame_progress = 1.0
 metadata/_edit_group_ = true
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
-position = Vector2(9, 7)
+position = Vector2(11, 7)
 shape = SubResource("RectangleShape2D_tuyoq")
 
 [node name="VisibilityNotifier2D" type="VisibleOnScreenNotifier2D" parent="."]
-position = Vector2(9, 0)
+position = Vector2(11, 0)
 
 [node name="SwordHitbox" type="Area2D" parent="."]
-position = Vector2(11, 0)
+position = Vector2(13, 0)
 collision_layer = 16
 collision_mask = 4
 

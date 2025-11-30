@@ -291,17 +291,25 @@ func _physics_process(delta: float) -> void:
 
 	# ——— ANIMATION CHOICE ———
 	if is_air_attacking:
+		if animated_sprite.animation != "JUMP":
+			print("[PLAYER] Playing JUMP animation (air attack)")
 		animated_sprite.play("JUMP")  # Use jump animation during air attack
 	elif is_attacking:
 		# attack animations handled by animation_finished
 		pass
 	elif not is_on_floor():
+		if animated_sprite.animation != "JUMP":
+			print("[PLAYER] Playing JUMP animation (in air)")
 		animated_sprite.play("JUMP")
 		_stop_running_sound()
 	elif velocity.x != 0:
+		if animated_sprite.animation != "RUN":
+			print("[PLAYER] Playing RUN animation")
 		animated_sprite.play("RUN")
 		_play_running_sound()
 	else:
+		if animated_sprite.animation != "IDLE":
+			print("[PLAYER] Playing IDLE animation")
 		animated_sprite.play("IDLE")
 		_stop_running_sound()
 
@@ -321,6 +329,9 @@ func _physics_process(delta: float) -> void:
 
 	# Update air attack if active
 	_update_air_attack()
+
+	# Auto-connect to enemy kill signals for health gain
+	_connect_enemy_signals()
 
 	move_and_slide()
 
@@ -472,6 +483,7 @@ func _apply_air_attack_damage() -> void:
 		_start_camera_shake()
 
 func _end_air_attack() -> void:
+	print("[PLAYER] Ending air attack - is_on_floor: ", is_on_floor())
 	is_air_attacking = false
 	air_attack_target = null
 	
@@ -482,9 +494,31 @@ func _end_air_attack() -> void:
 	
 	# Reset velocity to prevent any residual movement
 	velocity = Vector2.ZERO
+	
+	# Force animation update to prevent getting stuck
+	_update_animation_state()
 
 
 # ——— ANIMATION FINISHED ———
+func _update_animation_state() -> void:
+	# Force immediate animation update based on current state
+	if is_dead:
+		animated_sprite.play("DEATH")
+	elif is_air_attacking:
+		animated_sprite.play("JUMP")
+	elif is_attacking:
+		# attack animations handled by animation_finished
+		pass
+	elif not is_on_floor():
+		animated_sprite.play("JUMP")
+		_stop_running_sound()
+	elif velocity.x != 0:
+		animated_sprite.play("RUN")
+		_play_running_sound()
+	else:
+		animated_sprite.play("IDLE")
+		_stop_running_sound()
+
 func _on_animation_finished() -> void:
 	var anim = animated_sprite.animation
 
@@ -714,6 +748,37 @@ func add_cash(amount: int) -> void:
 		return
 	cash += amount
 	emit_signal("cash_changed", cash)
+
+func gain_health_from_kill() -> void:
+	print("[PLAYER] gain_health_from_kill called - current health: ", health, "/", MAX_HEALTH)
+	# Restore 2% of max health
+	var health_gain = int(MAX_HEALTH * 0.02)
+	var old_health = health
+	health = min(health + health_gain, MAX_HEALTH)
+	
+	print("[PLAYER] Health calculation - gain: ", health_gain, ", old: ", old_health, ", new: ", health)
+	
+	# Only show popup and effects if health actually increased
+	if health > old_health:
+		emit_signal("health_changed", health, MAX_HEALTH)
+		CharacterUtils.spawn_floating_popup(self, "+2%", Color(1.0, 0.75, 0.8), Vector2(-20, -25))
+		print("[PLAYER] Gained ", health_gain, " health from enemy kill (", old_health, " -> ", health, ")")
+	else:
+		print("[PLAYER] No health gain - already at full health")
+
+func gain_health_from_kill_with_enemy(enemy: Node) -> void:
+	print("[PLAYER] Enemy killed signal received: ", enemy.name if enemy else "null")
+	gain_health_from_kill()
+
+func _connect_enemy_signals() -> void:
+	# Get all enemies and connect to their kill signals if not already connected
+	var enemies := get_tree().get_nodes_in_group("enemies")
+	for enemy in enemies:
+		if enemy.has_signal("enemy_killed"):
+			# Check if already connected to avoid duplicate connections
+			if not enemy.is_connected("enemy_killed", gain_health_from_kill_with_enemy):
+				print("[PLAYER] Connecting to enemy kill signal: ", enemy.name)
+				enemy.connect("enemy_killed", gain_health_from_kill_with_enemy)
 
 
 func pickup_gun() -> void:
