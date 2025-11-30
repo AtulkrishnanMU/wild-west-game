@@ -246,12 +246,16 @@ func _physics_process(delta: float) -> void:
 				target_angle = clamp(angle, -PI / 2.0, PI / 2.0)
 				gun_sprite.scale.x = 1.0
 				animated_sprite.flip_h = false
+				# Reset gun position to base when facing right
+				gun_sprite.position = _gun_base_position
 			else:
 				# Mirror horizontally when aiming left, still keep rotation in [-90°, 90°]
 				var local_angle: float = angle + PI
 				target_angle = clamp(local_angle, -PI / 2.0, PI / 2.0)
 				gun_sprite.scale.x = -1.0
 				animated_sprite.flip_h = true
+				# Position gun more to the left when facing left
+				gun_sprite.position = _gun_base_position + Vector2(-8.0, 0.0)
 			gun_sprite.rotation = target_angle
 	
 	# Update cursor based on gun state
@@ -604,9 +608,13 @@ func _play_player_gun_recoil(shot_dir: Vector2) -> void:
 		_gun_recoil_tween.kill()
 	_gun_recoil_tween = create_tween()
 	var recoil_distance := 4.0
-	var back_pos := _gun_base_position - shot_dir.normalized() * recoil_distance
+	
+	# Get current gun position (which includes left-facing offset)
+	var current_gun_pos := gun_sprite.position
+	var back_pos := current_gun_pos - shot_dir.normalized() * recoil_distance
+	
 	_gun_recoil_tween.tween_property(gun_sprite, "position", back_pos, 0.04)
-	_gun_recoil_tween.tween_property(gun_sprite, "position", _gun_base_position, 0.06)
+	_gun_recoil_tween.tween_property(gun_sprite, "position", current_gun_pos, 0.06)
 
 
 # ——— DAMAGE ———
