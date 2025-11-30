@@ -12,11 +12,16 @@ var has_stuck: bool = false
 @onready var collision_shape: CollisionShape2D = $CollisionShape2D
 
 func _ready() -> void:
-	# Set up blood droplet appearance
+	# Set up blood droplet appearance with random red shade
 	if sprite:
 		var texture = ImageTexture.new()
 		var image = Image.create(6, 6, false, Image.FORMAT_RGBA8)
 		image.fill(Color.TRANSPARENT)
+		
+		# Generate random red shade
+		var red_value = randf_range(0.7, 1.0)        # Red channel: 70%-100%
+		var green_value = randf_range(0.0, 0.2)      # Green channel: 0%-20% (for darker/brighter reds)
+		var blue_value = randf_range(0.0, 0.15)       # Blue channel: 0%-15% (minimal blue)
 		
 		# Create small blood droplet
 		var center = Vector2(3, 3)
@@ -25,7 +30,7 @@ func _ready() -> void:
 				var dist = Vector2(x, y).distance_to(center)
 				if dist < 2.5:
 					var alpha = 1.0 - (dist / 2.5)
-					image.set_pixel(x, y, Color(0.9, 0.1, 0.1, alpha * 0.8))
+					image.set_pixel(x, y, Color(red_value, green_value, blue_value, alpha * 0.8))
 		
 		texture.set_image(image)
 		sprite.texture = texture

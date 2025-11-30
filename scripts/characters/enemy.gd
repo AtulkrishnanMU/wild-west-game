@@ -23,6 +23,7 @@ const AudioUtils = preload("res://scripts/utils/audio_utils.gd")
 var ENEMY_DEATH_SOUND_1: AudioStream = null
 var ENEMY_DEATH_SOUND_2: AudioStream = null
 var ENEMY_HURT_SOUND: AudioStream = null
+var BLOOD_SPLAT_SOUND: AudioStream = null
 var health: int = MAX_HEALTH
 var FAR_JUMP_DISTANCE: float = 140.0
 var ATTACK_RANGE_DISTANCE: float = ATTACK_RANGE
@@ -63,6 +64,7 @@ func _ready() -> void:
 	ENEMY_DEATH_SOUND_1 = load("res://sounds/enemy-death.mp3")
 	ENEMY_DEATH_SOUND_2 = load("res://sounds/enemy-death2.mp3")
 	ENEMY_HURT_SOUND = load("res://sounds/hurt.mp3")
+	BLOOD_SPLAT_SOUND = load("res://sounds/blood-splat.mp3")
 	if attack_hitbox:
 		_attack_hitbox_base_position = attack_hitbox.position
 		attack_hitbox.body_entered.connect(_on_attack_hitbox_body_entered)
@@ -293,6 +295,9 @@ func take_damage(amount: int) -> void:
 				blood.set_direction(facing_dir)
 			scene.add_child(blood)
 	
+	# Play blood splat sound
+	_play_blood_splat_sound()
+	
 	if is_dead:
 		return  # Don't apply damage or other effects if already dead
 	
@@ -414,6 +419,19 @@ func _play_enemy_death_sound() -> void:
 	AudioUtils.play_random_pitch(audio, 0.9, 1.1)
 	audio.finished.connect(audio.queue_free)
 
+
+func _play_blood_splat_sound() -> void:
+	if BLOOD_SPLAT_SOUND == null:
+		return
+	var scene := get_tree().current_scene
+	if scene == null:
+		return
+	var audio := AudioStreamPlayer2D.new()
+	audio.stream = BLOOD_SPLAT_SOUND
+	audio.position = global_position
+	scene.add_child(audio)
+	AudioUtils.play_random_pitch(audio, 0.8, 1.2)
+	audio.finished.connect(audio.queue_free)
 
 func _play_enemy_hurt_sound() -> void:
 	if ENEMY_HURT_SOUND == null:

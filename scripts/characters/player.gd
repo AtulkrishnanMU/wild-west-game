@@ -27,6 +27,7 @@ signal bullets_changed(current: int, max: int)
 
 var PLAYER_DEATH_SOUND: AudioStream = null
 var HURT_SOUND: AudioStream = null
+var BLOOD_SPLAT_SOUND: AudioStream = null
 
 const MAX_HEALTH := 200
 var health: int = MAX_HEALTH
@@ -102,6 +103,7 @@ func _ready() -> void:
 		_gun_base_position = gun_sprite.position
 	PLAYER_DEATH_SOUND = load("res://sounds/player-death.mp3")
 	HURT_SOUND = load("res://sounds/hurt.mp3")
+	BLOOD_SPLAT_SOUND = load("res://sounds/blood-splat.mp3")
 	
 	
 	# Load gun cursor texture
@@ -656,6 +658,9 @@ func take_damage(amount: int) -> void:
 			var facing_dir := Vector2.LEFT if animated_sprite.flip_h else Vector2.RIGHT
 			blood.set_direction(facing_dir)
 			scene.add_child(blood)
+	
+	# Play blood splat sound
+	_play_blood_splat_sound()
 
 	health = max(health - amount, 0)
 	if hit_player:
@@ -779,6 +784,20 @@ func _play_hurt_sound() -> void:
 	audio.pitch_scale = randf_range(0.9, 1.1)
 	scene.add_child(audio)
 	audio.play()
+	audio.finished.connect(audio.queue_free)
+
+
+func _play_blood_splat_sound() -> void:
+	if BLOOD_SPLAT_SOUND == null:
+		return
+	var scene := get_tree().current_scene
+	if scene == null:
+		return
+	var audio := AudioStreamPlayer2D.new()
+	audio.stream = BLOOD_SPLAT_SOUND
+	audio.position = global_position
+	scene.add_child(audio)
+	AudioUtils.play_random_pitch(audio, 0.8, 1.2)
 	audio.finished.connect(audio.queue_free)
 
 
