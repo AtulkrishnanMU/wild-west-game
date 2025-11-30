@@ -3,6 +3,12 @@ extends CharacterBody2D
 
 const SPEED = 300.0
 const JUMP_VELOCITY = -400.0
+const TILE_SIZE = 16
+const MAX_JUMP_HEIGHT_TILES = 6  # Max jump height in tiles
+const MAX_JUMP_HEIGHT = TILE_SIZE * MAX_JUMP_HEIGHT_TILES  # 64 pixels
+const MIN_JUMP_HEIGHT_TILES = 1  # Min jump height in tiles
+const MIN_JUMP_HEIGHT = TILE_SIZE * MIN_JUMP_HEIGHT_TILES  # 16 pixels
+const GRAVITY = 980.0  # Default gravity for jump calculations
 const AudioUtils = preload("res://scripts/utils/audio_utils.gd")
 const BLOOD_SCENE := preload("res://scenes/objects/blood_splash.tscn")
 const PLAYER_BULLET_SCENE := preload("res://scenes/objects/bullet.tscn")
@@ -23,6 +29,7 @@ const MAX_HEALTH := 200
 var health: int = MAX_HEALTH
 var cash: int = 0
 var controls_enabled: bool = true
+var was_on_floor: bool = false  # Track if player was on floor in previous frame
 
 @onready var animated_sprite: AnimatedSprite2D = $AnimatedSprite2D
 @onready var slash_player: AudioStreamPlayer2D = $SlashPlayer
@@ -62,6 +69,11 @@ var air_attack_speed: float = 1000.0
 var air_attack_horizontal_distance: float = 700.0  # Constant horizontal range
 var air_attack_tween: Tween = null
 
+# Jump control variables
+var is_jumping := false
+var jump_start_y := 0.0
+var jump_held := false
+
 # Cursor management
 var gun_cursor_texture: Texture2D = null
 var normal_cursor_shape: Input.CursorShape = Input.CURSOR_ARROW
@@ -89,8 +101,32 @@ func _ready() -> void:
 	gun_cursor_texture = load("res://assets/objects/gun_aim.png")
 
 func _physics_process(delta: float) -> void:
+	# Limit jump height to max
+	if is_jumping:
+		var current_jump_height = jump_start_y - global_position.y
+		if current_jump_height >= MAX_JUMP_HEIGHT:
+			# Reached max height, force fall
+			velocity.y = max(velocity.y, 200.0)
+			is_jumping = false
+	
+	# Check if landed
+	if is_jumping and is_on_floor():
+		is_jumping = false
+		jump_held = false
+	
 	if not is_on_floor():
 		velocity += get_gravity() * delta
+
+	# Check for landing - create dust effect
+	if CharacterUtils.check_dust_landing(self, was_on_floor, velocity):
+		print("Creating dust effect - landing velocity: ", velocity.y)
+		CharacterUtils.create_dust_effect(self)
+	
+	# Create dust while running on ground
+	if CharacterUtils.check_running_dust(self, velocity):
+		CharacterUtils.create_running_dust(self)
+	
+	was_on_floor = is_on_floor()  # Update floor tracking
 
 	# ——— DEAD ———
 	if is_dead:
@@ -116,9 +152,25 @@ func _physics_process(delta: float) -> void:
 		return
 
 	# ——— INPUT (only runs when not in knockback) ———
-	# Jump input
+	# Jump input - variable height jumping
 	if Input.is_action_just_pressed("ui_accept") and is_on_floor() and not is_attacking:
+		# Start jump
+		is_jumping = true
+		jump_start_y = global_position.y
+		jump_held = true
 		velocity.y = JUMP_VELOCITY
+	
+	# Handle jump release for variable height
+	if is_jumping and Input.is_action_just_released("ui_accept"):
+		jump_held = false
+		# Apply early gravity to reduce jump height
+		var current_jump_height = jump_start_y - global_position.y
+		if current_jump_height < MIN_JUMP_HEIGHT:
+			# Force minimum jump height
+			velocity.y = min(velocity.y, -sqrt(2 * GRAVITY * (MIN_JUMP_HEIGHT - current_jump_height)))
+		else:
+			# Apply extra gravity to stop upward momentum
+			velocity.y = max(velocity.y, 100.0)
 	
 	# Horizontal movement: only while right mouse button is held
 	var direction: float = 0.0

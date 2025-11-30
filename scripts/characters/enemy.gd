@@ -24,6 +24,7 @@ var ATTACK_RANGE_DISTANCE: float = ATTACK_RANGE
 var is_dead: bool = false
 var has_been_visible_with_player := false
 var is_active := false
+var was_on_floor: bool = false  # Track if enemy was on floor in previous frame
 @onready var animated_sprite: AnimatedSprite2D = $AnimatedSprite2D
 @onready var slash_player: AudioStreamPlayer2D = $SlashEnemyPlayer
 @onready var hit_player: AudioStreamPlayer2D = $HitEnemyPlayer
@@ -76,6 +77,12 @@ func _physics_process(delta: float) -> void:
 		velocity.x = 0.0
 		animated_sprite.play("IDLE")
 		move_and_slide()
+		
+		# Check for dust even when inactive (falling, landing)
+		if CharacterUtils.check_dust_landing(self, was_on_floor, velocity):
+			CharacterUtils.create_dust_effect(self, 10.0, 6.0)
+		
+		was_on_floor = is_on_floor()  # Update floor tracking
 		return
 	# ─────────────────────────────────────────────
 
@@ -105,6 +112,16 @@ func _physics_process(delta: float) -> void:
 	# Gravity
 	if not is_on_floor():
 		velocity.y += GRAVITY * delta
+
+	# Check for landing - create dust effect
+	if CharacterUtils.check_dust_landing(self, was_on_floor, velocity):
+		CharacterUtils.create_dust_effect(self, 10.0, 6.0)
+	
+	# Create dust while running on ground
+	if CharacterUtils.check_running_dust(self, velocity):
+		CharacterUtils.create_running_dust(self, 10.0, 3.0)
+	
+	was_on_floor = is_on_floor()  # Update floor tracking
 
 	# Knockback window
 	if _knockback_timer > 0.0:
