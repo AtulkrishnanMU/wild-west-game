@@ -249,13 +249,23 @@ func _physics_process(delta: float) -> void:
 				# Reset gun position to base when facing right
 				gun_sprite.position = _gun_base_position
 			else:
-				# Mirror horizontally when aiming left, still keep rotation in [-90°, 90°]
-				var local_angle: float = angle + PI
-				target_angle = clamp(local_angle, -PI / 2.0, PI / 2.0)
+				# Mirror horizontally when aiming left
 				gun_sprite.scale.x = -1.0
 				animated_sprite.flip_h = true
 				# Position gun more to the left when facing left
 				gun_sprite.position = _gun_base_position + Vector2(-8.0, 0.0)
+				
+				# Better angle calculation for left-facing
+				# Convert angle to local space (mirrored)
+				if angle >= 0:
+					# Top-left quadrant (0 to 90°) - should point up
+					target_angle = -(PI - angle)
+				else:
+					# Bottom-left quadrant (-90° to 0°) - should point down
+					target_angle = -(-PI - angle)
+				
+				# Clamp to reasonable aiming range
+				target_angle = clamp(target_angle, -PI / 2.0, PI / 2.0)
 			gun_sprite.rotation = target_angle
 	
 	# Update cursor based on gun state
