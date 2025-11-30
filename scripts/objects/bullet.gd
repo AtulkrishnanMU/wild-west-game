@@ -7,6 +7,8 @@ extends Area2D
 var direction: Vector2 = Vector2.RIGHT
 var shooter: Node = null
 
+const DUST_PARTICLE_SCENE := preload("res://scenes/objects/dust_particle.tscn")
+
 func _ready() -> void:
 	direction = direction.normalized()
 	area_entered.connect(_on_area_entered)
@@ -19,7 +21,44 @@ func _on_area_entered(area: Area2D) -> void:
 	_apply_damage(area)
 
 func _on_body_entered(body: Node) -> void:
+	# Check if hit a tileset (TileMap) or solid surface
+	if body is TileMap or body.is_in_group("walls") or body.is_in_group("ground"):
+		call_deferred("_create_impact_effect")
+		queue_free()
+		return
+	
 	_apply_damage(body)
+
+func _create_impact_effect() -> void:
+	# Create white particle impact effect
+	var scene := get_tree().current_scene
+	if scene == null or DUST_PARTICLE_SCENE == null:
+		return
+	
+	# Create 3-5 white particles for impact
+	var particle_count := randi_range(3, 5)
+	for i in range(particle_count):
+		var particle := DUST_PARTICLE_SCENE.instantiate()
+		if particle == null:
+			continue
+		
+		# Position particle at bullet impact location
+		particle.global_position = global_position
+		
+		# Give particle random velocity away from impact point
+		var spread_angle := randf_range(0.0, PI * 2.0)
+		var spread_speed := randf_range(50.0, 120.0)
+		particle.velocity = Vector2(cos(spread_angle), sin(spread_angle)) * spread_speed
+		
+		# Shorter lifetime for impact particles
+		particle.lifetime = randf_range(0.3, 0.6)
+		
+		# Make particles white and more visible
+		if particle.has_node("Sprite"):
+			var sprite = particle.get_node("Sprite")
+			sprite.modulate = Color.WHITE
+		
+		scene.add_child(particle)
 
 func _apply_damage(target: Node) -> void:
 	if not is_instance_valid(target):
@@ -40,7 +79,7 @@ func _apply_damage(target: Node) -> void:
 		return
 	if target.has_method("take_damage"):
 		target.take_damage(damage)
-	queue_free()
+		queue_free()
 
 func _get_player() -> Node:
 	var scene := get_tree().current_scene
