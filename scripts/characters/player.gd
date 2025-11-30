@@ -4,7 +4,7 @@ extends CharacterBody2D
 const SPEED = 300.0
 const JUMP_VELOCITY = -400.0
 const TILE_SIZE = 16
-const MAX_JUMP_HEIGHT_TILES = 4
+const MAX_JUMP_HEIGHT_TILES = 6
 const MAX_JUMP_HEIGHT = MAX_JUMP_HEIGHT_TILES * TILE_SIZE  # 64 pixels
 const MAX_JUMP_HOLD_TIME = 0.3  # seconds to reach max height
 const AudioUtils = preload("res://scripts/utils/audio_utils.gd")
