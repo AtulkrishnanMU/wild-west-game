@@ -330,7 +330,6 @@ func take_damage(amount: int) -> void:
 		is_attacking = false
 		velocity = Vector2.ZERO
 		# Notify listeners (e.g., Endless mode) that this enemy was killed
-		print("[ENEMY] Emitting enemy_killed signal for: ", name)
 		emit_signal("enemy_killed", self)
 		# Remove from enemies group so player can no longer hit the corpse
 		if is_in_group("enemies"):

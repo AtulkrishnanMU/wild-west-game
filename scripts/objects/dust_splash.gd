@@ -12,12 +12,10 @@ func set_direction(dir: Vector2) -> void:
 	direction = dir.normalized()
 
 func _spawn_dust_particles() -> void:
-	print("Spawning dust particles!")
 	for i in range(PARTICLE_COUNT):
 		var particle = DUST_PARTICLE_SCENE.instantiate()
 		if particle:
 			add_child(particle)
-			print("Created dust particle ", i)
 			# Random initial velocity and position based on direction
 			var angle_offset = randf_range(-PI/3, PI/3)  # Wider spread for dust
 			var angle = direction.angle() + angle_offset
@@ -28,4 +26,4 @@ func _spawn_dust_particles() -> void:
 			particle.velocity = velocity_dir * speed
 			particle.lifetime = randf_range(1.5, 2.5)  # Shorter lifetime
 		else:
-			print("Failed to instantiate dust particle!")
+			push_error("Failed to instantiate dust particle!")

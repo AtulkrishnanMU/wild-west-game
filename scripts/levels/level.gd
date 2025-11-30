@@ -104,28 +104,20 @@ func spawn_enemy_around_player(enemy_scene: PackedScene, min_distance: float = 1
 	
 	# Track kills via Enemy's enemy_killed signal, if present
 	if enemy.has_signal("enemy_killed"):
-		print("[LEVEL] Connecting enemy_killed signal for: ", enemy.name, " (player is: ", player.name if player else "null", ")")
 		enemy.connect("enemy_killed", _on_enemy_killed)
 		
 		# Also connect directly to player if available (more reliable)
 		if player and player.has_method("gain_health_from_kill_with_enemy"):
-			print("[LEVEL] Connecting enemy directly to player for health gain")
 			enemy.connect("enemy_killed", player.gain_health_from_kill_with_enemy)
-	else:
-		print("[LEVEL] Enemy has no enemy_killed signal: ", enemy.name)
 	
 	scene.add_child(enemy)
 	return enemy
 
 # Common enemy killed handler
 func _on_enemy_killed(enemy: Node) -> void:
-	print("[LEVEL] Enemy killed: ", enemy.name)
 	# Give player 5% health for each enemy kill
 	if player and player.has_method("gain_health_from_kill"):
-		print("[LEVEL] Calling gain_health_from_kill on player")
 		player.gain_health_from_kill()
-	else:
-		print("[LEVEL] Player reference missing or no gain_health_from_kill method")
 
 func _on_player_health_changed(current: int, max_value: int) -> void:
 	var ratio: float = 0.0

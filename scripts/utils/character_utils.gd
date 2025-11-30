@@ -8,7 +8,6 @@ const BLOOD_SCENE := preload("res://scenes/objects/blood_splash.tscn")
 # Dust creation functions
 static func create_dust_effect(character: Node2D, offset_y: float = 12.0, spread_x: float = 8.0) -> void:
 	# Spawn dust splash at character landing position (near feet)
-	print("Creating dust effect for: ", character.name)
 	if DUST_SCENE:
 		var dust := DUST_SCENE.instantiate()
 		var scene := character.get_tree().current_scene
@@ -17,13 +16,11 @@ static func create_dust_effect(character: Node2D, offset_y: float = 12.0, spread
 			dust.global_position = character.global_position + offset
 			dust.set_direction(Vector2(randf_range(-0.3, 0.3), 0.8))  # Downward with slight spread
 			scene.add_child(dust)
-			print("Dust added successfully for: ", character.name)
 	else:
-		print("DUST_SCENE not found!")
+		push_error("DUST_SCENE not found!")
 
 static func create_running_dust(character: Node2D, offset_y: float = 12.0, spread_x: float = 4.0) -> void:
 	# Spawn smaller dust effect while running (at feet level)
-	print("Creating running dust for: ", character.name)
 	if DUST_SCENE:
 		var dust := DUST_SCENE.instantiate()
 		var scene := character.get_tree().current_scene
@@ -32,9 +29,8 @@ static func create_running_dust(character: Node2D, offset_y: float = 12.0, sprea
 			dust.global_position = character.global_position + offset
 			dust.set_direction(Vector2(randf_range(-0.5, -0.1), 0.5))  # Backward and slightly down
 			scene.add_child(dust)
-			print("Running dust added successfully for: ", character.name)
 	else:
-		print("DUST_SCENE not found for running dust!")
+		push_error("DUST_SCENE not found for running dust!")
 
 # Blood creation functions
 static func create_blood_effect(character: Node2D, spread: float = 4.0) -> void:

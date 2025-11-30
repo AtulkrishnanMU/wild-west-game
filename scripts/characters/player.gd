@@ -74,6 +74,10 @@ var air_attack_target: Node = null
 var air_attack_speed: float = 1000.0
 var air_attack_horizontal_distance: float = 500.0  # Constant horizontal range
 var air_attack_tween: Tween = null
+var _air_attack_just_ended := false  # Prevent getting stuck in jump animation
+var _air_attack_cooldown := 0.0
+var _force_idle_after_air_attack := false  # Persistent flag to prevent override
+var _air_attack_ending := false  # Prevent multiple calls to _end_air_attack
 
 # Backup weapon system
 var backup_gun_data: Dictionary = {}
@@ -140,6 +144,8 @@ func _physics_process(delta: float) -> void:
 	# Reset jump state when landing
 	if is_on_floor() and not was_on_floor:
 		is_jumping = false
+		_air_attack_just_ended = false     # Clear air attack flags immediately when landing
+		_force_idle_after_air_attack = false
 	
 	# Create dust while running on ground
 	if CharacterUtils.check_running_dust(self, velocity):
@@ -291,25 +297,24 @@ func _physics_process(delta: float) -> void:
 
 	# ——— ANIMATION CHOICE ———
 	if is_air_attacking:
-		if animated_sprite.animation != "JUMP":
-			print("[PLAYER] Playing JUMP animation (air attack)")
 		animated_sprite.play("JUMP")  # Use jump animation during air attack
 	elif is_attacking:
 		# attack animations handled by animation_finished
 		pass
-	elif not is_on_floor():
-		if animated_sprite.animation != "JUMP":
-			print("[PLAYER] Playing JUMP animation (in air)")
+	elif _force_idle_after_air_attack:
+		# Force idle animation after air attack until player moves
+		animated_sprite.play("IDLE")
+		_stop_running_sound()
+	elif not is_on_floor() and not _air_attack_just_ended:
+		# Only play jump animation if not in cooldown from air attack
 		animated_sprite.play("JUMP")
 		_stop_running_sound()
 	elif velocity.x != 0:
-		if animated_sprite.animation != "RUN":
-			print("[PLAYER] Playing RUN animation")
+		# Clear force idle flag when player starts moving
+		_force_idle_after_air_attack = false
 		animated_sprite.play("RUN")
 		_play_running_sound()
 	else:
-		if animated_sprite.animation != "IDLE":
-			print("[PLAYER] Playing IDLE animation")
 		animated_sprite.play("IDLE")
 		_stop_running_sound()
 
@@ -332,6 +337,14 @@ func _physics_process(delta: float) -> void:
 
 	# Auto-connect to enemy kill signals for health gain
 	_connect_enemy_signals()
+
+	# Update air attack cooldown
+	if _air_attack_cooldown > 0.0:
+		_air_attack_cooldown -= delta
+		if _air_attack_cooldown <= 0.0:
+			_air_attack_just_ended = false
+			# Also clear force idle flag when cooldown expires
+			_force_idle_after_air_attack = false
 
 	move_and_slide()
 
@@ -446,6 +459,10 @@ func _update_air_attack() -> void:
 	if not is_air_attacking:
 		return
 	
+	# Skip if air attack is already ending
+	if _air_attack_ending:
+		return
+	
 	# Check if we've collided with any enemy during tween movement
 	var enemies := get_tree().get_nodes_in_group("enemies")
 	for enemy in enemies:
@@ -463,6 +480,9 @@ func _update_air_attack() -> void:
 		_end_air_attack()
 
 func _on_air_attack_tween_finished() -> void:
+	# Skip if air attack is already ending
+	if _air_attack_ending:
+		return
 	_end_air_attack()
 
 func _apply_air_attack_damage() -> void:
@@ -483,9 +503,20 @@ func _apply_air_attack_damage() -> void:
 		_start_camera_shake()
 
 func _end_air_attack() -> void:
-	print("[PLAYER] Ending air attack - is_on_floor: ", is_on_floor())
+	# Prevent multiple calls to this function
+	if _air_attack_ending:
+		return
+	
+	# Also skip if air attack is already ended
+	if not is_air_attacking:
+		return
+	
+	_air_attack_ending = true
 	is_air_attacking = false
 	air_attack_target = null
+	_air_attack_just_ended = true
+	_air_attack_cooldown = 1.0  # 1 second cooldown
+	_force_idle_after_air_attack = true  # Force idle animation until player moves
 	
 	# Kill the tween if it's still running
 	if air_attack_tween and air_attack_tween.is_valid():
@@ -495,13 +526,18 @@ func _end_air_attack() -> void:
 	# Reset velocity to prevent any residual movement
 	velocity = Vector2.ZERO
 	
-	# Force animation update to prevent getting stuck
-	_update_animation_state()
+	# Delay animation state update to next frame to avoid conflict with main animation logic
+	call_deferred("_update_animation_state")
 
 
 # ——— ANIMATION FINISHED ———
 func _update_animation_state() -> void:
 	# Force immediate animation update based on current state
+	var old_anim = animated_sprite.animation
+	
+	# Clear the ending flag since we're now updating
+	_air_attack_ending = false
+	
 	if is_dead:
 		animated_sprite.play("DEATH")
 	elif is_air_attacking:
@@ -509,7 +545,8 @@ func _update_animation_state() -> void:
 	elif is_attacking:
 		# attack animations handled by animation_finished
 		pass
-	elif not is_on_floor():
+	elif not is_on_floor() and not _air_attack_just_ended:
+		# Only play jump animation if not in cooldown from air attack
 		animated_sprite.play("JUMP")
 		_stop_running_sound()
 	elif velocity.x != 0:
@@ -571,13 +608,10 @@ func _fire_player_bullet() -> void:
 	# Track number of shots and trigger reload / drop when magazine is empty
 	_player_shots_since_reload += 1
 	var remaining: int = max(PLAYER_MAG_SIZE - _player_shots_since_reload, 0)
-	print("[PLAYER GUN] Shot fired. shots_since_reload=", _player_shots_since_reload, " remaining=", remaining, " reload_count=", _player_reload_count)
 	emit_signal("bullets_changed", remaining, PLAYER_MAG_SIZE)
 	if _player_shots_since_reload >= PLAYER_MAG_SIZE:
-		print("[PLAYER GUN] Magazine empty. reload_count=", _player_reload_count, " max_reloads=", PLAYER_MAX_RELOADS)
 		# Magazine empty: either start a reload or drop the gun if the NEXT reload would exceed the limit
 		if _player_reload_count + 1 > PLAYER_MAX_RELOADS:
-			print("[PLAYER GUN] Reload limit reached; dropping gun")
 			_drop_player_gun()
 		else:
 			_start_player_reload_animation()
@@ -594,7 +628,6 @@ func _start_player_reload_animation() -> void:
 	if _player_is_reloading:
 		return
 	_player_is_reloading = true
-	print("[PLAYER GUN] Starting reload animation. reload_count=", _player_reload_count, " shots_since_reload=", _player_shots_since_reload)
 	# Round ended: clear all bullets from UI
 	emit_signal("bullets_changed", 0, PLAYER_MAG_SIZE)
 	# Stop any existing reload tween
@@ -629,7 +662,6 @@ func _on_player_reload_finished() -> void:
 	# Count this completed reload and reset magazine
 	_player_reload_count += 1
 	_player_shots_since_reload = 0
-	print("[PLAYER GUN] Reload finished. reload_count=", _player_reload_count, " shots_since_reload=", _player_shots_since_reload)
 	# Reload finished: refill magazine in UI
 	emit_signal("bullets_changed", PLAYER_MAG_SIZE, PLAYER_MAG_SIZE)
 
@@ -639,7 +671,6 @@ func _drop_player_gun() -> void:
 	has_gun = false
 	_player_is_reloading = false
 	_player_shots_since_reload = 0
-	print("[PLAYER GUN] Dropping gun. reload_count=", _player_reload_count)
 	
 	# Check if we have a backup gun to auto-equip
 	if has_backup_gun:
@@ -750,24 +781,17 @@ func add_cash(amount: int) -> void:
 	emit_signal("cash_changed", cash)
 
 func gain_health_from_kill() -> void:
-	print("[PLAYER] gain_health_from_kill called - current health: ", health, "/", MAX_HEALTH)
 	# Restore 2% of max health
 	var health_gain = int(MAX_HEALTH * 0.02)
 	var old_health = health
 	health = min(health + health_gain, MAX_HEALTH)
 	
-	print("[PLAYER] Health calculation - gain: ", health_gain, ", old: ", old_health, ", new: ", health)
-	
 	# Only show popup and effects if health actually increased
 	if health > old_health:
 		emit_signal("health_changed", health, MAX_HEALTH)
 		CharacterUtils.spawn_floating_popup(self, "+2%", Color(1.0, 0.75, 0.8), Vector2(-20, -25))
-		print("[PLAYER] Gained ", health_gain, " health from enemy kill (", old_health, " -> ", health, ")")
-	else:
-		print("[PLAYER] No health gain - already at full health")
 
 func gain_health_from_kill_with_enemy(enemy: Node) -> void:
-	print("[PLAYER] Enemy killed signal received: ", enemy.name if enemy else "null")
 	gain_health_from_kill()
 
 func _connect_enemy_signals() -> void:
@@ -777,7 +801,6 @@ func _connect_enemy_signals() -> void:
 		if enemy.has_signal("enemy_killed"):
 			# Check if already connected to avoid duplicate connections
 			if not enemy.is_connected("enemy_killed", gain_health_from_kill_with_enemy):
-				print("[PLAYER] Connecting to enemy kill signal: ", enemy.name)
 				enemy.connect("enemy_killed", gain_health_from_kill_with_enemy)
 
 
@@ -791,34 +814,28 @@ func pickup_gun() -> void:
 				"is_reloading": _player_is_reloading
 			}
 			has_backup_gun = true
-			print("[PLAYER GUN] Stored current gun as backup")
 			CharacterUtils.spawn_floating_popup(self, "GUN STORED", Color(0.4, 1.0, 0.4), Vector2(-25, -22))
+			# Update the current gun to be the new pickup (reset ammo)
+			_player_shots_since_reload = 0
+			_player_reload_count = 0
+			_player_is_reloading = false
+			emit_signal("bullets_changed", PLAYER_MAG_SIZE, PLAYER_MAG_SIZE)
 		else:
-			print("[PLAYER GUN] Already have backup gun, ignoring pickup")
-		return
-	
-	has_gun = true
-	if gun_sprite:
-		gun_sprite.visible = true
-	
-	# If we have a backup gun, restore its state instead of resetting
-	if has_backup_gun:
-		_player_shots_since_reload = backup_gun_data["shots_since_reload"]
-		_player_reload_count = backup_gun_data["reload_count"]
-		_player_is_reloading = backup_gun_data["is_reloading"]
-		has_backup_gun = false
-		backup_gun_data = {}
-		print("[PLAYER GUN] Equipped backup gun with restored state")
-		CharacterUtils.spawn_floating_popup(self, "BACKUP GUN", Color(0.4, 1.0, 0.4), Vector2(-25, -22))
+			# Already have a backup gun, can't pick up another
+			return
 	else:
+		# No gun currently equipped, just pick it up
+		has_gun = true
+		if gun_sprite:
+			gun_sprite.visible = true
+		
 		# Reset magazine and reload state; new gun starts with fresh reloads
 		_player_shots_since_reload = 0
 		_player_reload_count = 0
 		_player_is_reloading = false
-		print("[PLAYER GUN] Gun picked up. reload_count reset to ", _player_reload_count)
-	
-	emit_signal("bullets_changed", PLAYER_MAG_SIZE - _player_shots_since_reload, PLAYER_MAG_SIZE)
-	_update_cursor()
+		
+		emit_signal("bullets_changed", PLAYER_MAG_SIZE, PLAYER_MAG_SIZE)
+		_update_cursor()
 
 
 # ——— RED FLICKER (2 fast flashes) ———
