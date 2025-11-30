@@ -4,11 +4,9 @@ extends CharacterBody2D
 const SPEED = 300.0
 const JUMP_VELOCITY = -400.0
 const TILE_SIZE = 16
-const MAX_JUMP_HEIGHT_TILES = 6  # Max jump height in tiles
-const MAX_JUMP_HEIGHT = TILE_SIZE * MAX_JUMP_HEIGHT_TILES  # 64 pixels
-const MIN_JUMP_HEIGHT_TILES = 1  # Min jump height in tiles
-const MIN_JUMP_HEIGHT = TILE_SIZE * MIN_JUMP_HEIGHT_TILES  # 16 pixels
-const GRAVITY = 980.0  # Default gravity for jump calculations
+const MAX_JUMP_HEIGHT_TILES = 4
+const MAX_JUMP_HEIGHT = MAX_JUMP_HEIGHT_TILES * TILE_SIZE  # 64 pixels
+const MAX_JUMP_HOLD_TIME = 0.3  # seconds to reach max height
 const AudioUtils = preload("res://scripts/utils/audio_utils.gd")
 const BLOOD_SCENE := preload("res://scenes/objects/blood_splash.tscn")
 const PLAYER_BULLET_SCENE := preload("res://scenes/objects/bullet.tscn")
@@ -69,10 +67,14 @@ var air_attack_speed: float = 1000.0
 var air_attack_horizontal_distance: float = 700.0  # Constant horizontal range
 var air_attack_tween: Tween = null
 
-# Jump control variables
-var is_jumping := false
-var jump_start_y := 0.0
-var jump_held := false
+# Jump variables for variable height jumping
+var is_jumping: bool = false
+var jump_hold_time: float = 0.0
+var jump_start_y: float = 0.0
+
+# Jump buffer system
+var jump_buffer_time: float = 0.0
+const JUMP_BUFFER_WINDOW: float = 0.1  # 100ms buffer window
 
 # Cursor management
 var gun_cursor_texture: Texture2D = null
@@ -112,7 +114,6 @@ func _physics_process(delta: float) -> void:
 	# Check if landed
 	if is_jumping and is_on_floor():
 		is_jumping = false
-		jump_held = false
 	
 	if not is_on_floor():
 		velocity += get_gravity() * delta
@@ -121,6 +122,10 @@ func _physics_process(delta: float) -> void:
 	if CharacterUtils.check_dust_landing(self, was_on_floor, velocity):
 		print("Creating dust effect - landing velocity: ", velocity.y)
 		CharacterUtils.create_dust_effect(self)
+	
+	# Reset jump state when landing
+	if is_on_floor() and not was_on_floor:
+		is_jumping = false
 	
 	# Create dust while running on ground
 	if CharacterUtils.check_running_dust(self, velocity):
@@ -152,25 +157,47 @@ func _physics_process(delta: float) -> void:
 		return
 
 	# ——— INPUT (only runs when not in knockback) ———
-	# Jump input - variable height jumping
-	if Input.is_action_just_pressed("ui_accept") and is_on_floor() and not is_attacking:
-		# Start jump
-		is_jumping = true
-		jump_start_y = global_position.y
-		jump_held = true
-		velocity.y = JUMP_VELOCITY
+	# Variable height jumping with buffer system
+	var jump_pressed = Input.is_action_pressed("ui_accept")
+	var jump_just_pressed = Input.is_action_just_pressed("ui_accept")
 	
-	# Handle jump release for variable height
-	if is_jumping and Input.is_action_just_released("ui_accept"):
-		jump_held = false
-		# Apply early gravity to reduce jump height
-		var current_jump_height = jump_start_y - global_position.y
-		if current_jump_height < MIN_JUMP_HEIGHT:
-			# Force minimum jump height
-			velocity.y = min(velocity.y, -sqrt(2 * GRAVITY * (MIN_JUMP_HEIGHT - current_jump_height)))
+	# Update jump buffer
+	if jump_just_pressed:
+		jump_buffer_time = JUMP_BUFFER_WINDOW
+	
+	# Decay jump buffer
+	if jump_buffer_time > 0.0:
+		jump_buffer_time -= delta
+	
+	# Start jump (either immediate press or buffered)
+	if (jump_just_pressed or jump_buffer_time > 0.0) and is_on_floor() and not is_attacking and not is_jumping:
+		is_jumping = true
+		jump_hold_time = 0.0
+		jump_start_y = global_position.y
+		velocity.y = JUMP_VELOCITY
+		jump_buffer_time = 0.0  # Consume the buffer
+	
+	# Continue jumping while holding space (with max height limit)
+	if is_jumping and jump_pressed and jump_hold_time < MAX_JUMP_HOLD_TIME:
+		jump_hold_time += delta
+		var height_reached = jump_start_y - global_position.y
+		if height_reached < MAX_JUMP_HEIGHT:
+			# Apply upward force to continue jump
+			velocity.y = JUMP_VELOCITY * (1.0 - (jump_hold_time / MAX_JUMP_HOLD_TIME) * 0.5)
 		else:
-			# Apply extra gravity to stop upward momentum
-			velocity.y = max(velocity.y, 100.0)
+			# Max height reached, stop jumping
+			is_jumping = false
+	
+	# Early release - cut jump short
+	if is_jumping and not jump_pressed:
+		is_jumping = false
+		# Reduce upward velocity when releasing early
+		if velocity.y < 0:
+			velocity.y *= 0.5
+	
+	# Stop jumping when landing or hitting max height
+	if is_jumping and (not is_on_floor() and (jump_start_y - global_position.y) >= MAX_JUMP_HEIGHT):
+		is_jumping = false
 	
 	# Horizontal movement: only while right mouse button is held
 	var direction: float = 0.0
@@ -370,7 +397,7 @@ func _update_air_attack() -> void:
 		if enemy.is_dead or not enemy.is_active:
 			continue
 		var distance: float = global_position.distance_to(enemy.global_position)
-		if distance < 60.0:  # Increased collision threshold for forgiving diagonal attack
+		if distance < 40.0:  # Decreased collision threshold for more precise diagonal attack
 			air_attack_target = enemy  # Set target for damage application
 			_apply_air_attack_damage()
 			_end_air_attack()
