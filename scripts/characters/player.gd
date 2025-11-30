@@ -7,6 +7,11 @@ const TILE_SIZE = 16
 const MAX_JUMP_HEIGHT_TILES = 6
 const MAX_JUMP_HEIGHT = MAX_JUMP_HEIGHT_TILES * TILE_SIZE  # 64 pixels
 const MAX_JUMP_HOLD_TIME = 0.3  # seconds to reach max height
+
+# Movement acceleration constants
+const ACCELERATION = 1200.0  # pixels per second squared
+const DECELERATION = 1500.0  # pixels per second squared (stronger for quicker stops)
+const AIR_ACCELERATION = 800.0  # reduced acceleration when in air
 const AudioUtils = preload("res://scripts/utils/audio_utils.gd")
 const BLOOD_SCENE := preload("res://scenes/objects/blood_splash.tscn")
 const PLAYER_BULLET_SCENE := preload("res://scenes/objects/bullet.tscn")
@@ -28,6 +33,10 @@ var health: int = MAX_HEALTH
 var cash: int = 0
 var controls_enabled: bool = true
 var was_on_floor: bool = false  # Track if player was on floor in previous frame
+
+# Movement smoothing variables
+var target_horizontal_speed: float = 0.0
+var current_horizontal_direction: float = 0.0
 
 @onready var animated_sprite: AnimatedSprite2D = $AnimatedSprite2D
 @onready var slash_player: AudioStreamPlayer2D = $SlashPlayer
@@ -207,12 +216,31 @@ func _physics_process(delta: float) -> void:
 		var dead_zone: float = 4.0
 		if abs(dx) > dead_zone:
 			direction = sign(dx)
-			velocity.x = direction * SPEED
 			animated_sprite.flip_h = direction < 0
+			target_horizontal_speed = direction * SPEED
+			current_horizontal_direction = direction
 		else:
-			velocity.x = move_toward(velocity.x, 0, SPEED)
+			target_horizontal_speed = 0.0
 	else:
-		velocity.x = move_toward(velocity.x, 0, SPEED)
+		target_horizontal_speed = 0.0
+	
+	# Apply smooth acceleration/deceleration
+	var acceleration_rate: float = ACCELERATION
+	if not is_on_floor():
+		acceleration_rate = AIR_ACCELERATION
+	
+	if target_horizontal_speed != 0.0:
+		# Accelerating towards target speed
+		var speed_diff: float = target_horizontal_speed - velocity.x
+		var acceleration: float = sign(speed_diff) * min(abs(speed_diff), acceleration_rate * delta)
+		velocity.x += acceleration
+	else:
+		# Decelerating to stop
+		var deceleration: float = sign(velocity.x) * min(abs(velocity.x), DECELERATION * delta)
+		velocity.x -= deceleration
+		# Stop completely if very close to zero to prevent tiny movements
+		if abs(velocity.x) < 1.0:
+			velocity.x = 0.0
 	
 	# Attack input (left mouse / attack action)
 	var attack_pressed: bool = Input.is_action_just_pressed("attack")
