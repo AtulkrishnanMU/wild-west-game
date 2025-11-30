@@ -271,10 +271,7 @@ func _on_attack_hitbox_body_exited(body: Node) -> void:
 		_player_in_attack_hitbox = false
 
 func take_damage(amount: int) -> void:
-	if is_dead:
-		return
-	
-	# Spawn blood splash at enemy position
+	# Spawn blood splash at enemy position (even if dead)
 	if BLOOD_SCENE:
 		var blood := BLOOD_SCENE.instantiate()
 		var scene := get_tree().current_scene
@@ -284,6 +281,9 @@ func take_damage(amount: int) -> void:
 			var facing_dir := Vector2.LEFT if animated_sprite.flip_h else Vector2.RIGHT
 			blood.set_direction(facing_dir)
 			scene.add_child(blood)
+	
+	if is_dead:
+		return  # Don't apply damage or other effects if already dead
 	
 	health = max(health - amount, 0)
 	if hit_player:

@@ -69,7 +69,7 @@ var has_gun: bool = false
 var is_air_attacking := false
 var air_attack_target: Node = null
 var air_attack_speed: float = 1000.0
-var air_attack_horizontal_distance: float = 700.0  # Constant horizontal range
+var air_attack_horizontal_distance: float = 500.0  # Constant horizontal range
 var air_attack_tween: Tween = null
 
 # Jump variables for variable height jumping
@@ -377,23 +377,32 @@ func _start_air_attack() -> void:
 	# Face the attack direction
 	animated_sprite.flip_h = horizontal_direction < 0
 	
-	# Create motion tween for timing control while maintaining physics
+	# Create motion tween for smooth diagonal movement with ease-in/ease-out
 	if air_attack_tween and air_attack_tween.is_valid():
 		air_attack_tween.kill()
 	
 	air_attack_tween = create_tween()
-	air_attack_tween.set_trans(Tween.TRANS_LINEAR)
-	air_attack_tween.set_ease(Tween.EASE_OUT)
+	air_attack_tween.set_trans(Tween.TRANS_CUBIC)  # Smooth cubic easing
+	air_attack_tween.set_ease(Tween.EASE_IN_OUT)   # Ease in and out for natural motion
 	
 	var duration: float = 0.3  # Fixed duration for consistent speed
 	
-	# Calculate constant velocity for perfect diagonal movement
-	velocity.x = horizontal_direction * (air_attack_horizontal_distance / duration)
-	velocity.y = (air_attack_horizontal_distance * 0.8) / duration
+	# Instead of setting constant velocity, use tween to interpolate position
+	# for smooth ease-in/ease-out diagonal movement
+	var start_position: Vector2 = global_position
+	var attack_target_position: Vector2 = Vector2(target_x, target_y)
 	
-	# Use tween only for timing - physics will handle the movement
-	air_attack_tween.tween_callback(_stop_air_attack_velocity).set_delay(duration)
+	# Create smooth position interpolation
+	air_attack_tween.tween_method(_update_air_attack_position.bind(start_position, attack_target_position), 0.0, 1.0, duration)
+	
 	air_attack_tween.finished.connect(_on_air_attack_tween_finished)
+
+func _update_air_attack_position(progress: float, start_pos: Vector2, target_pos: Vector2) -> void:
+	# Apply smooth cubic easing to position
+	var current_pos: Vector2 = start_pos.lerp(target_pos, progress)
+	# Calculate velocity from position change for physics
+	var new_velocity: Vector2 = (current_pos - global_position) / get_physics_process_delta_time()
+	velocity = new_velocity
 
 func _find_nearest_enemy() -> Node:
 	var enemies := get_tree().get_nodes_in_group("enemies")
@@ -429,9 +438,6 @@ func _update_air_attack() -> void:
 	# End air attack if player touches ground
 	if is_on_floor():
 		_end_air_attack()
-
-func _stop_air_attack_velocity() -> void:
-	velocity = Vector2.ZERO
 
 func _on_air_attack_tween_finished() -> void:
 	_end_air_attack()
