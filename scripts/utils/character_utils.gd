@@ -88,3 +88,36 @@ static func apply_smooth_movement(character: CharacterBody2D, target_speed: floa
 		if abs(new_velocity) < 1.0:
 			return 0.0
 		return new_velocity
+
+# Clean floating popup method (similar to cash popup)
+static func spawn_floating_popup(character: Node2D, text: String, color: Color, offset: Vector2 = Vector2(0, -20), font_size: int = 8) -> void:
+	var scene := character.get_tree().current_scene
+	if scene == null:
+		return
+
+	var popup_root := Node2D.new()
+	# Use pixel-perfect positioning to prevent blurriness
+	popup_root.position = (character.global_position + offset).round()
+	scene.add_child(popup_root)
+
+	var label := Label.new()
+	label.text = text
+	label.modulate = color
+	var font := load("res://fonts/PixelOperator8.ttf")
+	if font:
+		label.add_theme_font_override("font", font)
+		# Ensure minimum font size for clarity
+		var final_size = max(font_size, 8)
+		label.add_theme_font_size_override("font_size", final_size)
+		# Disable filtering for crisp pixel fonts
+		label.label_settings = LabelSettings.new()
+		label.label_settings.font = font
+		label.label_settings.font_size = final_size
+
+	popup_root.add_child(label)
+
+	var tween := scene.get_tree().create_tween()
+	# Popup: float up and fade over ~0.5 seconds
+	tween.tween_property(popup_root, "position:y", popup_root.position.y - 20.0, 1.0)
+	tween.tween_property(label, "modulate:a", 0.0, 0.5)
+	tween.finished.connect(popup_root.queue_free)

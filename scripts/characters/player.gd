@@ -75,6 +75,10 @@ var air_attack_speed: float = 1000.0
 var air_attack_horizontal_distance: float = 500.0  # Constant horizontal range
 var air_attack_tween: Tween = null
 
+# Backup weapon system
+var backup_gun_data: Dictionary = {}
+var has_backup_gun: bool = false
+
 # Jump variables for variable height jumping
 var is_jumping: bool = false
 var jump_hold_time: float = 0.0
@@ -602,12 +606,31 @@ func _drop_player_gun() -> void:
 	_player_is_reloading = false
 	_player_shots_since_reload = 0
 	print("[PLAYER GUN] Dropping gun. reload_count=", _player_reload_count)
-	# Show an "OUT OF AMMO" popup above the player (smaller, slightly left)
-	_spawn_floating_popup("OUT OF AMMO", Color(1.0, 0.4, 0.4), Vector2(-29, -22), 6)
-	if gun_sprite:
-		gun_sprite.visible = false
-	# Clear bullets from UI
-	emit_signal("bullets_changed", 0, PLAYER_MAG_SIZE)
+	
+	# Check if we have a backup gun to auto-equip
+	if has_backup_gun:
+		# Equip backup gun immediately
+		has_gun = true
+		_player_shots_since_reload = backup_gun_data["shots_since_reload"]
+		_player_reload_count = backup_gun_data["reload_count"]
+		_player_is_reloading = backup_gun_data["is_reloading"]
+		has_backup_gun = false
+		backup_gun_data = {}
+		
+		if gun_sprite:
+			gun_sprite.visible = true
+		
+		print("[PLAYER GUN] Auto-equipped backup gun")
+		CharacterUtils.spawn_floating_popup(self, "BACKUP EQUIPPED", Color(0.4, 1.0, 0.4), Vector2(-35, -22))
+		emit_signal("bullets_changed", PLAYER_MAG_SIZE - _player_shots_since_reload, PLAYER_MAG_SIZE)
+	else:
+		# No backup gun - show "OUT OF AMMO" and hide gun
+		CharacterUtils.spawn_floating_popup(self, "OUT OF AMMO", Color(1.0, 0.4, 0.4), Vector2(-29, -22))
+		if gun_sprite:
+			gun_sprite.visible = false
+		# Clear bullets from UI
+		emit_signal("bullets_changed", 0, PLAYER_MAG_SIZE)
+	
 	_update_cursor()
 	# Spawn a ground gun pickup as if the player threw it away
 	var scene := get_tree().current_scene
@@ -695,16 +718,41 @@ func add_cash(amount: int) -> void:
 
 func pickup_gun() -> void:
 	if has_gun:
+		# Store current gun as backup if we don't already have one
+		if not has_backup_gun:
+			backup_gun_data = {
+				"shots_since_reload": _player_shots_since_reload,
+				"reload_count": _player_reload_count,
+				"is_reloading": _player_is_reloading
+			}
+			has_backup_gun = true
+			print("[PLAYER GUN] Stored current gun as backup")
+			CharacterUtils.spawn_floating_popup(self, "GUN STORED", Color(0.4, 1.0, 0.4), Vector2(-25, -22))
+		else:
+			print("[PLAYER GUN] Already have backup gun, ignoring pickup")
 		return
+	
 	has_gun = true
 	if gun_sprite:
 		gun_sprite.visible = true
-	# Reset magazine and reload state; new gun starts with fresh reloads
-	_player_shots_since_reload = 0
-	_player_reload_count = 0
-	_player_is_reloading = false
-	print("[PLAYER GUN] Gun picked up. reload_count reset to ", _player_reload_count)
-	emit_signal("bullets_changed", PLAYER_MAG_SIZE, PLAYER_MAG_SIZE)
+	
+	# If we have a backup gun, restore its state instead of resetting
+	if has_backup_gun:
+		_player_shots_since_reload = backup_gun_data["shots_since_reload"]
+		_player_reload_count = backup_gun_data["reload_count"]
+		_player_is_reloading = backup_gun_data["is_reloading"]
+		has_backup_gun = false
+		backup_gun_data = {}
+		print("[PLAYER GUN] Equipped backup gun with restored state")
+		CharacterUtils.spawn_floating_popup(self, "BACKUP GUN", Color(0.4, 1.0, 0.4), Vector2(-25, -22))
+	else:
+		# Reset magazine and reload state; new gun starts with fresh reloads
+		_player_shots_since_reload = 0
+		_player_reload_count = 0
+		_player_is_reloading = false
+		print("[PLAYER GUN] Gun picked up. reload_count reset to ", _player_reload_count)
+	
+	emit_signal("bullets_changed", PLAYER_MAG_SIZE - _player_shots_since_reload, PLAYER_MAG_SIZE)
 	_update_cursor()
 
 
@@ -819,30 +867,6 @@ func _play_blood_splat_sound() -> void:
 	audio.finished.connect(audio.queue_free)
 
 
-func _spawn_floating_popup(text: String, color: Color, offset: Vector2 = Vector2(0, -20), font_size: int = 8) -> void:
-	var scene := get_tree().current_scene
-	if scene == null:
-		return
-
-	var popup_root := Node2D.new()
-	popup_root.position = global_position + offset
-	scene.add_child(popup_root)
-
-	var label := Label.new()
-	label.text = text
-	label.modulate = color
-	var font := load("res://fonts/PixelOperator8.ttf")
-	if font:
-		label.add_theme_font_override("font", font)
-		label.add_theme_font_size_override("font_size", font_size)
-
-	popup_root.add_child(label)
-
-	var tween := get_tree().create_tween()
-	# Popup: float up and fade over ~0.5 seconds
-	tween.tween_property(popup_root, "position:y", popup_root.position.y - 20.0, 1.0)
-	tween.tween_property(label, "modulate:a", 0.0, 0.5)
-	tween.finished.connect(popup_root.queue_free)
 
 
 

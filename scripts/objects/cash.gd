@@ -32,8 +32,8 @@ func _on_body_entered(body: Node) -> void:
 		return
 	body.add_cash(CASH_AMOUNT)
 	_play_cash_sound(body)
-	if body.has_method("_spawn_floating_popup"):
-		body._spawn_floating_popup("+%d" % CASH_AMOUNT, Color(1.0, 0.84, 0.0))
+	# Use CharacterUtils for popup (works for any Node2D)
+	CharacterUtils.spawn_floating_popup(body, "+%d" % CASH_AMOUNT, Color(1.0, 0.84, 0.0))
 	queue_free()
 
 
