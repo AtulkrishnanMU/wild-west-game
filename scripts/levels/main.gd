@@ -20,7 +20,6 @@ func _ready() -> void:
 	# Initialize shared UI references for Level base class
 	player = get_node_or_null("Player")
 	health_bar = $"UI/HealthBar"
-	heal_cooldown_bar = $"UI/HealCooldownBar"
 	cash_label = $"UI/CashLabel"
 	health_percent_label = $"UI/HealthPercentLabel"
 	bullet_icons = $"UI/BulletIcons"
@@ -82,9 +81,7 @@ func _process(delta: float) -> void:
 		camera_follow_enabled = true
 		process_level(delta)
 	else:
-		# During intro, only update heal cooldown bar
-		update_heal_cooldown_bar()
-
+		pass
 
 func _start_intro_pan() -> void:
 	if intro_done or intro_running:

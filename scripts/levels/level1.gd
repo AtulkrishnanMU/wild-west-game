@@ -22,7 +22,6 @@ func _ready() -> void:
 	
 	# Assign UI references to parent class variables
 	health_bar = $UI/HealthBar
-	heal_cooldown_bar = $UI/HealCooldownBar
 	cash_label = $UI/CashLabel
 	health_percent_label = $UI/HealthPercentLabel
 	bullet_icons = $UI/BulletIcons
@@ -42,7 +41,7 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	# Only process level logic if intro animation is complete
 	if not _intro_animation_active:
-		# Use common level process for UI updates (camera follow, heal cooldown, etc.)
+		# Use common level process for UI updates (camera follow, etc.)
 		process_level(delta)
 	
 	# Update tutorial position to follow player

@@ -8,6 +8,7 @@ const BLOOD_SCENE := preload("res://scenes/objects/blood_splash.tscn")
 const PLAYER_BULLET_SCENE := preload("res://scenes/objects/bullet.tscn")
 const PLAYER_GUN_SHOT_SOUND := preload("res://sounds/gun-shot.mp3")
 const PLAYER_RELOAD_SOUND_PATH := "res://sounds/reload.mp3"
+const PLAYER_AIR_ATTACK_SOUND_PATH := "res://sounds/air-attack.mp3"
 const PLAYER_MAG_SIZE: int = 10
 const PLAYER_MAX_RELOADS: int = 5
 const PLAYER_GUN_PICKUP_SCENE := preload("res://scenes/objects/gun.tscn")
@@ -22,7 +23,6 @@ const MAX_HEALTH := 200
 var health: int = MAX_HEALTH
 var cash: int = 0
 var controls_enabled: bool = true
-var _heal_buffer: float = 0.0
 
 @onready var animated_sprite: AnimatedSprite2D = $AnimatedSprite2D
 @onready var slash_player: AudioStreamPlayer2D = $SlashPlayer
@@ -51,22 +51,11 @@ var _player_is_reloading: bool = false
 var _player_reload_tween: Tween = null
 var _player_reload_count: int = 0
 
-var HEAL_SOUND: AudioStream = preload("res://sounds/health-gain.mp3")
-var heal_player: AudioStreamPlayer2D = null
-var _heal_pitch: float = 1.0
-var _heal_pitch_increment: float = 0.1
-var _heal_pitch_max: float = 2.0
-var _heal_limit: int = int(MAX_HEALTH * 0.2)  # 20% max per heal session
-var _heal_accumulated: int = 0                 # Tracks health healed in current session
-var _heal_cooldown: float = 30.0              # seconds to wait before next heal
-var _heal_cooldown_timer: float = 0.0         # counts down
-var _heal_on_cooldown: bool = false  # NEW flag
 
 
 var is_attacking := false
 var is_dead := false
 var has_gun: bool = false
-var is_healing: bool = false
 var is_air_attacking := false
 var air_attack_target: Node = null
 var air_attack_speed: float = 1000.0
@@ -95,10 +84,6 @@ func _ready() -> void:
 	PLAYER_DEATH_SOUND = load("res://sounds/player-death.mp3")
 	HURT_SOUND = load("res://sounds/hurt.mp3")
 	
-	# Heal sound setup
-	heal_player = AudioStreamPlayer2D.new()
-	heal_player.stream = HEAL_SOUND
-	add_child(heal_player)
 	
 	# Load gun cursor texture
 	gun_cursor_texture = load("res://assets/objects/gun_aim.png")
@@ -113,13 +98,6 @@ func _physics_process(delta: float) -> void:
 		move_and_slide()
 		return
 
-	# ——— HEAL COOLDOWN TIMER (runs regardless of input) ———
-	if _heal_on_cooldown:
-		_heal_cooldown_timer -= delta
-		if _heal_cooldown_timer <= 0.0:
-			_heal_cooldown_timer = 0.0
-			_heal_accumulated = 0       # Reset accumulated heal once cooldown finishes
-			_heal_on_cooldown = false   # Cooldown finished
 
 	# ——— KNOCKBACK OVERR — normal movement is blocked while knockback_timer > 0 ———
 	if knockback_timer > 0.0:
@@ -138,103 +116,44 @@ func _physics_process(delta: float) -> void:
 		return
 
 	# ——— INPUT (only runs when not in knockback) ———
-	# Check for dual-click healing (both mouse buttons held)
-	var left_down := Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT)
-	var right_down := Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT)
-	is_healing = left_down and right_down and not is_dead and is_on_floor()
-
-	# Force-stop attack if healing starts
-	if is_healing:
-		is_attacking = false
-
-		# PLAY HEAL ANIMATION HERE
-		animated_sprite.play("HEAL")
-
-		# Stop horizontal motion while healing
-		velocity.x = move_toward(velocity.x, 0, SPEED)
-
-		# Only allow healing if cooldown is finished and under heal limit
-		if is_healing and not _heal_on_cooldown and health < MAX_HEALTH:
-			var heal_per_second: float = float(MAX_HEALTH) * 0.05
-			_heal_buffer += heal_per_second * delta
-			if _heal_buffer >= 1.0:
-				var heal_points: int = int(_heal_buffer)
-				_heal_buffer -= float(heal_points)
-
-				# Clamp heal to remaining allowed amount
-				var remaining_heal: int = _heal_limit - _heal_accumulated
-				var heal_this_tick: int = min(heal_points, remaining_heal)
-				var new_health: int = min(MAX_HEALTH, health + heal_this_tick)
-				
-				if new_health != health:
-					health = new_health
-					emit_signal("health_changed", health, MAX_HEALTH)
-					_heal_accumulated += heal_this_tick
-					# Show pink "+X%" popup for the healed amount
-					var healed_percent: int = int(round(float(heal_this_tick) * 100.0 / float(MAX_HEALTH)))
-					if healed_percent > 0:
-						_spawn_floating_popup("+%d%%" % healed_percent, Color(1.0, 0.4, 0.8))
-
-					# Play overlapping healing sound with rising pitch
-					var heal_audio := AudioStreamPlayer2D.new()
-					heal_audio.stream = HEAL_SOUND
-					heal_audio.pitch_scale = _heal_pitch
-					heal_audio.position = global_position
-					get_tree().current_scene.add_child(heal_audio)
-					heal_audio.play()
-					heal_audio.finished.connect(heal_audio.queue_free)
-					
-					_heal_pitch = min(_heal_pitch + _heal_pitch_increment, _heal_pitch_max)
-
-				# Start cooldown if reached heal limit
-				if _heal_accumulated >= _heal_limit:
-					_heal_cooldown_timer = _heal_cooldown
-					_heal_on_cooldown = true
-		else:
-			# Reset pitch if not healing
-			_heal_pitch = 1.0
-
-		move_and_slide()
-		return
-
-	else:
-		if Input.is_action_just_pressed("ui_accept") and is_on_floor() and not is_attacking:
-			velocity.y = JUMP_VELOCITY
-		
-		# Horizontal movement: only while right mouse button is held
-		var direction: float = 0.0
-		if right_down:
-			var mouse_pos: Vector2 = get_global_mouse_position()
-			var dx: float = mouse_pos.x - global_position.x
-			var dead_zone: float = 4.0
-			if abs(dx) > dead_zone:
-				direction = sign(dx)
-				velocity.x = direction * SPEED
-				animated_sprite.flip_h = direction < 0
-			else:
-				velocity.x = move_toward(velocity.x, 0, SPEED)
+	# Jump input
+	if Input.is_action_just_pressed("ui_accept") and is_on_floor() and not is_attacking:
+		velocity.y = JUMP_VELOCITY
+	
+	# Horizontal movement: only while right mouse button is held
+	var direction: float = 0.0
+	if Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT):
+		var mouse_pos: Vector2 = get_global_mouse_position()
+		var dx: float = mouse_pos.x - global_position.x
+		var dead_zone: float = 4.0
+		if abs(dx) > dead_zone:
+			direction = sign(dx)
+			velocity.x = direction * SPEED
+			animated_sprite.flip_h = direction < 0
 		else:
 			velocity.x = move_toward(velocity.x, 0, SPEED)
-		
-		# Attack input (left mouse / attack action)
-		var attack_pressed: bool = Input.is_action_just_pressed("attack")
-		var gun_attack_pressed: bool = has_gun and attack_pressed
-		
-		# Check for air attack (in air + left click)
-		if attack_pressed and not is_on_floor() and not is_dead and not is_air_attacking and not has_gun:
-			_start_air_attack()
-		elif has_gun:
-			# With gun: left-click shoots instead of melee; allow rapid fire on every click
-			# Block shooting while the player gun is reloading
-			if gun_attack_pressed and not is_dead and not _player_is_reloading:
-				_start_gun_attack()
-		else:
-			# Without gun: normal melee attack
-			if attack_pressed and not is_attacking and not is_dead:
-				if direction != 0 or velocity.x != 0:
-					_start_attack_moving()
-				else:
-					_start_attack_idle()
+	else:
+		velocity.x = move_toward(velocity.x, 0, SPEED)
+	
+	# Attack input (left mouse / attack action)
+	var attack_pressed: bool = Input.is_action_just_pressed("attack")
+	var gun_attack_pressed: bool = has_gun and attack_pressed
+	
+	# Check for air attack (in air + left click)
+	if attack_pressed and not is_on_floor() and not is_dead and not is_air_attacking and not has_gun:
+		_start_air_attack()
+	elif has_gun:
+		# With gun: left-click shoots instead of melee; allow rapid fire on every click
+		# Block shooting while the player gun is reloading
+		if gun_attack_pressed and not is_dead and not _player_is_reloading:
+			_start_gun_attack()
+	else:
+		# Without gun: normal melee attack
+		if attack_pressed and not is_attacking and not is_dead:
+			if direction != 0 or velocity.x != 0:
+				_start_attack_moving()
+			else:
+				_start_attack_idle()
 	
 	# Gun aiming: rotate held gun toward mouse cursor
 	if has_gun and gun_sprite:
@@ -260,9 +179,7 @@ func _physics_process(delta: float) -> void:
 	_update_cursor()
 
 	# ——— ANIMATION CHOICE ———
-	if is_healing:
-		animated_sprite.play("HEAL")
-	elif is_air_attacking:
+	if is_air_attacking:
 		animated_sprite.play("JUMP")  # Use jump animation during air attack
 	elif is_attacking:
 		# attack animations handled by animation_finished
@@ -319,6 +236,18 @@ func _start_attack_moving() -> void:
 func _start_air_attack() -> void:
 	if is_air_attacking:
 		return
+	
+	# Play air attack sound
+	var air_attack_stream := load(PLAYER_AIR_ATTACK_SOUND_PATH)
+	if air_attack_stream:
+		var scene_for_sound := get_tree().current_scene
+		if scene_for_sound:
+			var audio := AudioStreamPlayer2D.new()
+			audio.stream = air_attack_stream
+			audio.position = global_position
+			scene_for_sound.add_child(audio)
+			AudioUtils.play_random_pitch(audio, 0.9, 1.1)
+			audio.finished.connect(audio.queue_free)
 	
 	# Find nearest enemy (optional, for aiming)
 	air_attack_target = _find_nearest_enemy()
@@ -686,6 +615,15 @@ func _apply_damage_to_enemies() -> void:
 			continue
 		if not body.has_method("take_damage"):
 			continue
+		
+		# Check if enemy is on the same side the player is facing
+		var to_enemy: Vector2 = body.global_position - global_position
+		var enemy_direction: int = sign(to_enemy.x)
+		
+		# Only hit enemy if they're on the same side as player's facing direction
+		if enemy_direction != facing:
+			continue
+		
 		body.take_damage(base_damage)
 		hit_something = true
 		# Only hit each enemy once per attack resolution
@@ -758,13 +696,6 @@ func _spawn_floating_popup(text: String, color: Color, offset: Vector2 = Vector2
 	tween.finished.connect(popup_root.queue_free)
 
 
-func get_heal_cooldown_progress() -> float:
-	if _heal_cooldown <= 0.0:
-		return 1.0
-	if _heal_on_cooldown:
-		var elapsed := _heal_cooldown - _heal_cooldown_timer
-		return clamp(elapsed / _heal_cooldown, 0.0, 1.0)
-	return 1.0
 
 
 # ——— CURSOR MANAGEMENT ———

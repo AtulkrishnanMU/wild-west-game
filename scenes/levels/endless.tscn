@@ -28,13 +28,6 @@ offset_bottom = 37.0
 max_value = 200.0
 value = 200.0
 
-[node name="HealCooldownBar" type="ProgressBar" parent="UI"]
-offset_left = 10.0
-offset_top = 38.0
-offset_right = 210.0
-offset_bottom = 55.0
-max_value = 1.0
-value = 1.0
 
 [node name="CashLabel" type="Label" parent="UI"]
 offset_left = 10.0

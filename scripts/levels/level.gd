@@ -7,7 +7,6 @@ const DEFAULT_MUSIC_VOLUME_DB := -8.0
 # These are expected to be set by child scripts via @onready vars
 var player: Node = null
 var health_bar: ProgressBar = null
-var heal_cooldown_bar: ProgressBar = null
 var cash_label: Label = null
 var health_percent_label: Label = null
 var bullet_icons: HBoxContainer = null
@@ -40,8 +39,6 @@ func setup_ui() -> void:
 	if ui_font:
 		if health_bar:
 			health_bar.add_theme_font_override("font", ui_font)
-		if heal_cooldown_bar:
-			heal_cooldown_bar.add_theme_font_override("font", ui_font)
 		if cash_label:
 			cash_label.add_theme_font_override("font", ui_font)
 		if health_percent_label:
@@ -50,10 +47,6 @@ func setup_ui() -> void:
 	# Configure progress bars
 	if health_bar:
 		health_bar.show_percentage = false
-	if heal_cooldown_bar:
-		heal_cooldown_bar.show_percentage = false
-		heal_cooldown_bar.min_value = 0.0
-		heal_cooldown_bar.max_value = 1.0
 
 # Common setup function
 func setup_level() -> void:
@@ -82,8 +75,6 @@ func process_level(delta: float) -> void:
 	if camera_follow_enabled and camera and player:
 		camera.global_position = camera.global_position.lerp(player.global_position, camera_follow_speed * delta)
 	
-	# Update heal cooldown bar
-	update_heal_cooldown_bar()
 
 # Base enemy spawning functionality
 func spawn_enemy_around_player(enemy_scene: PackedScene, min_distance: float = 120.0, max_distance: float = 420.0) -> Node:
@@ -164,13 +155,3 @@ func _update_bullet_icons(current: int) -> void:
 		icon.stretch_mode = TextureRect.STRETCH_KEEP_CENTERED
 		icon.custom_minimum_size = Vector2(8, 8)
 		bullet_icons.add_child(icon)
-
-
-func update_heal_cooldown_bar() -> void:
-	if heal_cooldown_bar == null or player == null:
-		return
-	if not player.has_method("get_heal_cooldown_progress"):
-		return
-	var progress: float = player.get_heal_cooldown_progress()
-	heal_cooldown_bar.value = progress
-	heal_cooldown_bar.modulate = Color(1.0, 0.4, 0.8)
