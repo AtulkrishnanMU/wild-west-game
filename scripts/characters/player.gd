@@ -8,7 +8,7 @@ const MAX_JUMP_HEIGHT_TILES = 6
 const MAX_JUMP_HEIGHT = MAX_JUMP_HEIGHT_TILES * TILE_SIZE  # 64 pixels
 const MAX_JUMP_HOLD_TIME = 0.3  # seconds to reach max height
 
-# Movement acceleration constants
+# Movement acceleration constants (for CharacterUtils)
 const ACCELERATION = 1200.0  # pixels per second squared
 const DECELERATION = 1500.0  # pixels per second squared (stronger for quicker stops)
 const AIR_ACCELERATION = 800.0  # reduced acceleration when in air
@@ -33,10 +33,6 @@ var health: int = MAX_HEALTH
 var cash: int = 0
 var controls_enabled: bool = true
 var was_on_floor: bool = false  # Track if player was on floor in previous frame
-
-# Movement smoothing variables
-var target_horizontal_speed: float = 0.0
-var current_horizontal_direction: float = 0.0
 
 @onready var animated_sprite: AnimatedSprite2D = $AnimatedSprite2D
 @onready var slash_player: AudioStreamPlayer2D = $SlashPlayer
@@ -210,6 +206,7 @@ func _physics_process(delta: float) -> void:
 	
 	# Horizontal movement: only while right mouse button is held
 	var direction: float = 0.0
+	var target_speed: float = 0.0
 	if Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT):
 		var mouse_pos: Vector2 = get_global_mouse_position()
 		var dx: float = mouse_pos.x - global_position.x
@@ -217,30 +214,14 @@ func _physics_process(delta: float) -> void:
 		if abs(dx) > dead_zone:
 			direction = sign(dx)
 			animated_sprite.flip_h = direction < 0
-			target_horizontal_speed = direction * SPEED
-			current_horizontal_direction = direction
+			target_speed = direction * SPEED
 		else:
-			target_horizontal_speed = 0.0
+			target_speed = 0.0
 	else:
-		target_horizontal_speed = 0.0
+		target_speed = 0.0
 	
-	# Apply smooth acceleration/deceleration
-	var acceleration_rate: float = ACCELERATION
-	if not is_on_floor():
-		acceleration_rate = AIR_ACCELERATION
-	
-	if target_horizontal_speed != 0.0:
-		# Accelerating towards target speed
-		var speed_diff: float = target_horizontal_speed - velocity.x
-		var acceleration: float = sign(speed_diff) * min(abs(speed_diff), acceleration_rate * delta)
-		velocity.x += acceleration
-	else:
-		# Decelerating to stop
-		var deceleration: float = sign(velocity.x) * min(abs(velocity.x), DECELERATION * delta)
-		velocity.x -= deceleration
-		# Stop completely if very close to zero to prevent tiny movements
-		if abs(velocity.x) < 1.0:
-			velocity.x = 0.0
+	# Apply smooth acceleration/deceleration using CharacterUtils
+	velocity.x = CharacterUtils.apply_smooth_movement(self, target_speed, SPEED, delta, ACCELERATION, DECELERATION, AIR_ACCELERATION)
 	
 	# Attack input (left mouse / attack action)
 	var attack_pressed: bool = Input.is_action_just_pressed("attack")

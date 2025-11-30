@@ -10,6 +10,11 @@ const DAMAGE_V_RANGE: float = 50.0        # Good vertical coverage (jumping, etc
 const DAMAGE_COOLDOWN: float = 0.20       # Prevents insane damage spam
 const ENEMY_KNOCKBACK_SPEED: float = 120.0
 const MAX_HEALTH := 50
+
+# Movement acceleration constants (for CharacterUtils)
+const ACCELERATION = 800.0   # pixels per second squared (slower than player)
+const DECELERATION = 1000.0  # pixels per second squared (stronger for quicker stops)
+const AIR_ACCELERATION = 600.0  # reduced acceleration when in air
 # Softer, less saturated green for final corpse tint
 const CORPSE_DECAY_COLOR: Color = Color(0.62, 0.82, 0.68, 1.0)
 const CASH_SCENE := preload("res://scenes/objects/cash.tscn")
@@ -74,7 +79,7 @@ func _physics_process(delta: float) -> void:
 		if not is_on_floor():
 			velocity.y += GRAVITY * delta
 
-		velocity.x = 0.0
+		velocity.x = CharacterUtils.apply_smooth_movement(self, 0.0, SPEED, delta, ACCELERATION, DECELERATION, AIR_ACCELERATION)
 		animated_sprite.play("IDLE")
 		move_and_slide()
 		
@@ -91,7 +96,7 @@ func _physics_process(delta: float) -> void:
 		# When dead, still fall with gravity but slowly come to a horizontal stop
 		if not is_on_floor():
 			velocity.y += GRAVITY * delta
-		velocity.x = move_toward(velocity.x, 0.0, SPEED * delta)
+		velocity.x = CharacterUtils.apply_smooth_movement(self, 0.0, SPEED, delta, ACCELERATION, DECELERATION, AIR_ACCELERATION)
 		move_and_slide()
 		return
 
@@ -104,7 +109,7 @@ func _physics_process(delta: float) -> void:
 		is_attacking = false
 		if not is_on_floor():
 			velocity.y += GRAVITY * delta
-		velocity.x = move_toward(velocity.x, 0.0, SPEED * delta)
+		velocity.x = CharacterUtils.apply_smooth_movement(self, 0.0, SPEED, delta, ACCELERATION, DECELERATION, AIR_ACCELERATION)
 		animated_sprite.play("IDLE")
 		move_and_slide()
 		return
@@ -145,7 +150,8 @@ func _physics_process(delta: float) -> void:
 	if vertical_distance < overlap_y_threshold and abs_distance > 1.0 and abs_distance < overlap_x_threshold:
 		is_attacking = false
 		var back_dir := -direction
-		velocity.x = back_dir * SPEED * 0.8
+		var back_target_speed = back_dir * SPEED * 0.8
+		velocity.x = CharacterUtils.apply_smooth_movement(self, back_target_speed, SPEED * 0.8, delta, ACCELERATION, DECELERATION, AIR_ACCELERATION)
 		if is_on_floor():
 			animated_sprite.flip_h = direction < 0
 			if animated_sprite.sprite_frames.has_animation("REV_WALK"):
@@ -163,12 +169,14 @@ func _physics_process(delta: float) -> void:
 			# Far → chance to lunge jump
 			if abs_distance > FAR_JUMP_DISTANCE and is_on_floor() and randf() < 0.3:
 				velocity.y = JUMP_SPEED
-				velocity.x = direction * SPEED * 1.2
+				var jump_target_speed = direction * SPEED * 1.2
+				velocity.x = CharacterUtils.apply_smooth_movement(self, jump_target_speed, SPEED * 1.2, delta, ACCELERATION, DECELERATION, AIR_ACCELERATION)
 				animated_sprite.flip_h = direction < 0
 				animated_sprite.play("JUMP")
 			else:
 				# Normal chase
-				velocity.x = direction * SPEED
+				var target_speed = direction * SPEED
+				velocity.x = CharacterUtils.apply_smooth_movement(self, target_speed, SPEED, delta, ACCELERATION, DECELERATION, AIR_ACCELERATION)
 				animated_sprite.flip_h = direction < 0
 				animated_sprite.play("RUN")
 
@@ -178,12 +186,12 @@ func _physics_process(delta: float) -> void:
 
 		else:
 			# Close enough → standing attack
-			velocity.x = 0.0
+			velocity.x = CharacterUtils.apply_smooth_movement(self, 0.0, SPEED, delta, ACCELERATION, DECELERATION, AIR_ACCELERATION)
 			_start_attack_close()
 
 	else:
 		# While attacking, slow movement
-		velocity.x = move_toward(velocity.x, 0.0, SPEED * 2.0 * delta)
+		velocity.x = CharacterUtils.apply_smooth_movement(self, 0.0, SPEED, delta, ACCELERATION * 2.0, DECELERATION * 2.0, AIR_ACCELERATION)
 
 	# Keep hitbox in front of enemy
 	if attack_hitbox:

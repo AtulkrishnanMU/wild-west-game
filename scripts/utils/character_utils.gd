@@ -67,3 +67,24 @@ static func check_running_dust(character: Node2D, velocity: Vector2, chance: flo
 	if character.is_on_floor() and abs(velocity.x) > speed_threshold and randf() < chance:
 		return true
 	return false
+
+# Smooth movement with ease-in/ease-out acceleration
+static func apply_smooth_movement(character: CharacterBody2D, target_speed: float, max_speed: float, delta: float, acceleration: float = 1200.0, deceleration: float = 1500.0, air_acceleration: float = 800.0) -> float:
+	# Apply smooth acceleration/deceleration to horizontal velocity
+	var acceleration_rate: float = acceleration
+	if not character.is_on_floor():
+		acceleration_rate = air_acceleration
+	
+	if target_speed != 0.0:
+		# Accelerating towards target speed
+		var speed_diff: float = target_speed - character.velocity.x
+		var accel: float = sign(speed_diff) * min(abs(speed_diff), acceleration_rate * delta)
+		return character.velocity.x + accel
+	else:
+		# Decelerating to stop
+		var decel: float = sign(character.velocity.x) * min(abs(character.velocity.x), deceleration * delta)
+		var new_velocity: float = character.velocity.x - decel
+		# Stop completely if very close to zero to prevent tiny movements
+		if abs(new_velocity) < 1.0:
+			return 0.0
+		return new_velocity
