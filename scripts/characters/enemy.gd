@@ -378,12 +378,30 @@ func _flash_white() -> void:
 
 func _start_kill_slowmo() -> void:
 	Engine.time_scale = 0.3
+	# Start camera zoom for dramatic effect
+	_start_attack_zoom()
 	_restore_time_scale_after_kill()
 
 
 func _restore_time_scale_after_kill() -> void:
 	await get_tree().create_timer(0.35).timeout
 	Engine.time_scale = 1.0
+	# End camera zoom when slow-mo ends
+	_end_attack_zoom()
+
+
+func _start_attack_zoom() -> void:
+	# Get the level script to control camera zoom
+	var scene := get_tree().current_scene
+	if scene and scene.has_method("start_attack_zoom"):
+		scene.start_attack_zoom()
+
+
+func _end_attack_zoom() -> void:
+	# Get the level script to control camera zoom
+	var scene := get_tree().current_scene
+	if scene and scene.has_method("end_attack_zoom"):
+		scene.end_attack_zoom()
 
 
 func _switch_to_dead_collision() -> void:

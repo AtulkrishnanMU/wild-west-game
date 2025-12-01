@@ -19,6 +19,11 @@ var ui_layer: CanvasLayer = null
 # Camera follow settings
 var camera_follow_speed: float = 12.0
 var camera_follow_enabled: bool = true
+# Camera zoom settings for slow-motion attacks
+var camera_zoom_amount: float = 1.05  # Zoom in factor (1.1 = 10% closer)
+var camera_zoom_duration: float = 0.15  # Time to zoom in/out
+var _camera_zoom_tween: Tween = null
+var _original_camera_zoom: float = 1.0
 
 # Common UI setup function
 func setup_ui() -> void:
@@ -74,6 +79,8 @@ func setup_camera() -> void:
 	camera = get_node_or_null("Camera2D")
 	if camera and player:
 		camera.make_current()
+		# Store original camera zoom for zoom effects
+		_original_camera_zoom = camera.zoom.x
 
 # Common process function for camera following and UI updates
 func process_level(delta: float) -> void:
@@ -181,3 +188,39 @@ func _update_reload_label(current: int, max_value: int) -> void:
 	else:
 		reload_label.visible = true
 		reload_label.text = "RELOADS " + str(current) + "/" + str(max_value)
+
+
+# Camera zoom functions for slow-motion attacks
+func start_attack_zoom() -> void:
+	if camera == null:
+		return
+	
+	# Cancel any existing zoom tween
+	if _camera_zoom_tween and _camera_zoom_tween.is_valid():
+		_camera_zoom_tween.kill()
+	
+	# Create zoom in tween with ease in
+	_camera_zoom_tween = create_tween()
+	_camera_zoom_tween.set_parallel(true)
+	_camera_zoom_tween.set_trans(Tween.TRANS_CUBIC)
+	_camera_zoom_tween.set_ease(Tween.EASE_IN)
+	
+	var target_zoom = _original_camera_zoom * camera_zoom_amount
+	_camera_zoom_tween.tween_property(camera, "zoom", Vector2(target_zoom, target_zoom), camera_zoom_duration)
+
+
+func end_attack_zoom() -> void:
+	if camera == null:
+		return
+	
+	# Cancel any existing zoom tween
+	if _camera_zoom_tween and _camera_zoom_tween.is_valid():
+		_camera_zoom_tween.kill()
+	
+	# Create zoom out tween with ease out
+	_camera_zoom_tween = create_tween()
+	_camera_zoom_tween.set_parallel(true)
+	_camera_zoom_tween.set_trans(Tween.TRANS_CUBIC)
+	_camera_zoom_tween.set_ease(Tween.EASE_OUT)
+	
+	_camera_zoom_tween.tween_property(camera, "zoom", Vector2(_original_camera_zoom, _original_camera_zoom), camera_zoom_duration)
