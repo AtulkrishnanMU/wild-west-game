@@ -16,7 +16,7 @@ const POPUP_FONT_SIZE = 8  # font size for floating popups (temporarily large fo
 # Popup height offsets to prevent overlapping (higher number = higher position)
 const CASH_POPUP_HEIGHT = 0.0      # Default height for cash popups
 const GUN_POPUP_HEIGHT = 15.0       # Height for gun-related popups
-const HEALTH_POPUP_HEIGHT = 30.0    # Height for health gain popups
+const HEALTH_POPUP_HEIGHT = 15.0    # Height for health gain popups
 # Specific gun popup heights to prevent overlapping
 const GUN_STORED_HEIGHT = 15.0      # "GUN STORED" popup
 const MAX_BACKUP_HEIGHT = 25.0       # "MAX BACKUP\nREACHED" popup  
@@ -587,6 +587,65 @@ func _on_animation_finished() -> void:
 		is_attacking = false
 
 
+func _create_muzzle_flash(position: Vector2, direction: Vector2) -> void:
+	# Create a simple muzzle flash effect using multiple small particles
+	var scene := get_tree().current_scene
+	if scene == null:
+		return
+	
+	# Create muzzle flash container
+	var flash_root := Node2D.new()
+	flash_root.position = position
+	flash_root.rotation = direction.angle()
+	scene.add_child(flash_root)
+	
+	# Create multiple flash particles for burst effect
+	var flash_count = 4
+	for i in range(flash_count):
+		var flash := Sprite2D.new()
+		# Use procedural texture directly (no external file dependency)
+		flash.texture = create_muzzle_flash_texture()
+		
+		# Random positioning within small radius
+		var spread_angle = randf_range(-0.3, 0.3)  # Small spread in radians
+		var distance = randf_range(2.0, 8.0)
+		flash.position = Vector2.RIGHT.rotated(spread_angle) * distance
+		
+		# Random size variation
+		var scale = randf_range(0.8, 1.5)
+		flash.scale = Vector2(scale, scale)
+		
+		# Bright yellow-orange color
+		flash.modulate = Color(1.0, randf_range(0.6, 0.9), 0.0)
+		
+		flash_root.add_child(flash)
+		
+		# Animate flash: quick fade out and scale down
+		var tween := create_tween()
+		tween.set_parallel(true)
+		tween.tween_property(flash, "modulate:a", 0.0, 0.08)  # Very quick fade
+		tween.tween_property(flash, "scale", Vector2.ZERO, 0.08)  # Shrink to nothing
+		tween.finished.connect(flash.queue_free)
+	
+	# Remove the container after all flashes are done
+	var cleanup_tween := create_tween()
+	cleanup_tween.tween_callback(flash_root.queue_free).set_delay(0.1)
+
+
+func create_muzzle_flash_texture() -> ImageTexture:
+	# Create a simple 4x4 muzzle flash texture as fallback
+	var image := Image.create(4, 4, false, Image.FORMAT_RGB8)
+	image.fill(Color.WHITE)  # White base
+	# Make center brighter
+	image.set_pixel(1, 1, Color.YELLOW)
+	image.set_pixel(2, 1, Color.YELLOW)
+	image.set_pixel(1, 2, Color.YELLOW)
+	image.set_pixel(2, 2, Color.YELLOW)
+	var texture := ImageTexture.new()
+	texture.set_image(image)
+	return texture
+
+
 func _fire_player_bullet() -> void:
 	if PLAYER_BULLET_SCENE == null or gun_sprite == null:
 		return
@@ -607,8 +666,10 @@ func _fire_player_bullet() -> void:
 	var spawn_pos: Vector2 = gun_sprite.global_position + dir * muzzle_offset
 	bullet.global_position = spawn_pos
 	bullet.rotation = dir.angle()
-	# Tag shooter so bullet won’t damage the player
+	# Tag shooter so bullet won't damage the player
 	bullet.shooter = self
+	# Create muzzle flash effect at spawn position
+	_create_muzzle_flash(spawn_pos, dir)
 	# Apply a small recoil on the gun in the opposite direction of the shot
 	_play_player_gun_recoil(dir)
 	# Play gun-shot sound at the gun position with random pitch
