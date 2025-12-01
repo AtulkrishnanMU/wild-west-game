@@ -35,6 +35,13 @@ offset_top = 88.0
 offset_right = 210.0
 offset_bottom = 110.0
 
+[node name="ReloadLabel" type="Label" parent="UI"]
+offset_left = 10.0
+offset_top = 115.0
+offset_right = 210.0
+offset_bottom = 135.0
+text = "RELOADS 0/5"
+
 [node name="HealthPercentLabel" type="Label" parent="UI"]
 offset_left = 220.0
 offset_top = 10.0

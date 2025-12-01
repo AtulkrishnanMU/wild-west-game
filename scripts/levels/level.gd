@@ -10,6 +10,7 @@ var health_bar: ProgressBar = null
 var cash_label: Label = null
 var health_percent_label: Label = null
 var bullet_icons: HBoxContainer = null
+var reload_label: Label = null
 
 # Common level variables
 var camera: Camera2D = null
@@ -29,10 +30,13 @@ func setup_ui() -> void:
 			player.cash_changed.connect(_on_player_cash_changed)
 		if player.has_signal("bullets_changed"):
 			player.bullets_changed.connect(_on_player_bullets_changed)
+		if player.has_signal("reloads_changed"):
+			player.reloads_changed.connect(_on_player_reloads_changed)
 		
 		# Initialize UI to current player state
 		_on_player_health_changed(player.health, player.MAX_HEALTH)
 		_on_player_cash_changed(player.cash)
+		_on_player_reloads_changed(player._player_reload_count, player.PLAYER_MAX_RELOADS)
 	
 	# Apply pixel font to UI elements
 	var ui_font := load("res://fonts/PixelOperator8.ttf")
@@ -43,6 +47,8 @@ func setup_ui() -> void:
 			cash_label.add_theme_font_override("font", ui_font)
 		if health_percent_label:
 			health_percent_label.add_theme_font_override("font", ui_font)
+		if reload_label:
+			reload_label.add_theme_font_override("font", ui_font)
 	
 	# Configure progress bars
 	if health_bar:
@@ -145,6 +151,10 @@ func _on_player_bullets_changed(current: int, max_value: int) -> void:
 	_update_bullet_icons(current)
 
 
+func _on_player_reloads_changed(current: int, max_value: int) -> void:
+	_update_reload_label(current, max_value)
+
+
 func _update_bullet_icons(current: int) -> void:
 	if bullet_icons == null:
 		return
@@ -160,3 +170,9 @@ func _update_bullet_icons(current: int) -> void:
 		icon.stretch_mode = TextureRect.STRETCH_KEEP_CENTERED
 		icon.custom_minimum_size = Vector2(8, 8)
 		bullet_icons.add_child(icon)
+
+
+func _update_reload_label(current: int, max_value: int) -> void:
+	if reload_label == null:
+		return
+	reload_label.text = "RELOADS " + str(current) + "/" + str(max_value)

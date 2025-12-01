@@ -24,6 +24,7 @@ const PLAYER_GUN_PICKUP_SCENE := preload("res://scenes/objects/gun.tscn")
 signal health_changed(current: int, max: int)
 signal cash_changed(current: int)
 signal bullets_changed(current: int, max: int)
+signal reloads_changed(current: int, max: int)
 
 var PLAYER_DEATH_SOUND: AudioStream = null
 var HURT_SOUND: AudioStream = null
@@ -514,6 +515,7 @@ func _end_air_attack() -> void:
 	_air_attack_ending = true
 	is_air_attacking = false
 	air_attack_target = null
+	is_attacking = false  # Also clear regular attack state
 	_air_attack_just_ended = true
 	_air_attack_cooldown = 1.0  # 1 second cooldown
 	_force_idle_after_air_attack = true  # Force idle animation until player moves
@@ -555,6 +557,10 @@ func _update_animation_state() -> void:
 	else:
 		animated_sprite.play("IDLE")
 		_stop_running_sound()
+	
+	var new_anim = animated_sprite.animation
+	if old_anim != new_anim:
+		print("[AIR_ATTACK] Animation changed: ", old_anim, " -> ", new_anim)
 
 func _on_animation_finished() -> void:
 	var anim = animated_sprite.animation
@@ -610,8 +616,8 @@ func _fire_player_bullet() -> void:
 	var remaining: int = max(PLAYER_MAG_SIZE - _player_shots_since_reload, 0)
 	emit_signal("bullets_changed", remaining, PLAYER_MAG_SIZE)
 	if _player_shots_since_reload >= PLAYER_MAG_SIZE:
-		# Magazine empty: either start a reload or drop the gun if the NEXT reload would exceed the limit
-		if _player_reload_count + 1 > PLAYER_MAX_RELOADS:
+		# Magazine empty: either start a reload or drop the gun if reload limit is reached
+		if _player_reload_count >= PLAYER_MAX_RELOADS:
 			_drop_player_gun()
 		else:
 			_start_player_reload_animation()
@@ -662,6 +668,8 @@ func _on_player_reload_finished() -> void:
 	# Count this completed reload and reset magazine
 	_player_reload_count += 1
 	_player_shots_since_reload = 0
+	# Emit reload count change signal
+	emit_signal("reloads_changed", _player_reload_count, PLAYER_MAX_RELOADS)
 	# Reload finished: refill magazine in UI
 	emit_signal("bullets_changed", PLAYER_MAG_SIZE, PLAYER_MAG_SIZE)
 
@@ -674,11 +682,11 @@ func _drop_player_gun() -> void:
 	
 	# Check if we have a backup gun to auto-equip
 	if has_backup_gun:
-		# Equip backup gun immediately
+		# Equip backup gun immediately with fresh reloads and full magazine
 		has_gun = true
-		_player_shots_since_reload = backup_gun_data["shots_since_reload"]
-		_player_reload_count = backup_gun_data["reload_count"]
-		_player_is_reloading = backup_gun_data["is_reloading"]
+		_player_shots_since_reload = 0  # Reset to full magazine for backup gun
+		_player_reload_count = 0  # Reset to full reloads for backup gun
+		_player_is_reloading = false  # Reset reload state
 		has_backup_gun = false
 		backup_gun_data = {}
 		
@@ -688,6 +696,7 @@ func _drop_player_gun() -> void:
 		print("[PLAYER GUN] Auto-equipped backup gun")
 		CharacterUtils.spawn_floating_popup(self, "BACKUP EQUIPPED", Color(0.4, 1.0, 0.4), Vector2(-35, -22))
 		emit_signal("bullets_changed", PLAYER_MAG_SIZE - _player_shots_since_reload, PLAYER_MAG_SIZE)
+		emit_signal("reloads_changed", _player_reload_count, PLAYER_MAX_RELOADS)
 	else:
 		# No backup gun - show "OUT OF AMMO" and hide gun
 		CharacterUtils.spawn_floating_popup(self, "OUT OF AMMO", Color(1.0, 0.4, 0.4), Vector2(-29, -22))
@@ -695,6 +704,7 @@ func _drop_player_gun() -> void:
 			gun_sprite.visible = false
 		# Clear bullets from UI
 		emit_signal("bullets_changed", 0, PLAYER_MAG_SIZE)
+		emit_signal("reloads_changed", 0, PLAYER_MAX_RELOADS)
 	
 	_update_cursor()
 	# Spawn a ground gun pickup as if the player threw it away
@@ -815,11 +825,12 @@ func pickup_gun() -> void:
 			}
 			has_backup_gun = true
 			CharacterUtils.spawn_floating_popup(self, "GUN STORED", Color(0.4, 1.0, 0.4), Vector2(-25, -22))
-			# Update the current gun to be the new pickup (reset ammo)
+			# Current gun becomes the new pickup with fresh ammo ONLY
 			_player_shots_since_reload = 0
-			_player_reload_count = 0
 			_player_is_reloading = false
+			# Keep current reload count - don't reset it
 			emit_signal("bullets_changed", PLAYER_MAG_SIZE, PLAYER_MAG_SIZE)
+			emit_signal("reloads_changed", _player_reload_count, PLAYER_MAX_RELOADS)
 		else:
 			# Already have a backup gun, can't pick up another
 			return
@@ -835,6 +846,7 @@ func pickup_gun() -> void:
 		_player_is_reloading = false
 		
 		emit_signal("bullets_changed", PLAYER_MAG_SIZE, PLAYER_MAG_SIZE)
+		emit_signal("reloads_changed", _player_reload_count, PLAYER_MAX_RELOADS)
 		_update_cursor()
 
 

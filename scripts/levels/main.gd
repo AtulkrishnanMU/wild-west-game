@@ -23,6 +23,7 @@ func _ready() -> void:
 	cash_label = $"UI/CashLabel"
 	health_percent_label = $"UI/HealthPercentLabel"
 	bullet_icons = $"UI/BulletIcons"
+	reload_label = $"UI/ReloadLabel"
 	ui_layer = $"UI"
 
 	# Use common UI setup only if player exists
