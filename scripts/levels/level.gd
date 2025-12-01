@@ -20,7 +20,7 @@ var ui_layer: CanvasLayer = null
 var camera_follow_speed: float = 12.0
 var camera_follow_enabled: bool = true
 # Camera zoom settings for slow-motion attacks
-var camera_zoom_amount: float = 1.05  # Zoom in factor (1.1 = 10% closer)
+var camera_zoom_amount: float = 1.03  # Zoom in factor (1.1 = 10% closer)
 var camera_zoom_duration: float = 0.15  # Time to zoom in/out
 var _camera_zoom_tween: Tween = null
 var _original_camera_zoom: float = 1.0
