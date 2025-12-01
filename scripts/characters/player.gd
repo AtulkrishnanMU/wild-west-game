@@ -837,6 +837,9 @@ func take_damage(amount: int) -> void:
 	# Play blood splat sound
 	_play_blood_splat_sound()
 
+	# Camera shake for bullet damage
+	_start_camera_shake()
+
 	health = max(health - amount, 0)
 	if hit_player:
 		AudioUtils.play_random_pitch(hit_player, 0.7, 1.6)
