@@ -175,4 +175,9 @@ func _update_bullet_icons(current: int) -> void:
 func _update_reload_label(current: int, max_value: int) -> void:
 	if reload_label == null:
 		return
-	reload_label.text = "RELOADS " + str(current) + "/" + str(max_value)
+	# Hide reload label if player has no gun (current=0 and player.has_gun is false)
+	if current == 0 and player and not player.has_gun:
+		reload_label.visible = false
+	else:
+		reload_label.visible = true
+		reload_label.text = "RELOADS " + str(current) + "/" + str(max_value)

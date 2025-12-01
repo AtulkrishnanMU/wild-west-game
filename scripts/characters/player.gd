@@ -814,7 +814,7 @@ func _connect_enemy_signals() -> void:
 				enemy.connect("enemy_killed", gain_health_from_kill_with_enemy)
 
 
-func pickup_gun() -> void:
+func pickup_gun() -> bool:
 	if has_gun:
 		# Store current gun as backup if we don't already have one
 		if not has_backup_gun:
@@ -825,15 +825,16 @@ func pickup_gun() -> void:
 			}
 			has_backup_gun = true
 			CharacterUtils.spawn_floating_popup(self, "GUN STORED", Color(0.4, 1.0, 0.4), Vector2(-25, -22))
-			# Current gun becomes the new pickup with fresh ammo ONLY
-			_player_shots_since_reload = 0
+			# Don't reset anything - we're still using the same gun
+			# Only reset when backup gun is actually equipped
 			_player_is_reloading = false
-			# Keep current reload count - don't reset it
-			emit_signal("bullets_changed", PLAYER_MAG_SIZE, PLAYER_MAG_SIZE)
+			emit_signal("bullets_changed", PLAYER_MAG_SIZE - _player_shots_since_reload, PLAYER_MAG_SIZE)
 			emit_signal("reloads_changed", _player_reload_count, PLAYER_MAX_RELOADS)
+			return true  # Successfully stored backup
 		else:
-			# Already have a backup gun, can't pick up another
-			return
+			# Already have a backup gun - can't pick up another
+			CharacterUtils.spawn_floating_popup(self, "MAX BACKUP REACHED", Color(1.0, 0.4, 0.4), Vector2(-35, -22))
+			return false  # Failed to pick up
 	else:
 		# No gun currently equipped, just pick it up
 		has_gun = true
@@ -848,6 +849,7 @@ func pickup_gun() -> void:
 		emit_signal("bullets_changed", PLAYER_MAG_SIZE, PLAYER_MAG_SIZE)
 		emit_signal("reloads_changed", _player_reload_count, PLAYER_MAX_RELOADS)
 		_update_cursor()
+		return true  # Successfully picked up gun
 
 
 # ——— RED FLICKER (2 fast flashes) ———

@@ -26,6 +26,16 @@ func _ready() -> void:
 		_float_tween.tween_property(self, "global_position", down_pos, 0.35)
 
 
+func _start_floating() -> void:
+	# Restart floating animation
+	var start_pos := global_position
+	var up_pos := start_pos + Vector2(0.0, -3.0)
+	var down_pos := start_pos + Vector2(0.0, 3.0)
+	_float_tween = create_tween()
+	_float_tween.set_loops()
+	_float_tween.tween_property(self, "global_position", up_pos, 0.35)
+	_float_tween.tween_property(self, "global_position", down_pos, 0.35)
+
 func _physics_process(delta: float) -> void:
 	# Simple ballistic motion for thrown dummy guns
 	if not can_be_picked_up and use_gravity:
@@ -55,7 +65,15 @@ func _do_pickup(player: Node) -> void:
 		_float_tween.kill()
 	if collision_shape:
 		collision_shape.set_deferred("disabled", true)
-	# Tell the player to reveal its built-in gun, then remove this pickup
+	# Tell the player to pick up the gun and check if successful
 	if player.has_method("pickup_gun"):
-		player.pickup_gun()
-	queue_free()
+		var success = player.pickup_gun()
+		if success:
+			# Only remove pickup if player successfully picked it up
+			queue_free()
+		else:
+			# Player couldn't pick up gun (max backup reached), restore collision
+			if collision_shape:
+				collision_shape.set_deferred("disabled", false)
+			# Restart floating animation
+			_start_floating()
