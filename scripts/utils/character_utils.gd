@@ -86,14 +86,15 @@ static func apply_smooth_movement(character: CharacterBody2D, target_speed: floa
 		return new_velocity
 
 # Clean floating popup method (similar to cash popup)
-static func spawn_floating_popup(character: Node2D, text: String, color: Color, offset: Vector2 = Vector2(0, -20), font_size: int = 8) -> void:
+static func spawn_floating_popup(character: Node2D, text: String, color: Color, offset: Vector2 = Vector2(0, -20), font_size: int = 8, height: float = 0.0) -> void:
 	var scene := character.get_tree().current_scene
 	if scene == null:
 		return
 
 	var popup_root := Node2D.new()
 	# Use pixel-perfect positioning to prevent blurriness
-	popup_root.position = (character.global_position + offset).round()
+	# Add height offset to prevent overlapping popups
+	popup_root.position = (character.global_position + offset + Vector2(0, -height)).round()
 	scene.add_child(popup_root)
 
 	var label := Label.new()
@@ -101,14 +102,14 @@ static func spawn_floating_popup(character: Node2D, text: String, color: Color, 
 	label.modulate = color
 	var font := load("res://fonts/PixelOperator8.ttf")
 	if font:
+		# Try multiple approaches to set font size
 		label.add_theme_font_override("font", font)
-		# Ensure minimum font size for clarity
-		var final_size = max(font_size, 8)
-		label.add_theme_font_size_override("font_size", final_size)
-		# Disable filtering for crisp pixel fonts
-		label.label_settings = LabelSettings.new()
-		label.label_settings.font = font
-		label.label_settings.font_size = final_size
+		label.add_theme_font_size_override("font_size", font_size)
+		# Also try setting it directly
+		var label_settings = LabelSettings.new()
+		label_settings.font = font
+		label_settings.font_size = font_size
+		label.label_settings = label_settings
 
 	popup_root.add_child(label)
 

@@ -12,6 +12,16 @@ const MAX_JUMP_HOLD_TIME = 0.3  # seconds to reach max height
 const ACCELERATION = 1200.0  # pixels per second squared
 const DECELERATION = 1500.0  # pixels per second squared (stronger for quicker stops)
 const AIR_ACCELERATION = 800.0  # reduced acceleration when in air
+const POPUP_FONT_SIZE = 8  # font size for floating popups (temporarily large for testing)
+# Popup height offsets to prevent overlapping (higher number = higher position)
+const CASH_POPUP_HEIGHT = 0.0      # Default height for cash popups
+const GUN_POPUP_HEIGHT = 15.0       # Height for gun-related popups
+const HEALTH_POPUP_HEIGHT = 30.0    # Height for health gain popups
+# Specific gun popup heights to prevent overlapping
+const GUN_STORED_HEIGHT = 15.0      # "GUN STORED" popup
+const MAX_BACKUP_HEIGHT = 25.0       # "MAX BACKUP\nREACHED" popup  
+const BACKUP_EQUIPPED_HEIGHT = 40.0  # "BACKUP EQUIPPED" popup
+const OUT_OF_AMMO_HEIGHT = 45.0      # "OUT OF AMMO" popup
 const AudioUtils = preload("res://scripts/utils/audio_utils.gd")
 const BLOOD_SCENE := preload("res://scenes/objects/blood_splash.tscn")
 const PLAYER_BULLET_SCENE := preload("res://scenes/objects/bullet.tscn")
@@ -694,12 +704,12 @@ func _drop_player_gun() -> void:
 			gun_sprite.visible = true
 		
 		print("[PLAYER GUN] Auto-equipped backup gun")
-		CharacterUtils.spawn_floating_popup(self, "BACKUP EQUIPPED", Color(0.4, 1.0, 0.4), Vector2(-35, -22))
+		CharacterUtils.spawn_floating_popup(self, "BACKUP EQUIPPED", Color(0.4, 1.0, 0.4), Vector2(-35, -22), POPUP_FONT_SIZE, BACKUP_EQUIPPED_HEIGHT)
 		emit_signal("bullets_changed", PLAYER_MAG_SIZE - _player_shots_since_reload, PLAYER_MAG_SIZE)
 		emit_signal("reloads_changed", _player_reload_count, PLAYER_MAX_RELOADS)
 	else:
 		# No backup gun - show "OUT OF AMMO" and hide gun
-		CharacterUtils.spawn_floating_popup(self, "OUT OF AMMO", Color(1.0, 0.4, 0.4), Vector2(-29, -22))
+		CharacterUtils.spawn_floating_popup(self, "OUT OF AMMO", Color(1.0, 0.4, 0.4), Vector2(-29, -22), POPUP_FONT_SIZE, OUT_OF_AMMO_HEIGHT)
 		if gun_sprite:
 			gun_sprite.visible = false
 		# Clear bullets from UI
@@ -799,7 +809,7 @@ func gain_health_from_kill() -> void:
 	# Only show popup and effects if health actually increased
 	if health > old_health:
 		emit_signal("health_changed", health, MAX_HEALTH)
-		CharacterUtils.spawn_floating_popup(self, "+2%", Color(1.0, 0.75, 0.8), Vector2(-20, -25))
+		CharacterUtils.spawn_floating_popup(self, "+2%", Color(1.0, 0.75, 0.8), Vector2(-20, -25), POPUP_FONT_SIZE, HEALTH_POPUP_HEIGHT)
 
 func gain_health_from_kill_with_enemy(enemy: Node) -> void:
 	gain_health_from_kill()
@@ -824,7 +834,7 @@ func pickup_gun() -> bool:
 				"is_reloading": _player_is_reloading
 			}
 			has_backup_gun = true
-			CharacterUtils.spawn_floating_popup(self, "GUN STORED", Color(0.4, 1.0, 0.4), Vector2(-25, -22))
+			CharacterUtils.spawn_floating_popup(self, "GUN STORED", Color(0.4, 1.0, 0.4), Vector2(-25, -22), POPUP_FONT_SIZE, GUN_STORED_HEIGHT)
 			# Don't reset anything - we're still using the same gun
 			# Only reset when backup gun is actually equipped
 			_player_is_reloading = false
@@ -833,7 +843,7 @@ func pickup_gun() -> bool:
 			return true  # Successfully stored backup
 		else:
 			# Already have a backup gun - can't pick up another
-			CharacterUtils.spawn_floating_popup(self, "MAX BACKUP REACHED", Color(1.0, 0.4, 0.4), Vector2(-35, -22))
+			CharacterUtils.spawn_floating_popup(self, "MAX. BACKUP!!", Color(1.0, 0.4, 0.4), Vector2(-35, -22), POPUP_FONT_SIZE, MAX_BACKUP_HEIGHT)
 			return false  # Failed to pick up
 	else:
 		# No gun currently equipped, just pick it up
