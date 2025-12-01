@@ -23,6 +23,9 @@ const MAX_BACKUP_HEIGHT = 25.0       # "MAX BACKUP\nREACHED" popup
 const BACKUP_EQUIPPED_HEIGHT = 40.0  # "BACKUP EQUIPPED" popup
 const OUT_OF_AMMO_HEIGHT = 45.0      # "OUT OF AMMO" popup
 const AudioUtils = preload("res://scripts/utils/audio_utils.gd")
+# Health bar highlight variables
+var _health_bar_highlight_tween: Tween = null
+var _original_health_bar_color: Color = Color.WHITE
 const BLOOD_SCENE := preload("res://scenes/objects/blood_splash.tscn")
 const PLAYER_BULLET_SCENE := preload("res://scenes/objects/bullet.tscn")
 const PLAYER_GUN_SHOT_SOUND := preload("res://sounds/gun-shot.mp3")
@@ -874,6 +877,41 @@ func gain_health_from_kill() -> void:
 	if health > old_health:
 		emit_signal("health_changed", health, MAX_HEALTH)
 		CharacterUtils.spawn_floating_popup(self, "+2%", Color(1.0, 0.75, 0.8), Vector2(-20, -25), POPUP_FONT_SIZE, HEALTH_POPUP_HEIGHT)
+		# Highlight health bar in pink
+		_highlight_health_bar()
+
+
+func _highlight_health_bar() -> void:
+	# Get the health bar from the level scene
+	var scene := get_tree().current_scene
+	if scene == null:
+		return
+	
+	var health_bar = scene.get_node_or_null("UI/HealthBar")
+	if health_bar == null:
+		return
+	
+	# Store original color if not already stored
+	if _original_health_bar_color == Color.WHITE:
+		_original_health_bar_color = health_bar.modulate
+	
+	# Cancel any existing highlight tween
+	if _health_bar_highlight_tween and _health_bar_highlight_tween.is_valid():
+		_health_bar_highlight_tween.kill()
+	
+	# Create highlight effect: flash pink then return to normal
+	_health_bar_highlight_tween = create_tween()
+	_health_bar_highlight_tween.set_parallel(true)
+	
+	# Flash to pink
+	var pink_color = Color(1.0, 0.75, 0.8)  # Same as popup color
+	_health_bar_highlight_tween.tween_property(health_bar, "modulate", pink_color, 0.1)
+	
+	# Hold pink color briefly
+	_health_bar_highlight_tween.tween_property(health_bar, "modulate", pink_color, 0.2).set_delay(0.1)
+	
+	# Fade back to original color
+	_health_bar_highlight_tween.tween_property(health_bar, "modulate", _original_health_bar_color, 0.3).set_delay(0.3)
 
 func gain_health_from_kill_with_enemy(enemy: Node) -> void:
 	gain_health_from_kill()
