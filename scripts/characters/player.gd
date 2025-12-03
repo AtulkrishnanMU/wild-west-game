@@ -233,16 +233,19 @@ func _physics_process(delta: float) -> void:
 	if is_jumping and (not is_on_floor() and (jump_start_y - global_position.y) >= MAX_JUMP_HEIGHT):
 		is_jumping = false
 	
+	# Mouse-facing logic (always active)
+	var mouse_pos: Vector2 = get_global_mouse_position()
+	var dx: float = mouse_pos.x - global_position.x
+	var dead_zone: float = 4.0
+	if abs(dx) > dead_zone:
+		animated_sprite.flip_h = dx < 0
+
 	# Horizontal movement: only while right mouse button is held
 	var direction: float = 0.0
 	var target_speed: float = 0.0
 	if Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT):
-		var mouse_pos: Vector2 = get_global_mouse_position()
-		var dx: float = mouse_pos.x - global_position.x
-		var dead_zone: float = 4.0
 		if abs(dx) > dead_zone:
 			direction = sign(dx)
-			animated_sprite.flip_h = direction < 0
 			target_speed = direction * SPEED
 		else:
 			target_speed = 0.0
