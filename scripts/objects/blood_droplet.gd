@@ -1,17 +1,16 @@
-extends Area2D
+extends "res://scripts/objects/particle.gd"
 
 const BLOOD_DECAL_SCENE := preload("res://scenes/objects/blood_decal.tscn")
-const GRAVITY := 500.0
-
-var velocity: Vector2 = Vector2.ZERO
-var lifetime: float = 2.0
-var age: float = 0.0
-var has_stuck: bool = false
-
-@onready var sprite: Sprite2D = $Sprite
-@onready var collision_shape: CollisionShape2D = $CollisionShape2D
 
 func _ready() -> void:
+	# Override particle properties for blood
+	particle_gravity = 500.0
+	lifetime = 2.0
+	fade_alpha_multiplier = 0.8
+	
+	super._ready()
+
+func _setup_particle_appearance() -> void:
 	# Set up blood droplet appearance with random red shade
 	if sprite:
 		var texture = ImageTexture.new()
@@ -35,46 +34,14 @@ func _ready() -> void:
 		texture.set_image(image)
 		sprite.texture = texture
 		sprite.centered = true
-	
-	# Connect collision signals
-	body_entered.connect(_on_body_entered)
-	area_entered.connect(_on_area_entered)
 
-func _physics_process(delta: float) -> void:
-	if has_stuck:
-		return
-	
-	age += delta
-	
-	# Apply gravity
-	velocity.y += GRAVITY * delta
-	
-	# Move and check collision
-	global_position += velocity * delta
-	
-	# Fade out over lifetime
-	if sprite:
-		var alpha = max(0.0, 1.0 - (age / lifetime))
-		sprite.modulate.a = alpha * 0.8
-	
-	# Remove if lifetime exceeded
-	if age >= lifetime:
-		queue_free()
+func _should_collide_with(body: Node) -> bool:
+	# Blood collides with more surfaces including characters
+	return body is TileMap or body.is_in_group("walls") or body.is_in_group("ground") or body.is_in_group("enemies") or body.is_in_group("player")
 
-func _on_body_entered(body: Node) -> void:
-	if has_stuck:
-		return
-	
-	# Check if hit a solid surface (walls, ground, tilemap, or any physics body)
-	if body is TileMap or body.is_in_group("walls") or body.is_in_group("ground") or body.is_in_group("enemies") or body.is_in_group("player"):
-		_create_blood_decal()
-		has_stuck = true
-		queue_free()
-
-func _on_area_entered(area: Area2D) -> void:
-	if has_stuck:
-		return
-	# Handle area collisions if needed
+func _on_collision(body: Node) -> void:
+	# Create blood decal on collision
+	_create_blood_decal()
 
 func _create_blood_decal() -> void:
 	var decal = BLOOD_DECAL_SCENE.instantiate()

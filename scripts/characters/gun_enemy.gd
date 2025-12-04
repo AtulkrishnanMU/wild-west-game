@@ -5,6 +5,7 @@ const BULLET_SCENE := preload("res://scenes/objects/bullet.tscn")
 const GUN_SCENE := preload("res://scenes/objects/gun.tscn")
 const GUN_SHOT_SOUND := preload("res://sounds/gun-shot.mp3")
 const RELOAD_SOUND_PATH := "res://sounds/reload.mp3"
+const GunUtils = preload("res://scripts/utils/gun_utils.gd")
 
 @onready var gun_sprite: Sprite2D = $Gun
 var _aim_tween: Tween = null
@@ -117,7 +118,7 @@ func _fire_bullet() -> void:
 	# Tag shooter so bullet won't damage its own enemy
 	bullet.shooter = self
 	# Create muzzle flash effect at spawn position
-	_create_muzzle_flash(spawn_pos, dir)
+	GunUtils.create_muzzle_flash(spawn_pos, dir)
 	# Apply a small recoil on the gun in the opposite direction of the shot
 	_play_gun_recoil(dir)
 	# Play gun-shot sound at the gun position with random pitch
@@ -140,8 +141,11 @@ func _fire_bullet() -> void:
 		scene.add_child(bullet)
 
 func take_damage(amount: int) -> void:
+	take_damage_with_direction(amount, Vector2.ZERO)
+
+func take_damage_with_direction(amount: int, bullet_direction: Vector2) -> void:
 	var was_dead := is_dead
-	super.take_damage(amount)
+	super.take_damage_with_direction(amount, bullet_direction)
 	# On first transition to dead, spawn a Gun pickup at this enemy's position
 	if not was_dead and is_dead:
 		call_deferred("_spawn_gun_pickup")
@@ -210,62 +214,3 @@ func _start_reload_animation() -> void:
 func _on_reload_finished() -> void:
 	_is_reloading = false
 	_reload_tween = null
-
-
-func _create_muzzle_flash(position: Vector2, direction: Vector2) -> void:
-	# Create a simple muzzle flash effect using multiple small particles
-	var scene := get_tree().current_scene
-	if scene == null:
-		return
-	
-	# Create muzzle flash container
-	var flash_root := Node2D.new()
-	flash_root.position = position
-	flash_root.rotation = direction.angle()
-	scene.add_child(flash_root)
-	
-	# Create multiple flash particles for burst effect
-	var flash_count = 4
-	for i in range(flash_count):
-		var flash := Sprite2D.new()
-		# Use procedural texture directly (no external file dependency)
-		flash.texture = create_muzzle_flash_texture()
-		
-		# Random positioning within small radius
-		var spread_angle = randf_range(-0.3, 0.3)  # Small spread in radians
-		var distance = randf_range(2.0, 8.0)
-		flash.position = Vector2.RIGHT.rotated(spread_angle) * distance
-		
-		# Random size variation
-		var scale = randf_range(0.8, 1.5)
-		flash.scale = Vector2(scale, scale)
-		
-		# Bright yellow-orange color
-		flash.modulate = Color(1.0, randf_range(0.6, 0.9), 0.0)
-		
-		flash_root.add_child(flash)
-		
-		# Animate flash: quick fade out and scale down
-		var tween := create_tween()
-		tween.set_parallel(true)
-		tween.tween_property(flash, "modulate:a", 0.0, 0.08)  # Very quick fade
-		tween.tween_property(flash, "scale", Vector2.ZERO, 0.08)  # Shrink to nothing
-		tween.finished.connect(flash.queue_free)
-	
-	# Remove the container after all flashes are done
-	var cleanup_tween := create_tween()
-	cleanup_tween.tween_callback(flash_root.queue_free).set_delay(0.1)
-
-
-func create_muzzle_flash_texture() -> ImageTexture:
-	# Create a simple 4x4 muzzle flash texture as fallback
-	var image := Image.create(4, 4, false, Image.FORMAT_RGB8)
-	image.fill(Color.WHITE)  # White base
-	# Make center brighter
-	image.set_pixel(1, 1, Color.YELLOW)
-	image.set_pixel(2, 1, Color.YELLOW)
-	image.set_pixel(1, 2, Color.YELLOW)
-	image.set_pixel(2, 2, Color.YELLOW)
-	var texture := ImageTexture.new()
-	texture.set_image(image)
-	return texture

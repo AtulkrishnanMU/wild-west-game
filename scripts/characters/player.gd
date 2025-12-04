@@ -23,6 +23,7 @@ const MAX_BACKUP_HEIGHT = 25.0       # "MAX BACKUP\nREACHED" popup
 const BACKUP_EQUIPPED_HEIGHT = 40.0  # "BACKUP EQUIPPED" popup
 const OUT_OF_AMMO_HEIGHT = 45.0      # "OUT OF AMMO" popup
 const AudioUtils = preload("res://scripts/utils/audio_utils.gd")
+const GunUtils = preload("res://scripts/utils/gun_utils.gd")
 # Health bar highlight variables
 var _health_bar_highlight_tween: Tween = null
 var _original_health_bar_color: Color = Color.WHITE
@@ -593,63 +594,6 @@ func _on_animation_finished() -> void:
 		is_attacking = false
 
 
-func _create_muzzle_flash(position: Vector2, direction: Vector2) -> void:
-	# Create a simple muzzle flash effect using multiple small particles
-	var scene := get_tree().current_scene
-	if scene == null:
-		return
-	
-	# Create muzzle flash container
-	var flash_root := Node2D.new()
-	flash_root.position = position
-	flash_root.rotation = direction.angle()
-	scene.add_child(flash_root)
-	
-	# Create multiple flash particles for burst effect
-	var flash_count = 4
-	for i in range(flash_count):
-		var flash := Sprite2D.new()
-		# Use procedural texture directly (no external file dependency)
-		flash.texture = create_muzzle_flash_texture()
-		
-		# Random positioning within small radius
-		var spread_angle = randf_range(-0.3, 0.3)  # Small spread in radians
-		var distance = randf_range(2.0, 8.0)
-		flash.position = Vector2.RIGHT.rotated(spread_angle) * distance
-		
-		# Random size variation
-		var scale = randf_range(0.8, 1.5)
-		flash.scale = Vector2(scale, scale)
-		
-		# Bright yellow-orange color
-		flash.modulate = Color(1.0, randf_range(0.6, 0.9), 0.0)
-		
-		flash_root.add_child(flash)
-		
-		# Animate flash: quick fade out and scale down
-		var tween := create_tween()
-		tween.set_parallel(true)
-		tween.tween_property(flash, "modulate:a", 0.0, 0.08)  # Very quick fade
-		tween.tween_property(flash, "scale", Vector2.ZERO, 0.08)  # Shrink to nothing
-		tween.finished.connect(flash.queue_free)
-	
-	# Remove the container after all flashes are done
-	var cleanup_tween := create_tween()
-	cleanup_tween.tween_callback(flash_root.queue_free).set_delay(0.1)
-
-
-func create_muzzle_flash_texture() -> ImageTexture:
-	# Create a simple 4x4 muzzle flash texture as fallback
-	var image := Image.create(4, 4, false, Image.FORMAT_RGB8)
-	image.fill(Color.WHITE)  # White base
-	# Make center brighter
-	image.set_pixel(1, 1, Color.YELLOW)
-	image.set_pixel(2, 1, Color.YELLOW)
-	image.set_pixel(1, 2, Color.YELLOW)
-	image.set_pixel(2, 2, Color.YELLOW)
-	var texture := ImageTexture.new()
-	texture.set_image(image)
-	return texture
 
 
 func _fire_player_bullet() -> void:
@@ -675,7 +619,7 @@ func _fire_player_bullet() -> void:
 	# Tag shooter so bullet won't damage the player
 	bullet.shooter = self
 	# Create muzzle flash effect at spawn position
-	_create_muzzle_flash(spawn_pos, dir)
+	GunUtils.create_muzzle_flash(spawn_pos, dir)
 	# Apply a small recoil on the gun in the opposite direction of the shot
 	_play_player_gun_recoil(dir)
 	# Play gun-shot sound at the gun position with random pitch
@@ -827,35 +771,25 @@ func _play_player_gun_recoil(shot_dir: Vector2) -> void:
 
 # ——— DAMAGE ———
 func take_damage(amount: int) -> void:
+	take_damage_with_direction(amount, Vector2.ZERO)  # Default direction for non-bullet damage
+
+func take_damage_with_direction(amount: int, bullet_direction: Vector2) -> void:
 	if is_dead: return
 	
-	# Spawn blood splash at player position
-	if BLOOD_SCENE:
-		var blood := BLOOD_SCENE.instantiate()
-		var scene := get_tree().current_scene
-		if blood and scene:
-			var offset := Vector2(randf_range(-4.0, 4.0), randf_range(-4.0, 4.0))
-			blood.global_position = global_position + offset
-			var facing_dir := Vector2.LEFT if animated_sprite.flip_h else Vector2.RIGHT
-			blood.set_direction(facing_dir)
-			scene.add_child(blood)
-	
-	# Play blood splat sound
-	_play_blood_splat_sound()
+	# Apply damage effects using CharacterUtils with bullet direction
+	CharacterUtils.apply_damage_with_effects(self, amount, BLOOD_SCENE, BLOOD_SPLAT_SOUND, hit_player, bullet_direction)
 
 	# Camera shake for bullet damage
 	_start_camera_shake()
 
 	health = max(health - amount, 0)
-	if hit_player:
-		AudioUtils.play_random_pitch(hit_player, 0.7, 1.6)
 	emit_signal("health_changed", health, MAX_HEALTH)
 
 	if health <= 0:
 		if not is_dead:
 			is_dead = true
 			is_attacking = false
-			animated_sprite.play("DEATH")
+			CharacterUtils.play_character_animation(animated_sprite, "DEATH")
 			_play_player_death_sound()
 	else:
 		# Only visual feedback — everything else continues uninterrupted
@@ -1011,11 +945,8 @@ func _apply_damage_to_enemies() -> void:
 		# Only hit each enemy once per attack resolution
 	
 	if hit_something:
-		# Strong, satisfying self-knockback (horizontal only)
-		var knockback_strength := 180.0
-		knockback_velocity.x = -facing * knockback_strength
-		# knockback_velocity.y = -60.0  # ← DELETE THIS LINE
-		knockback_timer = PLAYER_KNOCKBACK_DURATION
+		# Apply knockback using CharacterUtils
+		CharacterUtils.apply_knockback(self, -facing, 180.0, PLAYER_KNOCKBACK_DURATION)
 		_start_camera_shake()
 
 
@@ -1024,58 +955,21 @@ func _start_camera_shake() -> void:
 
 
 func _play_player_death_sound() -> void:
-	if PLAYER_DEATH_SOUND == null:
-		return
-	var scene := get_tree().current_scene
-	if scene == null:
-		return
-	var audio := AudioStreamPlayer2D.new()
-	audio.stream = PLAYER_DEATH_SOUND
-	audio.position = global_position
-	scene.add_child(audio)
-	AudioUtils.play_random_pitch(audio, 0.9, 1.1)
-	audio.finished.connect(audio.queue_free)
+	AudioUtils.play_death_sound(PLAYER_DEATH_SOUND, null, global_position)
 
 
 func _play_hurt_sound() -> void:
-	if HURT_SOUND == null:
-		return
-	var scene := get_tree().current_scene
-	if scene == null:
-		return
-	var audio := AudioStreamPlayer2D.new()
-	audio.stream = HURT_SOUND
-	audio.position = global_position
-	audio.pitch_scale = randf_range(0.9, 1.1)
-	scene.add_child(audio)
-	audio.play()
-	audio.finished.connect(audio.queue_free)
+	AudioUtils.play_hurt_sound(HURT_SOUND, global_position)
 
 
 func _play_running_sound() -> void:
-	if RUNNING_SOUND == null or running_player == null:
-		return
-	if not running_player.playing:
-		running_player.stream = RUNNING_SOUND
-		AudioUtils.play_random_pitch(running_player, 0.9, 1.1)
-		running_player.play()
+	AudioUtils.play_running_sound(running_player, RUNNING_SOUND)
 
 func _stop_running_sound() -> void:
-	if running_player and running_player.playing:
-		running_player.stop()
+	AudioUtils.stop_running_sound(running_player)
 
 func _play_blood_splat_sound() -> void:
-	if BLOOD_SPLAT_SOUND == null:
-		return
-	var scene := get_tree().current_scene
-	if scene == null:
-		return
-	var audio := AudioStreamPlayer2D.new()
-	audio.stream = BLOOD_SPLAT_SOUND
-	audio.position = global_position
-	scene.add_child(audio)
-	AudioUtils.play_random_pitch(audio, 0.8, 1.2)
-	audio.finished.connect(audio.queue_free)
+	AudioUtils.play_blood_splat_sound(BLOOD_SPLAT_SOUND, global_position)
 
 
 

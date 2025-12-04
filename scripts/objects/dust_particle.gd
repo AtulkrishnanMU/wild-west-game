@@ -1,24 +1,21 @@
-extends Area2D
-
-const DUST_DECAL_SCENE := preload("res://scenes/objects/dust_decal.tscn")
-const GRAVITY := 300.0  # Heavier gravity for settling dust
-
-var velocity: Vector2 = Vector2.ZERO
-var lifetime: float = 1.5
-var age: float = 0.0
-var has_stuck: bool = false
-
-@onready var sprite: Sprite2D = $Sprite
-@onready var collision_shape: CollisionShape2D = $CollisionShape2D
+extends "res://scripts/objects/particle.gd"
 
 func _ready() -> void:
+	# Override particle properties for dust
+	particle_gravity = 300.0  # Less gravity for settling dust
+	lifetime = 1.5
+	fade_alpha_multiplier = 0.6
+	
+	super._ready()
+
+func _setup_particle_appearance() -> void:
 	# Set up dust particle appearance
 	if sprite:
 		var texture = ImageTexture.new()
-		var image = Image.create(16, 16, false, Image.FORMAT_RGBA8)  # Even larger size
+		var image = Image.create(16, 16, false, Image.FORMAT_RGBA8)  # Larger size for dust
 		image.fill(Color.TRANSPARENT)
 		
-		# Create small dust particle with white colors
+		# Create dust particle with white colors
 		var center = Vector2(8, 8)
 		for x in range(16):
 			for y in range(16):
@@ -32,43 +29,11 @@ func _ready() -> void:
 		texture.set_image(image)
 		sprite.texture = texture
 		sprite.centered = true
-	
-	# Connect collision signals
-	body_entered.connect(_on_body_entered)
-	area_entered.connect(_on_area_entered)
 
-func _physics_process(delta: float) -> void:
-	if has_stuck:
-		return
-	
-	age += delta
-	
-	# Apply gravity (less than blood)
-	velocity.y += GRAVITY * delta
-	
-	# Move and check collision
-	global_position += velocity * delta
-	
-	# Fade out over lifetime
-	if sprite:
-		var alpha = max(0.0, 1.0 - (age / lifetime))
-		sprite.modulate.a = alpha * 0.6
-	
-	# Remove if lifetime exceeded
-	if age >= lifetime:
-		queue_free()
+func _should_collide_with(body: Node) -> bool:
+	# Dust only collides with basic surfaces
+	return body is TileMap or body.is_in_group("walls") or body.is_in_group("ground")
 
-func _on_body_entered(body: Node) -> void:
-	if has_stuck:
-		return
-	
-	# Check if hit a solid surface (ground, walls, tilemap)
-	if body is TileMap or body.is_in_group("walls") or body.is_in_group("ground"):
-		# Just disappear when hitting surface - no decal for dust
-		has_stuck = true
-		queue_free()
-
-func _on_area_entered(area: Area2D) -> void:
-	if has_stuck:
-		return
-	# Handle area collisions if needed
+func _on_collision(body: Node) -> void:
+	# Dust just disappears - no decal
+	pass

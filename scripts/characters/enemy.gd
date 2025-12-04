@@ -286,65 +286,43 @@ func _on_attack_hitbox_body_exited(body: Node) -> void:
 		_player_in_attack_hitbox = false
 
 func take_damage(amount: int) -> void:
-	# Spawn blood splash at enemy position (even if dead)
-	if BLOOD_SCENE:
-		var blood := BLOOD_SCENE.instantiate()
-		var scene := get_tree().current_scene
-		if blood and scene:
-			var offset := Vector2(randf_range(-4.0, 4.0), randf_range(-4.0, 4.0))
-			blood.global_position = global_position + offset
-			
-			# Set blood direction based on enemy state
-			if is_dead:
-				# Dead enemies: fountain effect (upward)
-				blood.set_direction(Vector2(0.0, -1.0))  # Straight up with slight random spread
-			else:
-				# Alive enemies: normal sideways blood based on facing direction
-				var facing_dir := Vector2.LEFT if animated_sprite.flip_h else Vector2.RIGHT
-				blood.set_direction(facing_dir)
-			scene.add_child(blood)
-	
-	# Play blood splat sound
-	_play_blood_splat_sound()
+	take_damage_with_direction(amount, Vector2.ZERO)  # Default direction for non-bullet damage
 
-	if is_dead:
-		return  # Don't apply damage or other effects if already dead
-	
-	# Camera shake for bullet damage (only for living enemies)
-	if player and player.has_method("_start_camera_shake"):
-		player._start_camera_shake()
-
+func take_damage_with_direction(amount: int, bullet_direction: Vector2) -> void:
+	# Reduce health
 	health = max(health - amount, 0)
-	if hit_player:
-		AudioUtils.play_random_pitch(hit_player, 0.7, 1.6)
-	if health > 0 and randf() < 0.1:
-		_play_enemy_hurt_sound()
 	
+	# Spawn blood splash at enemy position (even if dead) with bullet direction
+	CharacterUtils.apply_damage_with_effects(self, amount, BLOOD_SCENE, BLOOD_SPLAT_SOUND, null, bullet_direction)
+
 	# FLASH WHITE ON EVERY HIT (including killing blow)
 	_flash_white()
 	
-	if health > 0:
-		# Knock the enemy away from the player horizontally
-		if player:
-			var dir: float = sign(global_position.x - player.global_position.x)
-			velocity.x = dir * ENEMY_KNOCKBACK_SPEED
-			_knockback_timer = 0.12
-	else:
+	# Apply knockback if not dead
+	if not is_dead:
+		var dir: float = sign(global_position.x - player.global_position.x)
+		CharacterUtils.apply_knockback(self, dir, ENEMY_KNOCKBACK_SPEED, 0.12)
+	
+	# Check if enemy died from this damage
+	if health <= 0 and not is_dead:
+		# Death handling
 		is_dead = true
 		is_attacking = false
 		velocity = Vector2.ZERO
+		
+		# Play death animation
+		CharacterUtils.play_character_animation(animated_sprite, "DEATH")
+		
 		# Notify listeners (e.g., Endless mode) that this enemy was killed
 		emit_signal("enemy_killed", self)
 		# Remove from enemies group so player can no longer hit the corpse
 		if is_in_group("enemies"):
 			remove_from_group("enemies")
-		
 		# Switch to dead collision setup using call_deferred to avoid physics flushing errors
 		call_deferred("_switch_to_dead_collision")
 		# Face the player on death if possible
 		if player:
 			animated_sprite.flip_h = (player.global_position.x < global_position.x)
-		animated_sprite.play("DEATH")
 		_start_corpse_decay()
 		if randf() < 0.2:
 			_start_kill_slowmo()
@@ -434,61 +412,20 @@ func _drop_cash_on_death() -> void:
 
 
 func _play_enemy_death_sound() -> void:
-	var scene := get_tree().current_scene
-	if scene == null:
-		return
-	var audio := AudioStreamPlayer2D.new()
-	var choice := randf()
-	if choice < 0.5 and ENEMY_DEATH_SOUND_1:
-		audio.stream = ENEMY_DEATH_SOUND_1
-	elif ENEMY_DEATH_SOUND_2:
-		audio.stream = ENEMY_DEATH_SOUND_2
-	else:
-		return
-	audio.position = global_position
-	scene.add_child(audio)
-	AudioUtils.play_random_pitch(audio, 0.9, 1.1)
-	audio.finished.connect(audio.queue_free)
+	AudioUtils.play_death_sound(ENEMY_DEATH_SOUND_1, ENEMY_DEATH_SOUND_2, global_position)
 
 
 func _play_running_sound() -> void:
-	if RUNNING_SOUND == null or running_player == null:
-		return
-	if not running_player.playing:
-		running_player.stream = RUNNING_SOUND
-		AudioUtils.play_random_pitch(running_player, 0.9, 1.1)
-		running_player.play()
+	AudioUtils.play_running_sound(running_player, RUNNING_SOUND)
 
 func _stop_running_sound() -> void:
-	if running_player and running_player.playing:
-		running_player.stop()
+	AudioUtils.stop_running_sound(running_player)
 
 func _play_blood_splat_sound() -> void:
-	if BLOOD_SPLAT_SOUND == null:
-		return
-	var scene := get_tree().current_scene
-	if scene == null:
-		return
-	var audio := AudioStreamPlayer2D.new()
-	audio.stream = BLOOD_SPLAT_SOUND
-	audio.position = global_position
-	scene.add_child(audio)
-	AudioUtils.play_random_pitch(audio, 0.8, 1.2)
-	audio.finished.connect(audio.queue_free)
+	AudioUtils.play_blood_splat_sound(BLOOD_SPLAT_SOUND, global_position)
 
 func _play_enemy_hurt_sound() -> void:
-	if ENEMY_HURT_SOUND == null:
-		return
-	var scene := get_tree().current_scene
-	if scene == null:
-		return
-	var audio := AudioStreamPlayer2D.new()
-	audio.stream = ENEMY_HURT_SOUND
-	audio.position = global_position
-	audio.pitch_scale = randf_range(0.9, 1.1)
-	scene.add_child(audio)
-	audio.play()
-	audio.finished.connect(audio.queue_free)
+	AudioUtils.play_hurt_sound(ENEMY_HURT_SOUND, global_position)
 	
 func _check_visibility_activation():
 	if has_been_visible_with_player:

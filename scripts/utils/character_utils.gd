@@ -118,3 +118,57 @@ static func spawn_floating_popup(character: Node2D, text: String, color: Color, 
 	tween.tween_property(popup_root, "position:y", popup_root.position.y - 20.0, 1.0)
 	tween.tween_property(label, "modulate:a", 0.0, 0.5)
 	tween.finished.connect(popup_root.queue_free)
+
+# Health system utilities
+static func apply_damage_with_effects(character: Node2D, amount: int, blood_scene: PackedScene, blood_splat_sound: AudioStream, hit_player: AudioStreamPlayer2D = null, bullet_direction: Vector2 = Vector2.ZERO) -> void:
+	# Spawn blood splash at character position
+	if blood_scene:
+		var blood := blood_scene.instantiate()
+		var scene := character.get_tree().current_scene
+		if blood and scene:
+			var offset := Vector2(randf_range(-4.0, 4.0), randf_range(-4.0, 4.0))
+			blood.global_position = character.global_position + offset
+			
+			# Set blood direction based on bullet direction or character state
+			if bullet_direction != Vector2.ZERO:
+				# Use bullet direction for realistic blood spray
+				blood.set_direction(bullet_direction)
+			else:
+				# Fallback to character-based direction for non-bullet damage
+				if character.has_method("is_dead") and character.is_dead:
+					# Dead characters: fountain effect (upward)
+					blood.set_direction(Vector2(0.0, -1.0))  # Straight up with slight random spread
+				else:
+					# Alive characters: normal sideways blood based on facing direction
+					var facing_dir := Vector2.LEFT
+					if character.has_node("AnimatedSprite2D"):
+						var sprite = character.get_node("AnimatedSprite2D") as AnimatedSprite2D
+						facing_dir = Vector2.LEFT if sprite.flip_h else Vector2.RIGHT
+					blood.set_direction(facing_dir)
+			scene.add_child(blood)
+	
+	# Play blood splat sound
+	if blood_splat_sound:
+		AudioUtils.play_blood_splat_sound(blood_splat_sound, character.global_position)
+	
+	# Play hit sound if available
+	if hit_player:
+		AudioUtils.play_random_pitch(hit_player, 0.7, 1.6)
+
+# Knockback system utilities
+static func apply_knockback(character: CharacterBody2D, direction: float, strength: float, duration: float) -> void:
+	# Apply knockback velocity
+	if character.has_method("set_knockback"):
+		character.set_knockback(direction * strength, duration)
+	else:
+		# Fallback: directly modify velocity if character doesn't have knockback system
+		character.velocity.x = direction * strength
+
+# Animation utilities
+static func play_character_animation(animated_sprite: AnimatedSprite2D, anim_name: String) -> void:
+	if animated_sprite and animated_sprite.sprite_frames.has_animation(anim_name):
+		animated_sprite.play(anim_name)
+
+static func set_character_facing(animated_sprite: AnimatedSprite2D, should_face_left: bool) -> void:
+	if animated_sprite:
+		animated_sprite.flip_h = should_face_left
