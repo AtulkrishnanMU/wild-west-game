@@ -154,6 +154,34 @@ static func apply_damage_with_effects(character: Node2D, amount: int, blood_scen
 	# Play hit sound if available
 	if hit_player:
 		AudioUtils.play_random_pitch(hit_player, 0.7, 1.6)
+	
+	# Centralized camera shake for successful damage only
+	_trigger_camera_shake(character)
+
+# Centralized camera shake system
+static func _trigger_camera_shake(damaged_character: Node2D) -> void:
+	# Find the player to trigger camera shake
+	var scene := damaged_character.get_tree().current_scene
+	if scene == null:
+		return
+	
+	var player := scene.get_node_or_null("Player")
+	if player == null:
+		return
+	
+	# Only trigger camera shake if the damaged character is not the player
+	# AND the character is not dead (skip dead bodies)
+	if damaged_character != player and player.has_method("_start_camera_shake"):
+		# Check if damaged character is dead - skip shake for dead bodies
+		var is_dead = false
+		if damaged_character.has_method("is_dead"):
+			is_dead = damaged_character.is_dead()
+		elif "is_dead" in damaged_character:
+			is_dead = damaged_character.is_dead
+		
+		if is_dead:
+			return
+		player._start_camera_shake()
 
 # Knockback system utilities
 static func apply_knockback(character: CharacterBody2D, direction: float, strength: float, duration: float) -> void:

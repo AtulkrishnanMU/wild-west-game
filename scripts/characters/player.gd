@@ -44,6 +44,9 @@ var PLAYER_DEATH_SOUND: AudioStream = null
 var HURT_SOUND: AudioStream = null
 var BLOOD_SPLAT_SOUND: AudioStream = null
 var RUNNING_SOUND: AudioStream = null
+# Performance optimization: cached audio streams to avoid repeated loading
+var _air_attack_sound_cache: AudioStream = null
+var _reload_sound_cache: AudioStream = null
 
 const MAX_HEALTH := 200
 var health: int = MAX_HEALTH
@@ -115,6 +118,15 @@ var _was_holding_gun: bool = false
 # Reference to the current flicker tween so we can cancel/replace it
 var _flicker_tween: Tween = null
 
+# Performance optimization: cached enemy references
+var _cached_enemies: Array[Node] = []
+var _enemy_cache_update_timer: float = 0.0
+const ENEMY_CACHE_UPDATE_INTERVAL: float = 0.1  # Update cache every 100ms
+# Performance optimization: track connected enemies to avoid redundant checks
+var _connected_enemies: Array[Node] = []
+# Performance optimization: air attack state tracking
+var _air_attack_collision_threshold_sq: float = 40.0 * 40.0  # Pre-calculated threshold
+
 func _ready() -> void:
 	randomize()
 	animated_sprite.animation_finished.connect(_on_animation_finished)
@@ -131,11 +143,17 @@ func _ready() -> void:
 	BLOOD_SPLAT_SOUND = load("res://sounds/blood-splat.mp3")
 	RUNNING_SOUND = load("res://sounds/running.mp3")
 	
+	# Cache audio streams for performance
+	_air_attack_sound_cache = load(PLAYER_AIR_ATTACK_SOUND_PATH)
+	_reload_sound_cache = load(PLAYER_RELOAD_SOUND_PATH)
+	
 	
 	# Load gun cursor texture
 	gun_cursor_texture = load("res://assets/objects/gun_aim.png")
 
 func _physics_process(delta: float) -> void:
+	# Update enemy cache periodically
+	_update_enemy_cache(delta)
 	# Limit jump height to max
 	if is_jumping:
 		var current_jump_height = jump_start_y - global_position.y
@@ -353,9 +371,6 @@ func _physics_process(delta: float) -> void:
 	# Update air attack if active
 	_update_air_attack()
 
-	# Auto-connect to enemy kill signals for health gain
-	_connect_enemy_signals()
-
 	# Update air attack cooldown
 	if _air_attack_cooldown > 0.0:
 		_air_attack_cooldown -= delta
@@ -394,12 +409,11 @@ func _start_air_attack() -> void:
 		return
 	
 	# Play air attack sound
-	var air_attack_stream := load(PLAYER_AIR_ATTACK_SOUND_PATH)
-	if air_attack_stream:
+	if _air_attack_sound_cache:
 		var scene_for_sound := get_tree().current_scene
 		if scene_for_sound:
 			var audio := AudioStreamPlayer2D.new()
-			audio.stream = air_attack_stream
+			audio.stream = _air_attack_sound_cache
 			audio.position = global_position
 			scene_for_sound.add_child(audio)
 			AudioUtils.play_random_pitch(audio, 0.9, 1.1)
@@ -459,49 +473,45 @@ func _update_air_attack_position(progress: float, start_pos: Vector2, target_pos
 	velocity = new_velocity
 
 func _find_nearest_enemy() -> Node:
-	var enemies := get_tree().get_nodes_in_group("enemies")
 	var nearest: Node = null
-	var nearest_distance: float = INF
+	var nearest_distance_sq: float = INF
 	
-	for enemy in enemies:
+	# Use cached enemies instead of group query
+	for enemy in _cached_enemies:
 		if enemy.is_dead or not enemy.is_active:
 			continue
-		var distance: float = global_position.distance_to(enemy.global_position)
-		if distance < nearest_distance:
-			nearest_distance = distance
+		var distance_sq: float = global_position.distance_squared_to(enemy.global_position)
+		if distance_sq < nearest_distance_sq:
+			nearest_distance_sq = distance_sq
 			nearest = enemy
 	
 	return nearest
 
 func _update_air_attack() -> void:
-	if not is_air_attacking:
+	# Early exit with combined state check
+	if not is_air_attacking or _air_attack_ending:
 		return
 	
-	# Skip if air attack is already ending
-	if _air_attack_ending:
+	# Check ground contact first (most common ending condition)
+	if is_on_floor():
+		_end_air_attack()
 		return
 	
-	# Check if we've collided with any enemy during tween movement
-	var enemies := get_tree().get_nodes_in_group("enemies")
-	for enemy in enemies:
+	# Check enemy collisions only if still in air
+	var player_pos_sq := global_position  # Cache position for all distance checks
+	for enemy in _cached_enemies:
 		if enemy.is_dead or not enemy.is_active:
 			continue
-		var distance: float = global_position.distance_to(enemy.global_position)
-		if distance < 40.0:  # Decreased collision threshold for more precise diagonal attack
-			air_attack_target = enemy  # Set target for damage application
+		if player_pos_sq.distance_squared_to(enemy.global_position) < _air_attack_collision_threshold_sq:
+			air_attack_target = enemy
 			_apply_air_attack_damage()
 			_end_air_attack()
 			return
-	
-	# End air attack if player touches ground
-	if is_on_floor():
-		_end_air_attack()
 
 func _on_air_attack_tween_finished() -> void:
-	# Skip if air attack is already ending
-	if _air_attack_ending:
-		return
-	_end_air_attack()
+	# Only end if not already ending
+	if not _air_attack_ending:
+		_end_air_attack()
 
 func _apply_air_attack_damage() -> void:
 	if air_attack_target and air_attack_target.has_method("take_damage"):
@@ -516,9 +526,6 @@ func _apply_air_attack_damage() -> void:
 				var facing_dir: Vector2 = (air_attack_target.global_position - global_position).normalized()
 				blood.set_direction(facing_dir)
 				scene.add_child(blood)
-		
-		# Camera shake for impact
-		_start_camera_shake()
 
 func _end_air_attack() -> void:
 	# Prevent multiple calls to this function
@@ -670,17 +677,15 @@ func _start_player_reload_animation() -> void:
 	_player_reload_tween.tween_property(gun_sprite, "rotation", start_rotation + angle_offset, 0.08)
 	_player_reload_tween.tween_property(gun_sprite, "rotation", start_rotation, 0.08)
 	_player_reload_tween.finished.connect(_on_player_reload_finished)
-	# Play reload sound at the gun position (loaded at runtime to avoid parse-time errors)
+	# Play reload sound at the gun position (using cached stream)
 	var scene_for_sound := get_tree().current_scene
-	if scene_for_sound and PLAYER_RELOAD_SOUND_PATH != "":
-		var reload_stream := load(PLAYER_RELOAD_SOUND_PATH)
-		if reload_stream:
-			var audio := AudioStreamPlayer2D.new()
-			audio.stream = reload_stream
-			audio.position = gun_sprite.global_position
-			scene_for_sound.add_child(audio)
-			AudioUtils.play_random_pitch(audio, 0.95, 1.05)
-			audio.finished.connect(audio.queue_free)
+	if scene_for_sound and _reload_sound_cache:
+		var audio := AudioStreamPlayer2D.new()
+		audio.stream = _reload_sound_cache
+		audio.position = gun_sprite.global_position
+		scene_for_sound.add_child(audio)
+		AudioUtils.play_random_pitch(audio, 0.95, 1.05)
+		audio.finished.connect(audio.queue_free)
 
 
 func _on_player_reload_finished() -> void:
@@ -768,8 +773,6 @@ func _play_player_gun_recoil(shot_dir: Vector2) -> void:
 	_gun_recoil_tween.tween_property(gun_sprite, "position", back_pos, 0.04)
 	_gun_recoil_tween.tween_property(gun_sprite, "position", current_gun_pos, 0.06)
 
-
-# ——— DAMAGE ———
 func take_damage(amount: int) -> void:
 	take_damage_with_direction(amount, Vector2.ZERO)  # Default direction for non-bullet damage
 
@@ -778,9 +781,6 @@ func take_damage_with_direction(amount: int, bullet_direction: Vector2) -> void:
 	
 	# Apply damage effects using CharacterUtils with bullet direction
 	CharacterUtils.apply_damage_with_effects(self, amount, BLOOD_SCENE, BLOOD_SPLAT_SOUND, hit_player, bullet_direction)
-
-	# Camera shake for bullet damage
-	_start_camera_shake()
 
 	health = max(health - amount, 0)
 	emit_signal("health_changed", health, MAX_HEALTH)
@@ -852,15 +852,40 @@ func _highlight_health_bar() -> void:
 
 func gain_health_from_kill_with_enemy(enemy: Node) -> void:
 	gain_health_from_kill()
+	# Clean up enemy from connected list when they die
+	_connected_enemies.erase(enemy)
 
-func _connect_enemy_signals() -> void:
-	# Get all enemies and connect to their kill signals if not already connected
-	var enemies := get_tree().get_nodes_in_group("enemies")
-	for enemy in enemies:
+func _update_enemy_cache(delta: float) -> void:
+	_enemy_cache_update_timer += delta
+	if _enemy_cache_update_timer >= ENEMY_CACHE_UPDATE_INTERVAL:
+		_enemy_cache_update_timer = 0.0
+		# Always update cache to get fresh enemy references
+		var current_enemies := get_tree().get_nodes_in_group("enemies")
+		_cached_enemies = current_enemies.duplicate()
+		# Clean up disconnected enemies from tracking
+		_cleanup_disconnected_enemies()
+		# Always try to connect new enemies when cache updates
+		_connect_new_enemy_signals()
+
+func _connect_new_enemy_signals() -> void:
+	# Only connect to enemies we haven't connected to yet
+	for enemy in _cached_enemies:
+		if enemy in _connected_enemies:
+			continue  # Already connected
+		
 		if enemy.has_signal("enemy_killed"):
-			# Check if already connected to avoid duplicate connections
-			if not enemy.is_connected("enemy_killed", gain_health_from_kill_with_enemy):
-				enemy.connect("enemy_killed", gain_health_from_kill_with_enemy)
+			enemy.connect("enemy_killed", gain_health_from_kill_with_enemy)
+			_connected_enemies.append(enemy)
+
+func _cleanup_disconnected_enemies() -> void:
+	# Remove enemies from tracking that are no longer in cache
+	var enemies_to_remove: Array[Node] = []
+	for connected_enemy in _connected_enemies:
+		if connected_enemy not in _cached_enemies:
+			enemies_to_remove.append(connected_enemy)
+	
+	for enemy in enemies_to_remove:
+		_connected_enemies.erase(enemy)
 
 
 func pickup_gun() -> bool:
@@ -947,7 +972,6 @@ func _apply_damage_to_enemies() -> void:
 	if hit_something:
 		# Apply knockback using CharacterUtils
 		CharacterUtils.apply_knockback(self, -facing, 180.0, PLAYER_KNOCKBACK_DURATION)
-		_start_camera_shake()
 
 
 func _start_camera_shake() -> void:

@@ -55,11 +55,15 @@ func _ready() -> void:
 	randomize()
 	SPEED = randf_range(150.0, 300.0)
 	add_to_group("enemies")
-	# Make sure each enemy has its own material instance so hit_silhouette is per-enemy
+	# Optimize material duplication: only duplicate if we don't have a unique instance
 	if sprite_material:
-		var local_mat := sprite_material.duplicate()
-		animated_sprite.material = local_mat
-		sprite_material = local_mat
+		# Check if this is a shared material (from pool or scene)
+		var current_material = animated_sprite.material
+		if current_material == null or current_material == sprite_material:
+			# Create unique material instance only when needed
+			var unique_material = sprite_material.duplicate()
+			animated_sprite.material = unique_material
+			sprite_material = unique_material
 		# Ensure decay tint starts as neutral white so alive enemies are unmodified
 		sprite_material.set_shader_parameter("decay_tint", Color(1, 1, 1, 1))
 	animated_sprite.animation_finished.connect(_on_animation_finished)
@@ -356,16 +360,16 @@ func _flash_white() -> void:
 
 func _start_kill_slowmo() -> void:
 	Engine.time_scale = 0.3
-	# Start camera zoom for dramatic effect
-	_start_attack_zoom()
+	# Camera zoom disabled - only slow-mo effect
+	# _start_attack_zoom()
 	_restore_time_scale_after_kill()
 
 
 func _restore_time_scale_after_kill() -> void:
 	await get_tree().create_timer(0.35).timeout
 	Engine.time_scale = 1.0
-	# End camera zoom when slow-mo ends
-	_end_attack_zoom()
+	# Camera zoom disabled - no zoom to end
+	# _end_attack_zoom()
 
 
 func _start_attack_zoom() -> void:
