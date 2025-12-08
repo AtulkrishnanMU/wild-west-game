@@ -226,6 +226,12 @@ func _physics_process(delta: float) -> void:
 	
 	# Start jump (either immediate press or buffered)
 	if (jump_just_pressed or jump_buffer_time > 0.0) and is_on_floor() and not is_attacking and not is_jumping:
+		# Clear force idle flag when player wants to jump
+		_force_idle_after_air_attack = false
+		# Also clear air attack finished flag when player jumps
+		_air_attack_finished_mid_air = false
+		# Also clear the air attack cooldown flag to allow jumping immediately
+		_air_attack_just_ended = false
 		is_jumping = true
 		jump_hold_time = 0.0
 		jump_start_y = global_position.y
@@ -254,11 +260,11 @@ func _physics_process(delta: float) -> void:
 	if is_jumping and (not is_on_floor() and (jump_start_y - global_position.y) >= MAX_JUMP_HEIGHT):
 		is_jumping = false
 	
-	# Mouse-facing logic (always active)
+	# Mouse-facing logic (always active, but not during air attacks)
 	var mouse_pos: Vector2 = get_global_mouse_position()
 	var dx: float = mouse_pos.x - global_position.x
 	var dead_zone: float = 4.0
-	if abs(dx) > dead_zone:
+	if abs(dx) > dead_zone and not is_air_attacking:
 		animated_sprite.flip_h = dx < 0
 
 	# Horizontal movement: only while right mouse button is held
@@ -298,8 +304,8 @@ func _physics_process(delta: float) -> void:
 			else:
 				_start_attack_idle()
 	
-	# Gun aiming: rotate held gun toward mouse cursor
-	if has_gun and gun_sprite:
+	# Gun aiming: rotate held gun toward mouse cursor (but not during air attacks)
+	if has_gun and gun_sprite and not is_air_attacking:
 		var to_mouse: Vector2 = get_global_mouse_position() - gun_sprite.global_position
 		if to_mouse.length() > 0.0:
 			var angle: float = to_mouse.angle()
@@ -450,13 +456,12 @@ func _start_air_attack() -> void:
 	# Always perform downward diagonal attack with constant horizontal distance
 	var horizontal_direction: float = 1.0  # Default right
 	
-	# If enemy exists, aim toward them horizontally
+	# Priority 1: If enemy exists, aim toward them horizontally
 	if air_attack_target != null:
 		var to_enemy: Vector2 = air_attack_target.global_position - global_position
 		horizontal_direction = sign(to_enemy.x)
-	
-	# Use player's current facing direction as fallback
-	if animated_sprite.flip_h:
+	# Priority 2: Use player's current facing direction as fallback only if no enemy found
+	elif animated_sprite.flip_h:
 		horizontal_direction = -1.0
 	
 	# Calculate target position for straight diagonal movement

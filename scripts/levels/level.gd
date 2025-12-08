@@ -43,17 +43,21 @@ func setup_ui() -> void:
 		_on_player_cash_changed(player.cash)
 		_on_player_reloads_changed(player._player_reload_count, player.PLAYER_MAX_RELOADS)
 	
-	# Apply pixel font to UI elements
+	# Apply pixel font to UI elements with smaller font sizes
 	var ui_font := load("res://fonts/PixelOperator8.ttf")
 	if ui_font:
 		if health_bar:
 			health_bar.add_theme_font_override("font", ui_font)
+			health_bar.add_theme_font_size_override("font_size", 12)
 		if cash_label:
 			cash_label.add_theme_font_override("font", ui_font)
+			cash_label.add_theme_font_size_override("font_size", 12)
 		if health_percent_label:
 			health_percent_label.add_theme_font_override("font", ui_font)
+			health_percent_label.add_theme_font_size_override("font_size", 12)
 		if reload_label:
 			reload_label.add_theme_font_override("font", ui_font)
+			reload_label.add_theme_font_size_override("font_size", 12)
 	
 	# Configure progress bars
 	if health_bar:

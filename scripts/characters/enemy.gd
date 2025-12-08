@@ -299,8 +299,8 @@ func take_damage_with_direction(amount: int, bullet_direction: Vector2, bullet_p
 	# Spawn blood splash at bullet hit position with bullet direction
 	CharacterUtils.apply_damage_with_effects(self, amount, BLOOD_SCENE, BLOOD_SPLAT_SOUND, null, bullet_direction, bullet_position)
 
-	# FLASH WHITE ON EVERY HIT (including killing blow)
-	_flash_white()
+	# FLASH REDDISH ON EVERY HIT (including killing blow)
+	_flash_reddish()
 	
 	# Apply knockback if not dead
 	if not is_dead:
@@ -346,16 +346,23 @@ func _start_corpse_decay() -> void:
 	_decay_tween.tween_property(sprite_material, "shader_parameter/decay_tint", CORPSE_DECAY_COLOR, 10.0)
 
 
-func _flash_white() -> void:
+func _flash_reddish() -> void:
 	if _hit_tween and _hit_tween.is_valid():
 		_hit_tween.kill()
 
 	_hit_tween = create_tween()
 	_hit_tween.set_trans(Tween.TRANS_LINEAR)
-	if sprite_material:
-		# Start fully white, then fade the silhouette flag back to 0 over 0.5s
-		sprite_material.set_shader_parameter("hit_silhouette", 1.0)
-		_hit_tween.tween_property(sprite_material, "shader_parameter/hit_silhouette", 0.0, 0.5)
+	
+	# Store original material and temporarily disable shader
+	var original_material = animated_sprite.material
+	animated_sprite.material = null
+	
+	# Use reddish tint like player
+	animated_sprite.modulate = Color(2, 0.4, 0.4)
+	_hit_tween.tween_property(animated_sprite, "modulate", Color.WHITE, 0.5)
+	
+	# Restore material after flash
+	_hit_tween.tween_callback(func(): animated_sprite.material = original_material)
 
 
 func _start_kill_slowmo() -> void:
