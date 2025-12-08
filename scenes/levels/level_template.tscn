@@ -1,49 +1,14 @@
-[gd_scene load_steps=4 format=3 uid="uid://mgynsvm4rol4"]
+[gd_scene load_steps=5 format=3 uid="uid://mgynsvm4rol4"]
 
 [ext_resource type="Script" uid="uid://bon2tqed1f4g0" path="res://scripts/levels/level1.gd" id="1_eokde"]
 [ext_resource type="PackedScene" uid="uid://cqe8lfti15rhf" path="res://scenes/objects/ground.tscn" id="2_gr3xe"]
 [ext_resource type="PackedScene" uid="uid://c5a3w2pm50uds" path="res://scenes/characters/player.tscn" id="4_qvykx"]
+[ext_resource type="PackedScene" uid="uid://vi8yy0g5xqwb" path="res://scenes/levels/ui.tscn" id="5_ui"]
 
 [node name="Level1" type="Node2D"]
 script = ExtResource("1_eokde")
 
-[node name="UI" type="CanvasLayer" parent="."]
-
-[node name="HealthBar" type="ProgressBar" parent="UI"]
-offset_left = 10.0
-offset_top = 10.0
-offset_right = 210.0
-offset_bottom = 37.0
-max_value = 200.0
-value = 200.0
-
-
-[node name="CashLabel" type="Label" parent="UI"]
-offset_left = 10.0
-offset_top = 58.0
-offset_right = 210.0
-offset_bottom = 85.0
-text = "CASH: 0"
-
-[node name="BulletIcons" type="HBoxContainer" parent="UI"]
-offset_left = 10.0
-offset_top = 88.0
-offset_right = 210.0
-offset_bottom = 110.0
-
-[node name="ReloadLabel" type="Label" parent="UI"]
-offset_left = 10.0
-offset_top = 115.0
-offset_right = 210.0
-offset_bottom = 135.0
-text = "RELOADS 0/5"
-
-[node name="HealthPercentLabel" type="Label" parent="UI"]
-offset_left = 220.0
-offset_top = 10.0
-offset_right = 300.0
-offset_bottom = 37.0
-text = "100%"
+[node name="UI" parent="." instance=ExtResource("5_ui")]
 
 [node name="Ground" parent="." instance=ExtResource("2_gr3xe")]
 position = Vector2(281, 384)

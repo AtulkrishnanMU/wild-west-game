@@ -1,0 +1,38 @@
+[gd_scene format=3 uid="uid://vi8yy0g5xqwb"]
+
+[node name="UI" type="CanvasLayer"]
+
+[node name="HealthBar" type="ProgressBar" parent="."]
+offset_left = 10.0
+offset_top = 26.0
+offset_right = 210.0
+offset_bottom = 53.0
+max_value = 200.0
+value = 200.0
+
+[node name="CashLabel" type="Label" parent="."]
+offset_left = 10.0
+offset_top = 58.0
+offset_right = 210.0
+offset_bottom = 85.0
+text = "CASH: 0"
+
+[node name="BulletIcons" type="HBoxContainer" parent="."]
+offset_left = 10.0
+offset_top = 88.0
+offset_right = 210.0
+offset_bottom = 110.0
+
+[node name="ReloadLabel" type="Label" parent="."]
+offset_left = 10.0
+offset_top = 115.0
+offset_right = 210.0
+offset_bottom = 135.0
+text = "RELOADS 0/5"
+
+[node name="HealthPercentLabel" type="Label" parent="."]
+offset_left = 220.0
+offset_top = 26.0
+offset_right = 300.0
+offset_bottom = 53.0
+text = "100%"

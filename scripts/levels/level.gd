@@ -1,5 +1,8 @@
 extends Node2D
 
+# Font configuration
+const FontConfig := preload("res://scripts/utils/font_config.gd")
+
 # Shared UI helpers for main and endless levels
 const BULLET_ICON_TEXTURE_PATH := "res://assets/icons/bullet-icon.png"
 const DEFAULT_MUSIC_VOLUME_DB := -8.0
@@ -43,25 +46,21 @@ func setup_ui() -> void:
 		_on_player_cash_changed(player.cash)
 		_on_player_reloads_changed(player._player_reload_count, player.PLAYER_MAX_RELOADS)
 	
-	# Apply pixel font to UI elements with smaller font sizes
-	var ui_font := load("res://fonts/PixelOperator8.ttf")
-	if ui_font:
-		if health_bar:
-			health_bar.add_theme_font_override("font", ui_font)
-			health_bar.add_theme_font_size_override("font_size", 12)
-		if cash_label:
-			cash_label.add_theme_font_override("font", ui_font)
-			cash_label.add_theme_font_size_override("font_size", 12)
-		if health_percent_label:
-			health_percent_label.add_theme_font_override("font", ui_font)
-			health_percent_label.add_theme_font_size_override("font_size", 12)
-		if reload_label:
-			reload_label.add_theme_font_override("font", ui_font)
-			reload_label.add_theme_font_size_override("font_size", 12)
+	# Apply default font to UI elements
+	if cash_label:
+		FontConfig.apply_ui_font(cash_label)
+	if health_percent_label:
+		FontConfig.apply_ui_font(health_percent_label)
+	if reload_label:
+		FontConfig.apply_ui_font(reload_label)
 	
 	# Configure progress bars
 	if health_bar:
 		health_bar.show_percentage = false
+		# Reduce corner radius and add white outline
+		health_bar.add_theme_stylebox_override("background", create_health_bar_background())
+		health_bar.add_theme_stylebox_override("fill", create_health_bar_fill())
+		health_bar.add_theme_stylebox_override("foreground", create_health_bar_foreground())
 
 # Common setup function
 func setup_level() -> void:
@@ -77,6 +76,46 @@ func setup_music() -> void:
 	if music and music.stream:
 		music.stream.loop = true
 		music.volume_db = DEFAULT_MUSIC_VOLUME_DB
+
+# Health bar styling functions
+func create_health_bar_background() -> StyleBoxFlat:
+	var style_box := StyleBoxFlat.new()
+	style_box.bg_color = Color(0.2, 0.2, 0.2, 0.8)  # Dark gray background
+	style_box.border_width_left = 2
+	style_box.border_width_right = 2
+	style_box.border_width_top = 2
+	style_box.border_width_bottom = 2
+	style_box.border_color = Color.WHITE  # White outline
+	style_box.corner_radius_top_left = 2  # Reduced corner radius
+	style_box.corner_radius_top_right = 2
+	style_box.corner_radius_bottom_left = 2
+	style_box.corner_radius_bottom_right = 2
+	return style_box
+
+func create_health_bar_fill() -> StyleBoxFlat:
+	var style_box := StyleBoxFlat.new()
+	# Use the health bar's current modulate color for dynamic coloring
+	var fill_color = health_bar.modulate if health_bar else Color(0.2, 0.9, 0.2)
+	style_box.bg_color = fill_color
+	style_box.corner_radius_top_left = 2  # Reduced corner radius
+	style_box.corner_radius_top_right = 2
+	style_box.corner_radius_bottom_left = 2
+	style_box.corner_radius_bottom_right = 2
+	return style_box
+
+func create_health_bar_foreground() -> StyleBoxFlat:
+	var style_box := StyleBoxFlat.new()
+	style_box.bg_color = Color.TRANSPARENT  # Transparent foreground
+	style_box.border_width_left = 1
+	style_box.border_width_right = 1
+	style_box.border_width_top = 1
+	style_box.border_width_bottom = 1
+	style_box.border_color = Color.WHITE  # White outline
+	style_box.corner_radius_top_left = 2  # Reduced corner radius
+	style_box.corner_radius_top_right = 2
+	style_box.corner_radius_bottom_left = 2
+	style_box.corner_radius_bottom_right = 2
+	return style_box
 
 # Setup camera with common settings
 func setup_camera() -> void:
@@ -149,6 +188,8 @@ func _on_player_health_changed(current: int, max_value: int) -> void:
 			health_bar.modulate = Color(0.95, 0.8, 0.2)
 		else:
 			health_bar.modulate = Color(0.95, 0.2, 0.2)
+		# Update fill color to match the new modulate color
+		health_bar.add_theme_stylebox_override("fill", create_health_bar_fill())
 	if health_percent_label != null and max_value > 0:
 		health_percent_label.text = str(int(round(ratio * 100.0))) + "%"
 
@@ -159,27 +200,38 @@ func _on_player_cash_changed(current: int) -> void:
 
 
 func _on_player_bullets_changed(current: int, max_value: int) -> void:
-	_update_bullet_icons(current)
+	_update_bullet_icons(current, max_value)
 
 
 func _on_player_reloads_changed(current: int, max_value: int) -> void:
 	_update_reload_label(current, max_value)
 
 
-func _update_bullet_icons(current: int) -> void:
+func _update_bullet_icons(current: int, max_value: int) -> void:
 	if bullet_icons == null:
 		return
 	bullet_icons.add_theme_constant_override("separation", 10)
 	for child in bullet_icons.get_children():
 		child.queue_free()
+	
 	var tex := load(BULLET_ICON_TEXTURE_PATH)
 	if tex == null:
 		return
-	for i in range(current):
+	
+	# Show bullet icons for available bullets and low opacity icons for used bullets
+	for i in range(max_value):
 		var icon := TextureRect.new()
 		icon.texture = tex
 		icon.stretch_mode = TextureRect.STRETCH_KEEP_CENTERED
 		icon.custom_minimum_size = Vector2(8, 8)
+		
+		if i < current:
+			# Available bullet - full opacity
+			icon.modulate = Color.WHITE
+		else:
+			# Used bullet - low opacity
+			icon.modulate = Color(1.0, 1.0, 1.0, 0.2)  # 20% opacity
+		
 		bullet_icons.add_child(icon)
 
 

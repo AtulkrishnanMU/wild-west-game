@@ -1,0 +1,36 @@
+[remap]
+
+importer="font_data_dynamic"
+type="FontFile"
+uid="uid://bwx8v3y7n2k1p"
+path="res://.godot/imported/Triangle Break.otf-ba55c71b9946cd7399af2e4286345430.fontdata"
+
+[deps]
+
+source_file="res://fonts/Triangle Break.otf"
+dest_files=["res://.godot/imported/Triangle Break.otf-ba55c71b9946cd7399af2e4286345430.fontdata"]
+
+[params]
+
+Rendering=null
+antialiasing=1
+generate_mipmaps=false
+disable_embedded_bitmaps=true
+multichannel_signed_distance_field=false
+msdf_pixel_range=8
+msdf_size=48
+allow_system_fallback=true
+force_autohinter=false
+modulate_color_glyphs=false
+hinting=1
+subpixel_positioning=4
+keep_rounding_remainders=true
+oversampling=0.0
+Fallbacks=null
+fallbacks=[]
+Compress=null
+compress=true
+preload=[]
+language_support={}
+script_support={}
+opentype_features={}

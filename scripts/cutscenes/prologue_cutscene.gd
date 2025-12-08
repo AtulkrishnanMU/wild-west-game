@@ -1,5 +1,8 @@
 extends "res://scripts/cutscenes/cutscene_base.gd"
 
+# Font configuration
+const FontConfig := preload("res://scripts/utils/font_config.gd")
+
 var _hb_faded_out: bool = false
 var _title_showing: bool = true
 var _title_label: Label
@@ -39,10 +42,8 @@ func _ready() -> void:
 	_title_label.grow_vertical = Control.GROW_DIRECTION_BOTH
 	_title_label.modulate.a = 0.0  # Start invisible
 	
-	# Set up font for the title
-	var font = preload("res://fonts/PixelOperator8.ttf")
-	_title_label.add_theme_font_override("font", font)
-	_title_label.add_theme_font_size_override("font_size", 36)  # Larger size for the title
+	# Set up default font for the title
+	FontConfig.apply_title_font(_title_label)
 	
 	add_child(_title_label)
 

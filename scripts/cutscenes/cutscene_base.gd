@@ -1,5 +1,8 @@
 extends Control
 
+# Font configuration
+const FontConfig := preload("res://scripts/utils/font_config.gd")
+
 @export var typing_speed: float = 40.0
 
 @onready var dialogue_label: RichTextLabel = $DialogueLabel
@@ -51,11 +54,9 @@ var _color_spans: Array = [] # each: {start: int, end: int, color: String}
 
 
 func _setup_cutscene_common() -> void:
-	var font = load("res://fonts/PixelOperator8.ttf")
-	if font and dialogue_label:
-		# Apply PixelOperator8 to this RichTextLabel
-		dialogue_label.add_theme_font_override("normal_font", font)
-		dialogue_label.add_theme_font_size_override("normal_font_size", 15)
+	# Apply default font to dialogue
+	FontConfig.apply_dialogue_font(dialogue_label)
+	if dialogue_label:
 		dialogue_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 		dialogue_label.vertical_alignment = VERTICAL_ALIGNMENT_TOP
 		# Control space between lines using RichTextLabel's line_separation constant

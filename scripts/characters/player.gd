@@ -1,6 +1,7 @@
 class_name Player
 extends CharacterBody2D
 
+const FontConfig := preload("res://scripts/utils/font_config.gd")
 const SPEED = 300.0
 const JUMP_VELOCITY = -400.0
 const TILE_SIZE = 16
@@ -12,7 +13,7 @@ const MAX_JUMP_HOLD_TIME = 0.3  # seconds to reach max height
 const ACCELERATION = 1200.0  # pixels per second squared
 const DECELERATION = 1500.0  # pixels per second squared (stronger for quicker stops)
 const AIR_ACCELERATION = 800.0  # reduced acceleration when in air
-const POPUP_FONT_SIZE = 8  # font size for floating popups (temporarily large for testing)
+const POPUP_FONT_SIZE = FontConfig.DEFAULT_POPUP_FONT_SIZE  # font size for floating popups
 # Popup height offsets to prevent overlapping (higher number = higher position)
 const CASH_POPUP_HEIGHT = 0.0      # Default height for cash popups
 const GUN_POPUP_HEIGHT = 15.0       # Height for gun-related popups
@@ -889,10 +890,6 @@ func _highlight_health_bar() -> void:
 	if health_bar == null:
 		return
 	
-	# Store original color if not already stored
-	if _original_health_bar_color == Color.WHITE:
-		_original_health_bar_color = health_bar.modulate
-	
 	# Cancel any existing highlight tween
 	if _health_bar_highlight_tween and _health_bar_highlight_tween.is_valid():
 		_health_bar_highlight_tween.kill()
@@ -905,11 +902,46 @@ func _highlight_health_bar() -> void:
 	var pink_color = Color(1.0, 0.75, 0.8)  # Same as popup color
 	_health_bar_highlight_tween.tween_property(health_bar, "modulate", pink_color, 0.1)
 	
+	# Create pink fill style directly
+	var pink_fill = StyleBoxFlat.new()
+	pink_fill.bg_color = pink_color
+	pink_fill.corner_radius_top_left = 2
+	pink_fill.corner_radius_top_right = 2
+	pink_fill.corner_radius_bottom_left = 2
+	pink_fill.corner_radius_bottom_right = 2
+	health_bar.add_theme_stylebox_override("fill", pink_fill)
+	
 	# Hold pink color briefly
 	_health_bar_highlight_tween.tween_property(health_bar, "modulate", pink_color, 0.2).set_delay(0.1)
 	
-	# Fade back to original color
-	_health_bar_highlight_tween.tween_property(health_bar, "modulate", _original_health_bar_color, 0.3).set_delay(0.3)
+	# Fade back to proper color based on current health
+	var proper_color = get_health_color()
+	_health_bar_highlight_tween.tween_property(health_bar, "modulate", proper_color, 0.3).set_delay(0.3)
+	
+	# Also restore the fill color after the highlight
+	_health_bar_highlight_tween.tween_callback(func(): 
+		# Create proper fill style
+		var proper_fill = StyleBoxFlat.new()
+		proper_fill.bg_color = proper_color
+		proper_fill.corner_radius_top_left = 2
+		proper_fill.corner_radius_top_right = 2
+		proper_fill.corner_radius_bottom_left = 2
+		proper_fill.corner_radius_bottom_right = 2
+		health_bar.add_theme_stylebox_override("fill", proper_fill)
+	).set_delay(0.3)
+
+# Helper function to get proper health color based on current health
+func get_health_color() -> Color:
+	var ratio: float = 0.0
+	if MAX_HEALTH > 0:
+		ratio = float(health) / float(MAX_HEALTH)
+	
+	if ratio > 0.6:
+		return Color(0.2, 0.9, 0.2)  # Green
+	elif ratio > 0.3:
+		return Color(0.95, 0.8, 0.2)  # Yellow
+	else:
+		return Color(0.95, 0.2, 0.2)  # Red
 
 func gain_health_from_kill_with_enemy(enemy: Node) -> void:
 	gain_health_from_kill()

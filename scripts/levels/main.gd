@@ -1,5 +1,8 @@
 extends "res://scripts/levels/level.gd"
 
+# Font configuration
+const FontConfig := preload("res://scripts/utils/font_config.gd")
+
 var pressed: bool = false
 var intro_done: bool = false
 var intro_running: bool = false
@@ -34,19 +37,12 @@ func _ready() -> void:
 	if player:
 		setup_level()
 	
-	# Apply font to main menu specific UI elements
-	var ui_font := load("res://fonts/PixelOperator8.ttf")
-	if ui_font:
-		if press_label:
-			press_label.add_theme_font_override("font", ui_font)
-		if btn_continue:
-			btn_continue.add_theme_font_override("font", ui_font)
-		if btn_new_game:
-			btn_new_game.add_theme_font_override("font", ui_font)
-		if btn_tutorial:
-			btn_tutorial.add_theme_font_override("font", ui_font)
-		if btn_endless:
-			btn_endless.add_theme_font_override("font", ui_font)
+	# Apply default font to main menu UI elements
+	FontConfig.apply_ui_font(press_label)
+	FontConfig.apply_ui_font(btn_continue)
+	FontConfig.apply_ui_font(btn_new_game)
+	FontConfig.apply_ui_font(btn_tutorial)
+	FontConfig.apply_ui_font(btn_endless)
 	
 	if player:
 		player.controls_enabled = false

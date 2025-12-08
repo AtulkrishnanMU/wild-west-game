@@ -1,5 +1,8 @@
 extends Node2D
 
+# Font configuration
+const FontConfig := preload("res://scripts/utils/font_config.gd")
+
 # References to nodes
 @onready var dialogue_label: RichTextLabel = $CanvasLayer/RichTextLabel
 @onready var typing_player: AudioStreamPlayer = $TypingPlayer
@@ -93,15 +96,8 @@ func _ready() -> void:
 				tween.tween_property(dialogue_label, "modulate:a", 1.0, 1.0)  # Text fades in over 1.0s
 	
 func _setup_cutscene() -> void:
-	# Set up the BigBlueTerm437NerdFontMono font for authentic terminal appearance
-	var font = preload("res://fonts/BigBlueTerm437NerdFontMono-Regular.ttf")
-	# Apply font to all possible font types to ensure full coverage
-	dialogue_label.add_theme_font_override("normal_font", font)
-	dialogue_label.add_theme_font_override("bold_font", font)
-	dialogue_label.add_theme_font_override("italics_font", font)
-	dialogue_label.add_theme_font_override("bold_italics_font", font)
-	dialogue_label.add_theme_font_override("mono_font", font)
-	
+	# Apply default font to monitor text
+	FontConfig.apply_dialogue_font(dialogue_label)
 	# Set consistent font size and line separation
 	dialogue_label.add_theme_font_size_override("normal_font_size", 15)
 	dialogue_label.add_theme_font_size_override("bold_font_size", 15)

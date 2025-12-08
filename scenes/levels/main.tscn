@@ -1,8 +1,9 @@
-[gd_scene load_steps=4 format=3 uid="uid://c2rwbherxxm7a"]
+[gd_scene load_steps=5 format=3 uid="uid://c2rwbherxxm7a"]
 
 [ext_resource type="Script" uid="uid://bsk8ihu2iql4c" path="res://scripts/levels/main.gd" id="1_ig7tw"]
 [ext_resource type="PackedScene" uid="uid://dvueqafah81v0" path="res://scenes/objects/title_layer.tscn" id="8_choun"]
 [ext_resource type="AudioStream" uid="uid://dhgnu5ofxo1mw" path="res://music/default.mp3" id="9_default"]
+[ext_resource type="PackedScene" uid="uid://vi8yy0g5xqwb" path="res://scenes/levels/ui.tscn" id="10_ui"]
 
 [node name="Main" type="Node2D"]
 script = ExtResource("1_ig7tw")
@@ -11,42 +12,6 @@ script = ExtResource("1_ig7tw")
 stream = ExtResource("9_default")
 autoplay = true
 
-[node name="UI" type="CanvasLayer" parent="."]
-
-[node name="HealthBar" type="ProgressBar" parent="UI"]
-offset_left = 10.0
-offset_top = 10.0
-offset_right = 210.0
-offset_bottom = 37.0
-max_value = 200.0
-value = 200.0
-
-
-[node name="CashLabel" type="Label" parent="UI"]
-offset_left = 10.0
-offset_top = 58.0
-offset_right = 210.0
-offset_bottom = 85.0
-text = "CASH: 0"
-
-[node name="BulletIcons" type="HBoxContainer" parent="UI"]
-offset_left = 10.0
-offset_top = 88.0
-offset_right = 210.0
-offset_bottom = 110.0
-
-[node name="ReloadLabel" type="Label" parent="UI"]
-offset_left = 10.0
-offset_top = 115.0
-offset_right = 210.0
-offset_bottom = 135.0
-text = "RELOADS 0/5"
-
-[node name="HealthPercentLabel" type="Label" parent="UI"]
-offset_left = 220.0
-offset_top = 10.0
-offset_right = 300.0
-offset_bottom = 37.0
-text = "100%"
+[node name="UI" parent="." instance=ExtResource("10_ui")]
 
 [node name="TitleLayer" parent="." instance=ExtResource("8_choun")]

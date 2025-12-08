@@ -1,6 +1,9 @@
 class_name CharacterUtils
 extends RefCounted
 
+# Font configuration
+const FontConfig := preload("res://scripts/utils/font_config.gd")
+
 # Common scene preloads
 const DUST_SCENE := preload("res://scenes/objects/dust_splash.tscn")
 const BLOOD_SCENE := preload("res://scenes/objects/blood_splash.tscn")
@@ -86,7 +89,7 @@ static func apply_smooth_movement(character: CharacterBody2D, target_speed: floa
 		return new_velocity
 
 # Clean floating popup method (similar to cash popup)
-static func spawn_floating_popup(character: Node2D, text: String, color: Color, offset: Vector2 = Vector2(0, -20), font_size: int = 8, height: float = 0.0) -> void:
+static func spawn_floating_popup(character: Node2D, text: String, color: Color, offset: Vector2 = Vector2(0, -20), font_size: int = FontConfig.DEFAULT_POPUP_FONT_SIZE, height: float = 0.0) -> void:
 	var scene := character.get_tree().current_scene
 	if scene == null:
 		return
@@ -100,16 +103,8 @@ static func spawn_floating_popup(character: Node2D, text: String, color: Color, 
 	var label := Label.new()
 	label.text = text
 	label.modulate = color
-	var font := load("res://fonts/PixelOperator8.ttf")
-	if font:
-		# Try multiple approaches to set font size
-		label.add_theme_font_override("font", font)
-		label.add_theme_font_size_override("font_size", font_size)
-		# Also try setting it directly
-		var label_settings = LabelSettings.new()
-		label_settings.font = font
-		label_settings.font_size = font_size
-		label.label_settings = label_settings
+# Apply default font to floating popup
+	FontConfig.apply_default_font(label, font_size)
 
 	popup_root.add_child(label)
 

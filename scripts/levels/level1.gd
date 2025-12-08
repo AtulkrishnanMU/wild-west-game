@@ -195,14 +195,11 @@ func _show_tutorial_popup() -> void:
 	_tutorial_label.position = Vector2(-125, -80)
 	_tutorial_label.size = Vector2(250, 250)
 	
-	# Apply pixel font
-	var font = load("res://fonts/PixelOperator8.ttf")
-	if font:
-		_tutorial_label.add_theme_font_override("font", font)
-		_tutorial_label.add_theme_font_size_override("font_size", 8)
-		# Ensure crisp pixel rendering
-		_tutorial_label.add_theme_constant_override("outline_size", 1)
-		_tutorial_label.add_theme_color_override("font_outline_color", Color.BLACK)
+	# Apply default font to tutorial label
+	FontConfig.apply_ui_font(_tutorial_label)
+	# Ensure crisp pixel rendering
+	_tutorial_label.add_theme_constant_override("outline_size", 1)
+	_tutorial_label.add_theme_color_override("font_outline_color", Color.BLACK)
 	_tutorial_label.modulate = Color.WHITE
 	
 	_tutorial_popup.add_child(_tutorial_label)
