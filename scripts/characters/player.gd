@@ -63,7 +63,8 @@ var was_on_floor: bool = false  # Track if player was on floor in previous frame
 @onready var sword_hitbox_shape: CollisionShape2D = $SwordHitbox/CollisionShape2D
 @onready var gun_sprite: Sprite2D = $GunSprite
 
-# Add these variables near the top with the others
+# Add this variable near the top with the others
+var _air_attack_finished_mid_air: bool = false
 var knockback_velocity: Vector2 = Vector2.ZERO
 var knockback_timer: float = 0.0
 const PLAYER_KNOCKBACK_DURATION: float = 0.05  # seconds of forced knockback
@@ -179,6 +180,7 @@ func _physics_process(delta: float) -> void:
 		is_jumping = false
 		_air_attack_just_ended = false     # Clear air attack flags immediately when landing
 		_force_idle_after_air_attack = false
+		_air_attack_finished_mid_air = false  # Clear air attack finished flag when landing
 	
 	# Create dust while running on ground
 	if CharacterUtils.check_running_dust(self, velocity):
@@ -263,6 +265,8 @@ func _physics_process(delta: float) -> void:
 	var direction: float = 0.0
 	var target_speed: float = 0.0
 	if Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT):
+		# Immediately clear force idle flag when player wants to move
+		_force_idle_after_air_attack = false
 		if abs(dx) > dead_zone:
 			direction = sign(dx)
 			target_speed = direction * SPEED
@@ -333,25 +337,43 @@ func _physics_process(delta: float) -> void:
 
 	# ——— ANIMATION CHOICE ———
 	if is_air_attacking:
-		animated_sprite.play("JUMP")  # Use jump animation during air attack
+		animated_sprite.play("AIR_ATTACK")  # Use air attack animation during air attack
 	elif is_attacking:
 		# attack animations handled by animation_finished
 		pass
+	elif _air_attack_finished_mid_air:
+		# Stay on the last frame of air attack animation if it finished mid-air
+		# Don't change animation until player lands or moves
+		pass
 	elif _force_idle_after_air_attack:
 		# Force idle animation after air attack until player moves
-		animated_sprite.play("IDLE")
+		if has_gun:
+			animated_sprite.play("GUN_IDLE")
+		else:
+			animated_sprite.play("IDLE")
 		_stop_running_sound()
 	elif not is_on_floor() and not _air_attack_just_ended:
 		# Only play jump animation if not in cooldown from air attack
-		animated_sprite.play("JUMP")
+		if has_gun:
+			animated_sprite.play("GUN_JUMP")
+		else:
+			animated_sprite.play("JUMP")
 		_stop_running_sound()
 	elif velocity.x != 0:
 		# Clear force idle flag when player starts moving
 		_force_idle_after_air_attack = false
-		animated_sprite.play("RUN")
+		# Also clear air attack finished flag when player starts moving
+		_air_attack_finished_mid_air = false
+		if has_gun:
+			animated_sprite.play("GUN_RUN")
+		else:
+			animated_sprite.play("RUN")
 		_play_running_sound()
 	else:
-		animated_sprite.play("IDLE")
+		if has_gun:
+			animated_sprite.play("GUN_IDLE")
+		else:
+			animated_sprite.play("IDLE")
 		_stop_running_sound()
 
 	if _camera_shake_timer > 0.0:
@@ -544,6 +566,16 @@ func _end_air_attack() -> void:
 	_air_attack_cooldown = 1.0  # 1 second cooldown
 	_force_idle_after_air_attack = true  # Force idle animation until player moves
 	
+	# Check if we're still in the air when the attack ends
+	if not is_on_floor():
+		_air_attack_finished_mid_air = true
+		# Let the animation finish naturally, then connect to animation_finished
+		# to pause it on the last frame
+		if not animated_sprite.animation_finished.is_connected(_on_air_attack_animation_finished):
+			animated_sprite.animation_finished.connect(_on_air_attack_animation_finished)
+	else:
+		_air_attack_finished_mid_air = false
+	
 	# Kill the tween if it's still running
 	if air_attack_tween and air_attack_tween.is_valid():
 		air_attack_tween.kill()
@@ -564,27 +596,51 @@ func _update_animation_state() -> void:
 	# Clear the ending flag since we're now updating
 	_air_attack_ending = false
 	
+	# Don't change animation if air attack finished mid-air - stay on last frame
+	if _air_attack_finished_mid_air:
+		return
+	
 	if is_dead:
 		animated_sprite.play("DEATH")
 	elif is_air_attacking:
-		animated_sprite.play("JUMP")
+		animated_sprite.play("AIR_ATTACK")
 	elif is_attacking:
 		# attack animations handled by animation_finished
 		pass
 	elif not is_on_floor() and not _air_attack_just_ended:
 		# Only play jump animation if not in cooldown from air attack
-		animated_sprite.play("JUMP")
+		if has_gun:
+			animated_sprite.play("GUN_JUMP")
+		else:
+			animated_sprite.play("JUMP")
 		_stop_running_sound()
 	elif velocity.x != 0:
-		animated_sprite.play("RUN")
+		if has_gun:
+			animated_sprite.play("GUN_RUN")
+		else:
+			animated_sprite.play("RUN")
 		_play_running_sound()
 	else:
-		animated_sprite.play("IDLE")
+		if has_gun:
+			animated_sprite.play("GUN_IDLE")
+		else:
+			animated_sprite.play("IDLE")
 		_stop_running_sound()
 	
 	var new_anim = animated_sprite.animation
 	if old_anim != new_anim:
 		print("[AIR_ATTACK] Animation changed: ", old_anim, " -> ", new_anim)
+
+func _on_air_attack_animation_finished() -> void:
+	# This is called when the air attack animation finishes naturally
+	# Disconnect the signal to avoid multiple calls
+	if animated_sprite.animation_finished.is_connected(_on_air_attack_animation_finished):
+		animated_sprite.animation_finished.disconnect(_on_air_attack_animation_finished)
+	
+	# Only pause if we're still in the air attack finished state and in the air
+	if _air_attack_finished_mid_air and not is_on_floor():
+		# Pause on the last frame
+		animated_sprite.pause()
 
 func _on_animation_finished() -> void:
 	var anim = animated_sprite.animation
