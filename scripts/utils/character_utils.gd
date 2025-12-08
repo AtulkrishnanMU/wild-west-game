@@ -120,22 +120,43 @@ static func spawn_floating_popup(character: Node2D, text: String, color: Color, 
 	tween.finished.connect(popup_root.queue_free)
 
 # Health system utilities
-static func apply_damage_with_effects(character: Node2D, amount: int, blood_scene: PackedScene, blood_splat_sound: AudioStream, hit_player: AudioStreamPlayer2D = null, bullet_direction: Vector2 = Vector2.ZERO) -> void:
-	# Spawn blood splash at character position
+static func apply_damage_with_effects(character: Node2D, amount: int, blood_scene: PackedScene, blood_splat_sound: AudioStream, hit_player: AudioStreamPlayer2D = null, bullet_direction: Vector2 = Vector2.ZERO, hit_position: Vector2 = Vector2.ZERO) -> void:
+	# Spawn blood splash at hit position or character center
 	if blood_scene:
 		var blood := blood_scene.instantiate()
 		var scene := character.get_tree().current_scene
 		if blood and scene:
+			var spawn_position := hit_position if hit_position != Vector2.ZERO else character.global_position
+			
+			# For alive enemies, offset blood position backwards from bullet impact
+			var is_dead: bool = "is_dead" in character and character.is_dead
+			if not is_dead and bullet_direction != Vector2.ZERO:
+				# Offset blood spawn position backwards along bullet direction
+				var backward_offset := bullet_direction.normalized() * 12.0  # 12 pixels behind impact
+				spawn_position += backward_offset
+			
 			var offset := Vector2(randf_range(-4.0, 4.0), randf_range(-4.0, 4.0))
-			blood.global_position = character.global_position + offset
+			blood.global_position = spawn_position + offset
+			
+			# Set dead enemy flag to reduce blood amount
+			blood.set_dead_enemy(is_dead)
 			
 			# Set blood direction based on bullet direction or character state
 			if bullet_direction != Vector2.ZERO:
-				# Use bullet direction for realistic blood spray
-				blood.set_direction(bullet_direction)
+				# Check if bullet direction is mostly vertical (gun angled up/down relative to body)
+				var vertical_threshold := 0.94  # ~70-degree angle threshold
+				print("Bullet direction: ", bullet_direction, ", Y component: ", bullet_direction.y, ", threshold: ", vertical_threshold)
+				if abs(bullet_direction.y) > vertical_threshold:
+					# Gun is mostly vertical - make blood splash upwards
+					print("Making blood splash upwards (vertical shot)")
+					blood.set_direction(Vector2(0.0, -1.0))
+				else:
+					# Normal horizontal bullet direction - use bullet direction for realistic blood spray
+					print("Using bullet direction for blood spray")
+					blood.set_direction(bullet_direction)
 			else:
 				# Fallback to character-based direction for non-bullet damage
-				if character.has_method("is_dead") and character.is_dead:
+				if "is_dead" in character and character.is_dead:
 					# Dead characters: fountain effect (upward)
 					blood.set_direction(Vector2(0.0, -1.0))  # Straight up with slight random spread
 				else:

@@ -82,9 +82,9 @@ func _apply_damage(target: Node) -> void:
 	if target.is_in_group("enemies") and ("is_active" in target) and not target.is_active:
 		return
 	if target.has_method("take_damage"):
-		# Pass bullet direction to take_damage for proper blood spray direction
+		# Pass bullet direction and position to take_damage for proper blood spray direction and position
 		if target.has_method("take_damage_with_direction"):
-			target.take_damage_with_direction(damage, direction)
+			target.take_damage_with_direction(damage, direction, global_position)
 		else:
 			target.take_damage(damage)
 		queue_free()

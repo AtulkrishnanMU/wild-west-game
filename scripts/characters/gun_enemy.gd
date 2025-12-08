@@ -143,9 +143,9 @@ func _fire_bullet() -> void:
 func take_damage(amount: int) -> void:
 	take_damage_with_direction(amount, Vector2.ZERO)
 
-func take_damage_with_direction(amount: int, bullet_direction: Vector2) -> void:
+func take_damage_with_direction(amount: int, bullet_direction: Vector2, bullet_position: Vector2 = Vector2.ZERO) -> void:
 	var was_dead := is_dead
-	super.take_damage_with_direction(amount, bullet_direction)
+	super.take_damage_with_direction(amount, bullet_direction, bullet_position)
 	# On first transition to dead, spawn a Gun pickup at this enemy's position
 	if not was_dead and is_dead:
 		call_deferred("_spawn_gun_pickup")

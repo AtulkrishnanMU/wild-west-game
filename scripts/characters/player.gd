@@ -776,11 +776,11 @@ func _play_player_gun_recoil(shot_dir: Vector2) -> void:
 func take_damage(amount: int) -> void:
 	take_damage_with_direction(amount, Vector2.ZERO)  # Default direction for non-bullet damage
 
-func take_damage_with_direction(amount: int, bullet_direction: Vector2) -> void:
+func take_damage_with_direction(amount: int, bullet_direction: Vector2, bullet_position: Vector2 = Vector2.ZERO) -> void:
 	if is_dead: return
 	
-	# Apply damage effects using CharacterUtils with bullet direction
-	CharacterUtils.apply_damage_with_effects(self, amount, BLOOD_SCENE, BLOOD_SPLAT_SOUND, hit_player, bullet_direction)
+	# Apply damage effects using CharacterUtils with bullet direction and position
+	CharacterUtils.apply_damage_with_effects(self, amount, BLOOD_SCENE, BLOOD_SPLAT_SOUND, hit_player, bullet_direction, bullet_position)
 
 	health = max(health - amount, 0)
 	emit_signal("health_changed", health, MAX_HEALTH)

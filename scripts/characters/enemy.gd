@@ -292,12 +292,12 @@ func _on_attack_hitbox_body_exited(body: Node) -> void:
 func take_damage(amount: int) -> void:
 	take_damage_with_direction(amount, Vector2.ZERO)  # Default direction for non-bullet damage
 
-func take_damage_with_direction(amount: int, bullet_direction: Vector2) -> void:
+func take_damage_with_direction(amount: int, bullet_direction: Vector2, bullet_position: Vector2 = Vector2.ZERO) -> void:
 	# Reduce health
 	health = max(health - amount, 0)
 	
-	# Spawn blood splash at enemy position (even if dead) with bullet direction
-	CharacterUtils.apply_damage_with_effects(self, amount, BLOOD_SCENE, BLOOD_SPLAT_SOUND, null, bullet_direction)
+	# Spawn blood splash at bullet hit position with bullet direction
+	CharacterUtils.apply_damage_with_effects(self, amount, BLOOD_SCENE, BLOOD_SPLAT_SOUND, null, bullet_direction, bullet_position)
 
 	# FLASH WHITE ON EVERY HIT (including killing blow)
 	_flash_white()
