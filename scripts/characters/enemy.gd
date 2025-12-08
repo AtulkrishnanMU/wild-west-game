@@ -51,6 +51,13 @@ var _attack_hitbox_base_position: Vector2 = Vector2.ZERO
 var _player_in_attack_hitbox: bool = false
 var _dead_collision_shape: CollisionShape2D = null
 
+# Dead end detection variables
+var _stuck_timer: float = 0.0
+var _previous_position: Vector2 = Vector2.ZERO
+var _stuck_threshold: float = 1.0  # Time in seconds before considering enemy stuck
+var _leap_cooldown: float = 0.0
+var _leap_cooldown_max: float = 2.0  # Cooldown between leap escapes
+
 func _ready() -> void:
 	randomize()
 	SPEED = randf_range(150.0, 300.0)
@@ -79,6 +86,9 @@ func _ready() -> void:
 	
 	# Try to find dead collision shape
 	_dead_collision_shape = get_node_or_null("DeadCollisionShape2D")
+	
+	# Initialize dead end detection
+	_previous_position = global_position
 
 func _physics_process(delta: float) -> void:
 
@@ -150,6 +160,10 @@ func _physics_process(delta: float) -> void:
 	# Cooldown countdown
 	if damage_cooldown_timer > 0.0:
 		damage_cooldown_timer -= delta
+	
+	# Leap cooldown countdown
+	if _leap_cooldown > 0.0:
+		_leap_cooldown -= delta
 
 	var to_player: Vector2 = player.global_position - global_position
 	var distance_x: float = to_player.x
@@ -195,6 +209,9 @@ func _physics_process(delta: float) -> void:
 				animated_sprite.flip_h = direction < 0
 				animated_sprite.play("RUN")
 				_play_running_sound()
+
+				# Check for dead end (stuck) situation
+				_check_dead_end_detection(delta, direction)
 
 				# Occasional running swing
 				if randf() < 0.012:
@@ -457,3 +474,47 @@ func _check_visibility_activation():
 func _get_attack_movement(delta: float) -> void:
 	# Default implementation: stay in place
 	velocity.x = CharacterUtils.apply_smooth_movement(self, 0.0, SPEED, delta, ACCELERATION * 2.0, DECELERATION * 2.0, AIR_ACCELERATION)
+
+# Dead end detection function
+func _check_dead_end_detection(delta: float, direction: float) -> void:
+	if not is_on_floor():
+		_stuck_timer = 0.0  # Reset when not on floor
+		_previous_position = global_position
+		return
+	
+	# Check if enemy is stuck (not moving much)
+	var movement_distance = global_position.distance_to(_previous_position)
+	var movement_threshold = 5.0  # pixels per frame
+	
+	if movement_distance < movement_threshold:
+		_stuck_timer += delta
+	else:
+		_stuck_timer = 0.0  # Reset if moving properly
+	
+	_previous_position = global_position
+	
+	# If stuck for too long and leap is ready, perform leap escape
+	if _stuck_timer >= _stuck_threshold and _leap_cooldown <= 0.0:
+		_perform_leap_escape(direction)
+
+# Leap escape mechanics
+func _perform_leap_escape(direction: float) -> void:
+	# Reset stuck timer and set cooldown
+	_stuck_timer = 0.0
+	_leap_cooldown = _leap_cooldown_max
+	
+	# Apply leap velocity - forward and upward
+	velocity.y = JUMP_SPEED * 0.8  # Slightly lower than normal jump for more forward momentum
+	var leap_speed = direction * SPEED * 1.5  # Faster forward speed
+	velocity.x = CharacterUtils.apply_smooth_movement(self, leap_speed, SPEED * 1.5, 0.016, ACCELERATION * 1.5, DECELERATION, AIR_ACCELERATION)
+	
+	# Update animation
+	animated_sprite.flip_h = direction < 0
+	animated_sprite.play("JUMP")
+	
+	# Create dust effect for the leap
+	CharacterUtils.create_dust_effect(self, 12.0, 8.0)
+	
+	# Play leap sound (use running sound or add specific leap sound later)
+	if running_player:
+		AudioUtils.play_random_pitch(running_player, 1.2, 1.5)

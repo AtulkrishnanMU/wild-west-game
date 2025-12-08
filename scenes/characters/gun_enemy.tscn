@@ -277,7 +277,7 @@ radius = 16.0
 size = Vector2(37, 7)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_bypnf"]
-size = Vector2(18, 41)
+size = Vector2(18, 39)
 
 [node name="Gun_enemy" type="CharacterBody2D"]
 collision_layer = 4
@@ -321,5 +321,5 @@ collision_layer = 32
 collision_mask = 2
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="AttackHitbox"]
-position = Vector2(-1, -4.5)
+position = Vector2(-1, -5.5)
 shape = SubResource("RectangleShape2D_bypnf")

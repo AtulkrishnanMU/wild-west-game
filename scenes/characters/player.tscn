@@ -511,7 +511,7 @@ animations = [{
 }]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_tuyoq"]
-size = Vector2(22, 32)
+size = Vector2(15.5, 32)
 
 [node name="Player" type="CharacterBody2D"]
 position = Vector2(1, 0)
@@ -526,11 +526,12 @@ autoplay = "IDLE"
 metadata/_edit_group_ = true
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
-position = Vector2(11, 7)
+position = Vector2(7.5, 7)
 shape = SubResource("RectangleShape2D_tuyoq")
 
 [node name="VisibilityNotifier2D" type="VisibleOnScreenNotifier2D" parent="."]
 position = Vector2(11, 0)
+rect = Rect2(-10, -10, 17, 20)
 
 [node name="SwordHitbox" type="Area2D" parent="."]
 position = Vector2(13, 0)
@@ -538,7 +539,7 @@ collision_layer = 16
 collision_mask = 4
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="SwordHitbox"]
-position = Vector2(-2, 7)
+position = Vector2(-3.75, 7)
 shape = SubResource("RectangleShape2D_tuyoq")
 
 [node name="SlashPlayer" type="AudioStreamPlayer2D" parent="."]
