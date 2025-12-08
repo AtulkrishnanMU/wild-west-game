@@ -78,3 +78,48 @@ position = Vector2(3065, 693)
 
 [node name="Axe_enemy9" parent="." instance=ExtResource("7_2r1tl")]
 position = Vector2(3916, 803)
+
+[node name="Axe_enemy10" parent="." instance=ExtResource("7_2r1tl")]
+position = Vector2(2155, 855)
+
+[node name="Axe_enemy11" parent="." instance=ExtResource("7_2r1tl")]
+position = Vector2(2087, 858)
+
+[node name="Axe_enemy12" parent="." instance=ExtResource("7_2r1tl")]
+position = Vector2(2011, 849)
+
+[node name="Axe_enemy13" parent="." instance=ExtResource("7_2r1tl")]
+position = Vector2(2188, 814)
+
+[node name="Axe_enemy14" parent="." instance=ExtResource("7_2r1tl")]
+position = Vector2(2111, 791)
+
+[node name="Axe_enemy15" parent="." instance=ExtResource("7_2r1tl")]
+position = Vector2(2163, 741)
+
+[node name="Axe_enemy16" parent="." instance=ExtResource("7_2r1tl")]
+position = Vector2(2077, 711)
+
+[node name="Axe_enemy17" parent="." instance=ExtResource("7_2r1tl")]
+position = Vector2(2030, 776)
+
+[node name="Axe_enemy18" parent="." instance=ExtResource("7_2r1tl")]
+position = Vector2(2166, 688)
+
+[node name="Axe_enemy19" parent="." instance=ExtResource("7_2r1tl")]
+position = Vector2(2097, 644)
+
+[node name="Axe_enemy20" parent="." instance=ExtResource("7_2r1tl")]
+position = Vector2(2223, 613)
+
+[node name="Axe_enemy21" parent="." instance=ExtResource("7_2r1tl")]
+position = Vector2(2087, 575)
+
+[node name="Axe_enemy22" parent="." instance=ExtResource("7_2r1tl")]
+position = Vector2(2131, 583)
+
+[node name="Axe_enemy23" parent="." instance=ExtResource("7_2r1tl")]
+position = Vector2(2185, 517)
+
+[node name="Axe_enemy24" parent="." instance=ExtResource("7_2r1tl")]
+position = Vector2(2125, 512)

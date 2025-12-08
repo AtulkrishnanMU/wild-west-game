@@ -26,6 +26,8 @@ func _ready() -> void:
 	health_percent_label = $UI/HealthPercentLabel
 	bullet_icons = $UI/BulletIcons
 	reload_label = $UI/ReloadLabel
+	combo_number_label = $UI/ComboNumberLabel
+	combo_text_label = $UI/ComboTextLabel
 	ui_layer = $UI
 	
 	# Use common UI setup (now with player available)

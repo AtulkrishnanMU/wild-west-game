@@ -312,6 +312,7 @@ func take_damage(amount: int) -> void:
 func take_damage_with_direction(amount: int, bullet_direction: Vector2, bullet_position: Vector2 = Vector2.ZERO) -> void:
 	# Reduce health
 	health = max(health - amount, 0)
+	print("DEBUG: Enemy took damage, health now: ", health, " (was ", health + amount, ")")
 	
 	# Spawn blood splash at bullet hit position with bullet direction
 	CharacterUtils.apply_damage_with_effects(self, amount, BLOOD_SCENE, BLOOD_SPLAT_SOUND, null, bullet_direction, bullet_position)
@@ -326,6 +327,7 @@ func take_damage_with_direction(amount: int, bullet_direction: Vector2, bullet_p
 	
 	# Check if enemy died from this damage
 	if health <= 0 and not is_dead:
+		print("DEBUG: Enemy died! Emitting enemy_killed signal")
 		# Death handling
 		is_dead = true
 		is_attacking = false

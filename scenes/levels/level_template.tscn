@@ -5,7 +5,7 @@
 [ext_resource type="PackedScene" uid="uid://c5a3w2pm50uds" path="res://scenes/characters/player.tscn" id="4_qvykx"]
 [ext_resource type="PackedScene" uid="uid://vi8yy0g5xqwb" path="res://scenes/levels/ui.tscn" id="5_ui"]
 
-[node name="Level1" type="Node2D"]
+[node name="Level2" type="Node2D"]
 script = ExtResource("1_eokde")
 
 [node name="UI" parent="." instance=ExtResource("5_ui")]

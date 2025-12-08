@@ -14,6 +14,7 @@ const ACCELERATION = 1200.0  # pixels per second squared
 const DECELERATION = 1500.0  # pixels per second squared (stronger for quicker stops)
 const AIR_ACCELERATION = 800.0  # reduced acceleration when in air
 const POPUP_FONT_SIZE = FontConfig.DEFAULT_POPUP_FONT_SIZE  # font size for floating popups
+const COMBO_POPUP_HEIGHT = 60.0
 # Popup height offsets to prevent overlapping (higher number = higher position)
 const CASH_POPUP_HEIGHT = 0.0      # Default height for cash popups
 const GUN_POPUP_HEIGHT = 15.0       # Height for gun-related popups
@@ -40,6 +41,12 @@ signal health_changed(current: int, max: int)
 signal cash_changed(current: int)
 signal bullets_changed(current: int, max: int)
 signal reloads_changed(current: int, max: int)
+signal combo_streak_changed(current: int)
+
+# Combo streak system
+var combo_streak: int = 0
+var _last_damage_time: float = 0.0
+var _combo_active: bool = false
 
 var PLAYER_DEATH_SOUND: AudioStream = null
 var HURT_SOUND: AudioStream = null
@@ -841,6 +848,9 @@ func take_damage(amount: int) -> void:
 func take_damage_with_direction(amount: int, bullet_direction: Vector2, bullet_position: Vector2 = Vector2.ZERO) -> void:
 	if is_dead: return
 	
+	# Apply combo healing before taking damage if combo is active
+	apply_combo_healing()
+	
 	# Apply damage effects using CharacterUtils with bullet direction and position
 	CharacterUtils.apply_damage_with_effects(self, amount, BLOOD_SCENE, BLOOD_SPLAT_SOUND, hit_player, bullet_direction, bullet_position)
 
@@ -866,19 +876,7 @@ func add_cash(amount: int) -> void:
 	cash += amount
 	emit_signal("cash_changed", cash)
 
-func gain_health_from_kill() -> void:
-	# Restore 2% of max health
-	var health_gain = int(MAX_HEALTH * 0.02)
-	var old_health = health
-	health = min(health + health_gain, MAX_HEALTH)
-	
-	# Only show popup and effects if health actually increased
-	if health > old_health:
-		emit_signal("health_changed", health, MAX_HEALTH)
-		CharacterUtils.spawn_floating_popup(self, "+2%", Color(1.0, 0.75, 0.8), Vector2(-20, -25), POPUP_FONT_SIZE, HEALTH_POPUP_HEIGHT)
-		# Highlight health bar in pink
-		_highlight_health_bar()
-
+# Old health gain system removed - now using combo streak system
 
 func _highlight_health_bar() -> void:
 	# Get the health bar from the level scene
@@ -920,15 +918,40 @@ func _highlight_health_bar() -> void:
 	
 	# Also restore the fill color after the highlight
 	_health_bar_highlight_tween.tween_callback(func(): 
-		# Create proper fill style
-		var proper_fill = StyleBoxFlat.new()
-		proper_fill.bg_color = proper_color
-		proper_fill.corner_radius_top_left = 2
-		proper_fill.corner_radius_top_right = 2
-		proper_fill.corner_radius_bottom_left = 2
-		proper_fill.corner_radius_bottom_right = 2
-		health_bar.add_theme_stylebox_override("fill", proper_fill)
+		# Force update health bar color using the level's sync function
+		var current_scene := get_tree().current_scene
+		if current_scene and current_scene.has_method("sync_health_bar_fill_color"):
+			# Use the level's sync function to ensure proper color
+			current_scene.sync_health_bar_fill_color()
 	).set_delay(0.3)
+
+# Combo streak system functions
+func increment_combo_streak() -> void:
+	combo_streak += 1
+	_combo_active = true
+	print("DEBUG: Combo increased to: ", combo_streak)
+	emit_signal("combo_streak_changed", combo_streak)
+
+func reset_combo_streak() -> void:
+	combo_streak = 0
+	_combo_active = false
+	print("DEBUG: Combo reset to 0")
+	emit_signal("combo_streak_changed", combo_streak)
+
+func apply_combo_healing() -> void:
+	print("DEBUG: Applying combo healing, current combo: ", combo_streak)
+	if combo_streak > 0:
+		# Calculate heal potential using triangular formula: n(n+1)/2
+		var heal_potential: int = combo_streak * (combo_streak + 1) / 2
+		var actual_heal: int = heal_potential
+		if actual_heal > 0:
+			var old_health := health
+			health = min(health + actual_heal, MAX_HEALTH)
+			emit_signal("health_changed", health, MAX_HEALTH)
+			print("DEBUG: Healed for: ", actual_heal, " (combo: ", combo_streak, ", potential: ", heal_potential, ")")
+			# Show healing popup
+			CharacterUtils.spawn_floating_popup(self, "+" + str(actual_heal) + "♡", Color(1.0, 0.75, 0.8), Vector2(-20, -25), POPUP_FONT_SIZE + 10, HEALTH_POPUP_HEIGHT)
+		reset_combo_streak()
 
 # Helper function to get proper health color based on current health
 func get_health_color() -> Color:
@@ -943,10 +966,7 @@ func get_health_color() -> Color:
 	else:
 		return Color(0.95, 0.2, 0.2)  # Red
 
-func gain_health_from_kill_with_enemy(enemy: Node) -> void:
-	gain_health_from_kill()
-	# Clean up enemy from connected list when they die
-	_connected_enemies.erase(enemy)
+# Old health gain system removed - now using combo streak system
 
 func _update_enemy_cache(delta: float) -> void:
 	_enemy_cache_update_timer += delta
@@ -967,7 +987,7 @@ func _connect_new_enemy_signals() -> void:
 			continue  # Already connected
 		
 		if enemy.has_signal("enemy_killed"):
-			enemy.connect("enemy_killed", gain_health_from_kill_with_enemy)
+			# Old health gain connection removed - now using combo streak system
 			_connected_enemies.append(enemy)
 
 func _cleanup_disconnected_enemies() -> void:

@@ -12,8 +12,10 @@ var player: Node = null
 var health_bar: ProgressBar = null
 var cash_label: Label = null
 var health_percent_label: Label = null
-var bullet_icons: HBoxContainer = null
 var reload_label: Label = null
+var bullet_icons: HBoxContainer = null
+var combo_number_label: Label = null
+var combo_text_label: Label = null
 
 # Common level variables
 var camera: Camera2D = null
@@ -28,6 +30,18 @@ var camera_zoom_duration: float = 0.15  # Time to zoom in/out
 var _camera_zoom_tween: Tween = null
 var _original_camera_zoom: float = 1.0
 
+# Common setup function
+func _connect_existing_enemies() -> void:
+	# Find all existing enemies in the scene and connect them to combo system
+	var enemies := get_tree().get_nodes_in_group("enemies")
+	print("DEBUG: Found ", enemies.size(), " existing enemies to connect")
+	for enemy in enemies:
+		if enemy.has_signal("enemy_killed"):
+			print("DEBUG: Connecting existing enemy to combo system")
+			enemy.connect("enemy_killed", _on_enemy_killed)
+		else:
+			print("DEBUG: Existing enemy does not have enemy_killed signal")
+
 # Common UI setup function
 func setup_ui() -> void:
 	# Connect player signals if available
@@ -40,11 +54,16 @@ func setup_ui() -> void:
 			player.bullets_changed.connect(_on_player_bullets_changed)
 		if player.has_signal("reloads_changed"):
 			player.reloads_changed.connect(_on_player_reloads_changed)
+		if player.has_signal("combo_streak_changed"):
+			player.combo_streak_changed.connect(_on_combo_streak_changed)
 		
 		# Initialize UI to current player state
 		_on_player_health_changed(player.health, player.MAX_HEALTH)
 		_on_player_cash_changed(player.cash)
 		_on_player_reloads_changed(player._player_reload_count, player.PLAYER_MAX_RELOADS)
+	
+	# Connect existing enemies to combo system
+	_connect_existing_enemies()
 	
 	# Apply default font to UI elements
 	if cash_label:
@@ -53,6 +72,7 @@ func setup_ui() -> void:
 		FontConfig.apply_ui_font(health_percent_label)
 	if reload_label:
 		FontConfig.apply_ui_font(reload_label)
+	# Combo labels are styled individually in the combo handler
 	
 	# Configure progress bars
 	if health_bar:
@@ -64,6 +84,10 @@ func setup_ui() -> void:
 
 # Common setup function
 func setup_level() -> void:
+	# Initialize camera follow if available
+	if player and player.has_node("Camera2D"):
+		camera = player.get_node("Camera2D")
+	
 	# Setup music if present
 	setup_music()
 	
@@ -160,20 +184,31 @@ func spawn_enemy_around_player(enemy_scene: PackedScene, min_distance: float = 1
 	
 	# Track kills via Enemy's enemy_killed signal, if present
 	if enemy.has_signal("enemy_killed"):
+		print("DEBUG: Connecting enemy_killed signal")
 		enemy.connect("enemy_killed", _on_enemy_killed)
+		print("DEBUG: Successfully connected enemy_killed signal")
+	else:
+		print("DEBUG: Enemy does not have enemy_killed signal")
 		
-		# Also connect directly to player if available (more reliable)
-		if player and player.has_method("gain_health_from_kill_with_enemy"):
-			enemy.connect("enemy_killed", player.gain_health_from_kill_with_enemy)
+	# Also connect directly to player if available (more reliable)
+	# Note: Old health gain system removed - now using combo streak system
 	
 	scene.add_child(enemy)
 	return enemy
 
 # Common enemy killed handler
 func _on_enemy_killed(enemy: Node) -> void:
-	# Give player 5% health for each enemy kill
-	if player and player.has_method("gain_health_from_kill"):
-		player.gain_health_from_kill()
+	print("DEBUG: Enemy killed, attempting to increment combo")
+	# Increment combo streak for each enemy kill
+	if player and player.has_method("increment_combo_streak"):
+		player.increment_combo_streak()
+	else:
+		print("DEBUG: Player or increment_combo_streak method not found")
+
+# Helper function to sync fill color with health bar modulate
+func sync_health_bar_fill_color() -> void:
+	if health_bar != null:
+		health_bar.add_theme_stylebox_override("fill", create_health_bar_fill())
 
 func _on_player_health_changed(current: int, max_value: int) -> void:
 	var ratio: float = 0.0
@@ -189,14 +224,14 @@ func _on_player_health_changed(current: int, max_value: int) -> void:
 		else:
 			health_bar.modulate = Color(0.95, 0.2, 0.2)
 		# Update fill color to match the new modulate color
-		health_bar.add_theme_stylebox_override("fill", create_health_bar_fill())
+		sync_health_bar_fill_color()
 	if health_percent_label != null and max_value > 0:
 		health_percent_label.text = str(int(round(ratio * 100.0))) + "%"
 
 
 func _on_player_cash_changed(current: int) -> void:
 	if cash_label != null:
-		cash_label.text = "CASH: " + str(current)
+		cash_label.text = "CASH: " + str(current) + "$"
 
 
 func _on_player_bullets_changed(current: int, max_value: int) -> void:
@@ -206,6 +241,46 @@ func _on_player_bullets_changed(current: int, max_value: int) -> void:
 func _on_player_reloads_changed(current: int, max_value: int) -> void:
 	_update_reload_label(current, max_value)
 
+func _on_combo_streak_changed(current: int) -> void:
+	if current > 0:
+		# Special font mapping for numbers 10-20
+		var display_text: String
+		if current >= 10 and current <= 20:
+			var mapping = {
+				10: "a", 11: "z", 12: "e", 13: "r", 14: "t", 15: "y", 
+				16: "u", 17: "i", 18: "o", 19: "p", 20: "q"
+			}
+			display_text = mapping.get(current, str(current))
+		else:
+			display_text = str(current)
+		
+		# Update number label with big font
+		if combo_number_label:
+			combo_number_label.text = display_text
+			combo_number_label.add_theme_font_size_override("font_size", 32)  # Big font for number
+			FontConfig.apply_ui_font(combo_number_label)
+			combo_number_label.visible = true
+		
+		# Update text label with smaller font
+		if combo_text_label:
+			combo_text_label.text = "K I L L S"
+			combo_text_label.add_theme_font_size_override("font_size", 16)  # Smaller font for text
+			FontConfig.apply_ui_font(combo_text_label)
+			combo_text_label.visible = true
+		
+		# Special bonus for 20 combo (max combo)
+		if current == 20 and player:
+			print("DEBUG: Reached max combo of 20, resetting")
+			# Reset combo at max (20 is the highest possible)
+			if player.has_method("reset_combo_streak"):
+				player.reset_combo_streak()
+	else:
+		# Hide both labels when no combo
+		if combo_number_label:
+			combo_number_label.visible = false
+		if combo_text_label:
+			combo_text_label.visible = false
+
 
 func _update_bullet_icons(current: int, max_value: int) -> void:
 	if bullet_icons == null:
@@ -213,6 +288,10 @@ func _update_bullet_icons(current: int, max_value: int) -> void:
 	bullet_icons.add_theme_constant_override("separation", 10)
 	for child in bullet_icons.get_children():
 		child.queue_free()
+	
+	# Hide bullet icons if player has no gun
+	if player and not player.has_gun:
+		return
 	
 	var tex := load(BULLET_ICON_TEXTURE_PATH)
 	if tex == null:
