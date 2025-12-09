@@ -921,9 +921,9 @@ func take_damage_with_direction(amount: int, bullet_direction: Vector2, bullet_p
 	# Add pink flash after damage if healing was applied
 	if combo_streak > 0:
 		var current_scene = get_tree().current_scene
-		if current_scene and current_scene.has_method("set_health_bar_color"):
+		if current_scene and current_scene.has_method("set_health_bar_color_unified"):
 			# Use unified health bar color function for pink flash
-			current_scene.set_health_bar_color(HEALTH_HIGHLIGHT_COLOR, 0.1)
+			current_scene.set_health_bar_color_unified(HEALTH_HIGHLIGHT_COLOR, 0.1)
 			
 			# Restore normal color after delay
 			await get_tree().create_timer(0.3).timeout
@@ -979,14 +979,10 @@ func _highlight_health_bar() -> void:
 	# Flash to pink
 	_health_bar_highlight_tween.tween_property(health_bar, "modulate", HEALTH_HIGHLIGHT_COLOR, 0.1)
 	
-	# Create pink fill style directly
-	var pink_fill = StyleBoxFlat.new()
-	pink_fill.bg_color = HEALTH_HIGHLIGHT_COLOR
-	pink_fill.corner_radius_top_left = 2
-	pink_fill.corner_radius_top_right = 2
-	pink_fill.corner_radius_bottom_left = 2
-	pink_fill.corner_radius_bottom_right = 2
-	health_bar.add_theme_stylebox_override("fill", pink_fill)
+	# Create pink fill style directly using unified method
+	var current_scene = get_tree().current_scene
+	if current_scene and current_scene.has_method("set_health_bar_color_unified"):
+		current_scene.set_health_bar_color_unified(HEALTH_HIGHLIGHT_COLOR, 0.0)
 	
 	# Hold pink color briefly
 	_health_bar_highlight_tween.tween_property(health_bar, "modulate", HEALTH_HIGHLIGHT_COLOR, 0.2).set_delay(0.1)
@@ -997,11 +993,10 @@ func _highlight_health_bar() -> void:
 	
 	# Also restore the fill color after the highlight
 	_health_bar_highlight_tween.tween_callback(func(): 
-		# Force update health bar color using the level's sync function
-		var current_scene := get_tree().current_scene
-		if current_scene and current_scene.has_method("sync_health_bar_fill_color"):
-			# Use the level's sync function to ensure proper color
-			current_scene.sync_health_bar_fill_color()
+		# Force update health bar color using the level's unified method
+		if current_scene and current_scene.has_method("update_health_bar_unified"):
+			# Use the level's unified method to ensure proper color
+			current_scene.update_health_bar_unified(current_scene.player.health, current_scene.player.MAX_HEALTH)
 	).set_delay(0.3)
 
 # Combo streak system functions
@@ -1049,11 +1044,11 @@ func apply_combo_healing() -> void:
 			CharacterUtils.spawn_floating_popup(self, "+" + str(actual_heal) + "♡", Color(1.0, 0.75, 0.8), Vector2(-20, -25), POPUP_FONT_SIZE + 10, HEALTH_POPUP_HEIGHT)
 			# Sync health bar color to show pink flash
 			var current_scene = get_tree().current_scene
-			if current_scene and current_scene.has_method("sync_health_bar_fill_color"):
-				current_scene.sync_health_bar_fill_color()
+			if current_scene and current_scene.has_method("update_health_bar_unified"):
+				current_scene.update_health_bar_unified(current_scene.player.health, current_scene.player.MAX_HEALTH)
 			# Add temporary pink flash effect
-			if current_scene and current_scene.has_method("set_health_bar_color"):
-				current_scene.set_health_bar_color(HEALTH_HIGHLIGHT_COLOR, 0.1)
+			if current_scene and current_scene.has_method("set_health_bar_color_unified"):
+				current_scene.set_health_bar_color_unified(HEALTH_HIGHLIGHT_COLOR, 0.1)
 				# Reset to original color after 0.3 seconds
 				await get_tree().create_timer(0.3).timeout
 				current_scene.restore_health_bar_color(0.2)

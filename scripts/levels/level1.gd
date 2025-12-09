@@ -50,7 +50,7 @@ func _process(delta: float) -> void:
 	
 	# Update tutorial position to follow player
 	if _tutorial_active and _tutorial_popup and player:
-		_tutorial_popup.global_position = player.global_position + Vector2(0, -100)
+		_tutorial_popup.global_position = player.global_position + Vector2(0, 50)
 	
 	# Check for tutorial input tracking
 	if _tutorial_active:
@@ -210,9 +210,9 @@ func _show_tutorial_popup() -> void:
 	# Add to scene (not UI layer, so it follows player)
 	add_child(_tutorial_popup)
 	
-	# Position above player and start fade in
+	# Position below player and start fade in
 	if player:
-		_tutorial_popup.global_position = player.global_position + Vector2(0, -100)
+		_tutorial_popup.global_position = player.global_position + Vector2(0, 50)
 	
 	# Start with invisible and fade in
 	_tutorial_popup.modulate.a = 0.0

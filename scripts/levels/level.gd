@@ -70,13 +70,15 @@ func _connect_existing_enemies() -> void:
 
 # Common UI setup function
 func setup_ui() -> void:
-	# Configure progress bars FIRST before initializing health
+		# Configure progress bars FIRST before initializing health
 	if health_bar:
 		health_bar.show_percentage = false
 		# Reduce corner radius and add white outline
 		health_bar.add_theme_stylebox_override("background", create_health_bar_background())
-		health_bar.add_theme_stylebox_override("fill", create_health_bar_fill())
 		health_bar.add_theme_stylebox_override("foreground", create_health_bar_foreground())
+		
+		# Initialize health bar with proper color using unified function
+		set_health_bar_color_unified(HEALTH_HIGH_COLOR)
 	
 	# Connect player signals if available
 	if player:
@@ -91,8 +93,8 @@ func setup_ui() -> void:
 		if player.has_signal("combo_streak_changed"):
 			player.combo_streak_changed.connect(_on_combo_streak_changed)
 		
-		# Initialize UI to current player state AFTER styling is configured
-		_on_player_health_changed(player.health, player.MAX_HEALTH)
+	# Initialize UI to current player state AFTER styling is configured
+		update_health_bar_unified(player.health, player.MAX_HEALTH)
 		_on_player_cash_changed(player.cash)
 		_on_player_reloads_changed(player._player_reload_count, player.PLAYER_MAX_RELOADS)
 	
@@ -145,28 +147,7 @@ func create_health_bar_background() -> StyleBoxFlat:
 	style_box.corner_radius_bottom_right = 2
 	return style_box
 
-func create_health_bar_fill() -> StyleBoxFlat:
-	var style_box := StyleBoxFlat.new()
-	# Get current health color instead of always using green
-	var fill_color = get_current_health_color()  # Use current health color
-	style_box.bg_color = fill_color
-	style_box.corner_radius_top_left = 2  # Reduced corner radius
-	style_box.corner_radius_top_right = 2
-	style_box.corner_radius_bottom_left = 2
-	style_box.corner_radius_bottom_right = 2
-	return style_box
-
-# Helper function to get current health color
-func get_current_health_color() -> Color:
-	if player == null:
-		return HEALTH_HIGH_COLOR  # Default to green if no player
-	
-	# Ensure we don't divide by zero
-	if player.MAX_HEALTH <= 0:
-		return HEALTH_HIGH_COLOR
-	
-	var ratio = float(player.health) / float(player.MAX_HEALTH)
-	return get_health_color(ratio)
+# DEPRECATED: create_health_bar_fill() is no longer needed - use set_health_bar_color_unified() instead
 
 func create_health_bar_foreground() -> StyleBoxFlat:
 	var style_box := StyleBoxFlat.new()
@@ -253,13 +234,25 @@ func _on_enemy_killed(enemy: Node) -> void:
 	else:
 		print("DEBUG: Player or increment_combo_streak method not found")
 
-# Helper function to sync fill color with health bar modulate
-func sync_health_bar_fill_color() -> void:
-	if health_bar != null:
-		health_bar.add_theme_stylebox_override("fill", create_health_bar_fill())
+# SINGLE UNIFIED HEALTH BAR UPDATE METHOD - USE THIS EVERYWHERE
+func update_health_bar_unified(current: int, max_value: int, duration: float = 0.0) -> void:
+	if health_bar == null:
+		return
+	
+	# Update health values
+	health_bar.max_value = max_value
+	health_bar.value = current
+	
+	# Calculate and apply color
+	var ratio: float = 0.0
+	if max_value > 0:
+		ratio = float(current) / float(max_value)
+	
+	var health_color = get_health_color(ratio)
+	set_health_bar_color_unified(health_color, duration)
 
-# Unified health bar color function - handles both modulate and fill color together
-func set_health_bar_color(color: Color, duration: float = 0.0) -> void:
+# SINGLE UNIFIED COLOR SETTER - ALWAYS SETS BOTH MODULATE AND FILL TOGETHER
+func set_health_bar_color_unified(color: Color, duration: float = 0.0) -> void:
 	if health_bar == null:
 		return
 	
@@ -282,9 +275,26 @@ func set_health_bar_color(color: Color, duration: float = 0.0) -> void:
 		# Apply fill style immediately, then animate
 		health_bar.add_theme_stylebox_override("fill", fill_style)
 	else:
-		# Immediate color change
+		# Immediate color change - ALWAYS set both together
 		health_bar.modulate = color
-		sync_health_bar_fill_color()
+		var fill_style = StyleBoxFlat.new()
+		fill_style.bg_color = color
+		fill_style.corner_radius_top_left = 2
+		fill_style.corner_radius_top_right = 2
+		fill_style.corner_radius_bottom_left = 2
+		fill_style.corner_radius_bottom_right = 2
+		health_bar.add_theme_stylebox_override("fill", fill_style)
+
+# Helper function to sync fill color with health bar modulate - DEPRECATED, use set_health_bar_color_unified instead
+func sync_health_bar_fill_color() -> void:
+	print("WARNING: sync_health_bar_fill_color() is deprecated, use set_health_bar_color_unified instead")
+	if health_bar != null and player != null:
+		update_health_bar_unified(player.health, player.MAX_HEALTH)
+
+# Unified health bar color function - DEPRECATED, use set_health_bar_color_unified instead
+func set_health_bar_color(color: Color, duration: float = 0.0) -> void:
+	print("WARNING: set_health_bar_color() is deprecated, use set_health_bar_color_unified instead")
+	set_health_bar_color_unified(color, duration)
 
 # Restore health bar to appropriate color based on current health level
 func restore_health_bar_color(duration: float = 0.3) -> void:
@@ -294,7 +304,7 @@ func restore_health_bar_color(duration: float = 0.3) -> void:
 	var ratio = float(player.health) / float(player.MAX_HEALTH)
 	var appropriate_color = get_health_color(ratio)
 	
-	set_health_bar_color(appropriate_color, duration)
+	set_health_bar_color_unified(appropriate_color, duration)
 
 func _on_player_health_changed(current: int, max_value: int) -> void:
 	var ratio: float = 0.0
@@ -309,7 +319,7 @@ func _on_player_health_changed(current: int, max_value: int) -> void:
 		health_bar.value = current
 		
 		# Use unified color function to ensure both modulate and fill are always the same
-		set_health_bar_color(health_color)
+		update_health_bar_unified(current, max_value)
 	
 	# Manage heartbeat sound based on health level
 	_manage_heartbeat_sound(ratio)
