@@ -78,9 +78,26 @@ func _apply_damage(target: Node) -> void:
 		# Also do not damage enemies that are very close to the shooter
 		if shooter.global_position.distance_to(target.global_position) < safe_enemy_shooter_distance:
 			return
-	# Do not damage enemies that are not yet active on screen
+	# Check if enemy is inactive - if on screen, damage and activate it
 	if target.is_in_group("enemies") and ("is_active" in target) and not target.is_active:
-		return
+		# Check if the inactive enemy is visible on screen
+		var notifier = target.get_node_or_null("VisibilityNotifier2D")
+		if notifier and notifier.is_on_screen():
+			# Enemy is on screen but inactive - damage it and activate it
+			if target.has_method("take_damage"):
+				# Pass bullet direction and position to take_damage for proper blood spray direction and position
+				if target.has_method("take_damage_with_direction"):
+					target.take_damage_with_direction(damage, direction, global_position)
+				else:
+					target.take_damage(damage)
+				# Activate the enemy after taking damage
+				target.is_active = true
+				target.has_been_visible_with_player = true
+			queue_free()
+			return
+		else:
+			# Enemy is inactive and not on screen - don't damage
+			return
 	if target.has_method("take_damage"):
 		# Pass bullet direction and position to take_damage for proper blood spray direction and position
 		if target.has_method("take_damage_with_direction"):

@@ -882,7 +882,6 @@ func _drop_player_gun() -> void:
 	pickup.global_position = drop_pos
 	# This is a thrown-away gun: make it a visual dummy with a throw arc, not a pickup
 	pickup.can_be_picked_up = false
-	pickup.use_gravity = true
 	var throw_dir := -1.0
 	if animated_sprite and animated_sprite.flip_h:
 		# Facing left → throw to the right
