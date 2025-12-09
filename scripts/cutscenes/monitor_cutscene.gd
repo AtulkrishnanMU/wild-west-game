@@ -1,8 +1,5 @@
 extends Node2D
 
-# Font configuration
-const FontConfig := preload("res://scripts/utils/font_config.gd")
-
 # References to nodes
 @onready var dialogue_label: RichTextLabel = $CanvasLayer/RichTextLabel
 @onready var typing_player: AudioStreamPlayer = $TypingPlayer

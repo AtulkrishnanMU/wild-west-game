@@ -1,8 +1,5 @@
 extends Node2D
 
-# Font configuration
-const FontConfig := preload("res://scripts/utils/font_config.gd")
-
 # Shared UI helpers for main and endless levels
 const BULLET_ICON_TEXTURE_PATH := "res://assets/icons/bullet-icon.png"
 const DEFAULT_MUSIC_VOLUME_DB := -8.0
@@ -16,6 +13,7 @@ var reload_label: Label = null
 var bullet_icons: HBoxContainer = null
 var combo_number_label: Label = null
 var combo_text_label: Label = null
+var combo_timer_bar: ProgressBar = null
 
 # Common level variables
 var camera: Camera2D = null
@@ -155,6 +153,13 @@ func process_level(delta: float) -> void:
 	if camera_follow_enabled and camera and player:
 		camera.global_position = camera.global_position.lerp(player.global_position, camera_follow_speed * delta)
 	
+	# Update combo timer bar
+	if combo_timer_bar and player and player._combo_timer and player._combo_active:
+		var time_left = player._combo_timer.time_left
+		var max_time = player._combo_duration
+		var new_value = max_time - time_left
+		combo_timer_bar.value = new_value
+
 
 # Base enemy spawning functionality
 func spawn_enemy_around_player(enemy_scene: PackedScene, min_distance: float = 120.0, max_distance: float = 420.0) -> Node:
@@ -210,6 +215,51 @@ func sync_health_bar_fill_color() -> void:
 	if health_bar != null:
 		health_bar.add_theme_stylebox_override("fill", create_health_bar_fill())
 
+# Unified health bar color function - handles both modulate and fill color together
+func set_health_bar_color(color: Color, duration: float = 0.0) -> void:
+	if health_bar == null:
+		return
+	
+	if duration > 0.0:
+		# Animated color change
+		var tween = create_tween()
+		tween.set_parallel(true)
+		
+		# Animate modulate
+		tween.tween_property(health_bar, "modulate", color, duration)
+		
+		# Create and animate fill color
+		var fill_style = StyleBoxFlat.new()
+		fill_style.bg_color = color
+		fill_style.corner_radius_top_left = 2
+		fill_style.corner_radius_top_right = 2
+		fill_style.corner_radius_bottom_left = 2
+		fill_style.corner_radius_bottom_right = 2
+		
+		# Apply fill style immediately, then animate
+		health_bar.add_theme_stylebox_override("fill", fill_style)
+	else:
+		# Immediate color change
+		health_bar.modulate = color
+		sync_health_bar_fill_color()
+
+# Restore health bar to appropriate color based on current health level
+func restore_health_bar_color(duration: float = 0.3) -> void:
+	if health_bar == null or player == null:
+		return
+	
+	var ratio = float(player.health) / float(player.MAX_HEALTH)
+	var appropriate_color: Color
+	
+	if ratio > 0.6:
+		appropriate_color = Color(0.2, 0.9, 0.2)  # Green
+	elif ratio > 0.3:
+		appropriate_color = Color(0.95, 0.8, 0.2)  # Yellow
+	else:
+		appropriate_color = Color(0.95, 0.2, 0.2)  # Red
+	
+	set_health_bar_color(appropriate_color, duration)
+
 func _on_player_health_changed(current: int, max_value: int) -> void:
 	var ratio: float = 0.0
 	if max_value > 0:
@@ -259,27 +309,82 @@ func _on_combo_streak_changed(current: int) -> void:
 			combo_number_label.text = display_text
 			combo_number_label.add_theme_font_size_override("font_size", 32)  # Big font for number
 			FontConfig.apply_ui_font(combo_number_label)
-			combo_number_label.visible = true
+			# Fade in animation
+			_fade_in_combo_element(combo_number_label)
 		
 		# Update text label with smaller font
 		if combo_text_label:
 			combo_text_label.text = "K I L L S"
 			combo_text_label.add_theme_font_size_override("font_size", 16)  # Smaller font for text
 			FontConfig.apply_ui_font(combo_text_label)
-			combo_text_label.visible = true
+			# Fade in animation
+			_fade_in_combo_element(combo_text_label)
+		
+		# Setup timer bar (only style once)
+		if combo_timer_bar and player and player._combo_timer:
+			combo_timer_bar.max_value = player._combo_duration
+			combo_timer_bar.value = 0  # Start empty
+			# Fade in animation
+			_fade_in_combo_element(combo_timer_bar)
+			
+			# Apply timer bar styling
+			# Blue background with health bar style outline
+			var timer_style = StyleBoxFlat.new()
+			timer_style.bg_color = Color(0.1, 0.1, 0.1, 0.8)  # Dark background
+			timer_style.border_width_left = 2
+			timer_style.border_width_right = 2
+			timer_style.border_width_top = 2
+			timer_style.border_width_bottom = 2
+			timer_style.border_color = Color(0.3, 0.7, 1.0, 0.9)  # Blue border
+			timer_style.corner_radius_top_left = 3
+			timer_style.corner_radius_top_right = 3
+			timer_style.corner_radius_bottom_left = 3
+			timer_style.corner_radius_bottom_right = 3
+			
+			# Blue fill similar to health bar
+			var fill_style = StyleBoxFlat.new()
+			fill_style.bg_color = Color(0.3, 0.7, 1.0, 0.9)  # Blue fill
+			fill_style.corner_radius_top_left = 2
+			fill_style.corner_radius_top_right = 2
+			fill_style.corner_radius_bottom_left = 2
+			fill_style.corner_radius_bottom_right = 2
+			
+			combo_timer_bar.add_theme_stylebox_override("background", timer_style)
+			combo_timer_bar.add_theme_stylebox_override("fill", fill_style)
+		else:
+			# Timer bar setup failed - will be handled by UI visibility
+			pass
 		
 		# Special bonus for 20 combo (max combo)
 		if current == 20 and player:
-			print("DEBUG: Reached max combo of 20, resetting")
 			# Reset combo at max (20 is the highest possible)
 			if player.has_method("reset_combo_streak"):
 				player.reset_combo_streak()
 	else:
-		# Hide both labels when no combo
+		# Hide both labels with fade out animation
 		if combo_number_label:
-			combo_number_label.visible = false
+			_fade_out_combo_element(combo_number_label)
 		if combo_text_label:
-			combo_text_label.visible = false
+			_fade_out_combo_element(combo_text_label)
+		if combo_timer_bar:
+			_fade_out_combo_element(combo_timer_bar)
+
+func _process(delta: float) -> void:
+	# Simple debug to check if process is running
+	if player and player._combo_active:
+		print("DEBUG: _process running, combo_active: ", player._combo_active)
+	
+	# Update combo timer bar
+	if combo_timer_bar and player and player._combo_timer and player._combo_active:
+		var time_left = player._combo_timer.time_left
+		var max_time = player._combo_duration
+		var new_value = max_time - time_left
+		print("DEBUG: Timer update - time_left: ", time_left, " max_time: ", max_time, " new_value: ", new_value)
+		combo_timer_bar.value = new_value
+		print("DEBUG: Timer bar value set to: ", combo_timer_bar.value)
+	else:
+		if player and player._combo_timer:
+			print("DEBUG: Timer update failed - combo_timer_bar: ", combo_timer_bar, " _combo_active: ", player._combo_active, " time_left: ", player._combo_timer.time_left)
 
 
 func _update_bullet_icons(current: int, max_value: int) -> void:
@@ -291,18 +396,23 @@ func _update_bullet_icons(current: int, max_value: int) -> void:
 	
 	# Hide bullet icons if player has no gun
 	if player and not player.has_gun:
-		return
+		bullet_icons.visible = false
 	
-	var tex := load(BULLET_ICON_TEXTURE_PATH)
-	if tex == null:
-		return
-	
-	# Show bullet icons for available bullets and low opacity icons for used bullets
+	# Create bullet icons
 	for i in range(max_value):
-		var icon := TextureRect.new()
-		icon.texture = tex
+		var icon = TextureRect.new()
+		var tex = load("res://assets/icons/bullet-icon.png")
+		if tex == null:
+			# Fallback to objects folder if icon not found
+			tex = load("res://assets/objects/bullet.png")
+		if tex == null:
+			# Create a simple colored rectangle as fallback
+			print("Bullet texture not found, using colored rectangle")
+			icon.color = Color.WHITE
+		else:
+			icon.texture = tex
 		icon.stretch_mode = TextureRect.STRETCH_KEEP_CENTERED
-		icon.custom_minimum_size = Vector2(8, 8)
+		icon.custom_minimum_size = Vector2(12, 12)  # Slightly larger for visibility
 		
 		if i < current:
 			# Available bullet - full opacity
@@ -342,6 +452,48 @@ func start_attack_zoom() -> void:
 	
 	var target_zoom = _original_camera_zoom * camera_zoom_amount
 	_camera_zoom_tween.tween_property(camera, "zoom", Vector2(target_zoom, target_zoom), camera_zoom_duration)
+
+# Combo element animation functions
+func _fade_in_combo_element(element: Control) -> void:
+	if not element:
+		return
+	
+	# Kill any existing tweens
+	if element.has_meta("fade_tween"):
+		var existing_tween = element.get_meta("fade_tween")
+		if existing_tween and existing_tween.is_valid():
+			existing_tween.kill()
+	
+	# Start invisible and fade in
+	element.modulate = Color(1, 1, 1, 0)
+	element.visible = true
+	
+	var tween = create_tween()
+	tween.set_ease(Tween.EASE_OUT)
+	tween.set_trans(Tween.TRANS_CUBIC)
+	tween.tween_property(element, "modulate:a", 1.0, 0.3)
+	
+	# Store tween reference
+	element.set_meta("fade_tween", tween)
+
+func _fade_out_combo_element(element: Control) -> void:
+	if not element or not element.visible:
+		return
+	
+	# Kill any existing tweens
+	if element.has_meta("fade_tween"):
+		var existing_tween = element.get_meta("fade_tween")
+		if existing_tween and existing_tween.is_valid():
+			existing_tween.kill()
+	
+	var tween = create_tween()
+	tween.set_ease(Tween.EASE_IN)
+	tween.set_trans(Tween.TRANS_CUBIC)
+	tween.tween_property(element, "modulate:a", 0.0, 0.2)
+	tween.tween_callback(func(): element.visible = false)
+	
+	# Store tween reference
+	element.set_meta("fade_tween", tween)
 
 
 func end_attack_zoom() -> void:

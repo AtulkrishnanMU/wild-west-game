@@ -2,7 +2,7 @@ class_name FontConfig
 extends RefCounted
 
 # Global font configuration
-const DEFAULT_FONT_PATH := "res://fonts/Triangle Break.otf"
+const DEFAULT_FONT_PATH := "res://fonts/Messy Board.otf"
 const DEFAULT_FONT_SIZE := 20
 const DEFAULT_UI_FONT_SIZE := 20
 const DEFAULT_DIALOGUE_FONT_SIZE := 15
@@ -42,6 +42,16 @@ static func apply_default_font_rich(rich_label: RichTextLabel, font_size: int = 
 		rich_label.add_theme_font_size_override("italics_font_size", font_size)
 		rich_label.add_theme_font_size_override("bold_italics_font_size", font_size)
 		rich_label.add_theme_font_size_override("mono_font_size", font_size)
+
+# Apply default font styling to a Button
+static func apply_default_font_button(button: Button, font_size: int = DEFAULT_UI_FONT_SIZE) -> void:
+	var font := get_default_font()
+	if font and button:
+		button.add_theme_font_override("font", font)
+		button.add_theme_font_size_override("font_size", font_size)
+		# Create bold effect with outline
+		button.add_theme_constant_override("outline_size", 1)
+		button.add_theme_color_override("font_outline_color", button.get_theme_color("font_color"))
 
 # Apply font with LabelSettings (alternative approach)
 static func apply_font_with_settings(label: Label, font_size: int = DEFAULT_FONT_SIZE) -> void:

@@ -1,8 +1,5 @@
 extends "res://scripts/cutscenes/cutscene_base.gd"
 
-# Font configuration
-const FontConfig := preload("res://scripts/utils/font_config.gd")
-
 var _hb_faded_out: bool = false
 var _title_showing: bool = true
 var _title_label: Label
@@ -55,7 +52,7 @@ func _ready() -> void:
 
 	_setup_cutscene_common()
 	_full_text = "The world ended a long time ago. (pause=0.5) \nMost folks just didn't notice until it was too late. <break>Been down here so long I forgot what the sun feels like. <break>TWENTY YEARS.(pause=1.0)\n<r>TWENTY (pause=0.5)FUCKIN' (pause=0.5)YEARS</r>. <break>It's finally time to cut the leash."
-	_next_scene_path = "res://scenes/cutscenes/monitor_cutscene.tscn"
+	_next_scene_path = "res://scenes/levels/level1.tscn"
 
 	# Set up a timer to show the title after a delay
 	_title_timer = get_tree().create_timer(1.5)  # 1.5 second delay

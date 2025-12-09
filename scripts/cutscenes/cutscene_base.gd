@@ -1,8 +1,5 @@
 extends Control
 
-# Font configuration
-const FontConfig := preload("res://scripts/utils/font_config.gd")
-
 @export var typing_speed: float = 40.0
 
 @onready var dialogue_label: RichTextLabel = $DialogueLabel

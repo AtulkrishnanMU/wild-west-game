@@ -1,8 +1,5 @@
 extends "res://scripts/levels/level.gd"
 
-# Font configuration
-const FontConfig := preload("res://scripts/utils/font_config.gd")
-
 var pressed: bool = false
 var intro_done: bool = false
 var intro_running: bool = false
@@ -29,6 +26,7 @@ func _ready() -> void:
 	reload_label = $"UI/ReloadLabel"
 	combo_number_label = $"UI/ComboNumberLabel"
 	combo_text_label = $"UI/ComboTextLabel"
+	combo_timer_bar = $"UI/ComboTimerBar"
 	ui_layer = $"UI"
 
 	# Use common UI setup only if player exists
@@ -41,10 +39,10 @@ func _ready() -> void:
 	
 	# Apply default font to main menu UI elements
 	FontConfig.apply_ui_font(press_label)
-	FontConfig.apply_ui_font(btn_continue)
-	FontConfig.apply_ui_font(btn_new_game)
-	FontConfig.apply_ui_font(btn_tutorial)
-	FontConfig.apply_ui_font(btn_endless)
+	FontConfig.apply_default_font_button(btn_continue)
+	FontConfig.apply_default_font_button(btn_new_game)
+	FontConfig.apply_default_font_button(btn_tutorial)
+	FontConfig.apply_default_font_button(btn_endless)
 	
 	if player:
 		player.controls_enabled = false

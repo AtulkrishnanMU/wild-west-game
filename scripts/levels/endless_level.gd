@@ -22,12 +22,13 @@ func _ready() -> void:
 	# Initialize shared UI references for Level base class
 	player = $"Player"
 	health_bar = $"UI/HealthBar"
-		cash_label = $"UI/CashLabel"
+	cash_label = $"UI/CashLabel"
 	health_percent_label = $"UI/HealthPercentLabel"
 	bullet_icons = $"UI/BulletIcons"
 	reload_label = $"UI/ReloadLabel"
 	combo_number_label = $"UI/ComboNumberLabel"
 	combo_text_label = $"UI/ComboTextLabel"
+	combo_timer_bar = $"UI/ComboTimerBar"
 	ui_layer = $"UI"
 
 	# Use common UI setup

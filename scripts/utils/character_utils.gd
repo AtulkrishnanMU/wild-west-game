@@ -1,9 +1,6 @@
 class_name CharacterUtils
 extends RefCounted
 
-# Font configuration
-const FontConfig := preload("res://scripts/utils/font_config.gd")
-
 # Common scene preloads
 const DUST_SCENE := preload("res://scenes/objects/dust_splash.tscn")
 const BLOOD_SCENE := preload("res://scenes/objects/blood_splash.tscn")

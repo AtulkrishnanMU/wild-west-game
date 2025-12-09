@@ -1,7 +1,6 @@
 class_name Player
 extends CharacterBody2D
 
-const FontConfig := preload("res://scripts/utils/font_config.gd")
 const SPEED = 300.0
 const JUMP_VELOCITY = -400.0
 const TILE_SIZE = 16
@@ -43,10 +42,12 @@ signal bullets_changed(current: int, max: int)
 signal reloads_changed(current: int, max: int)
 signal combo_streak_changed(current: int)
 
-# Combo streak system
+# Combo system variables
 var combo_streak: int = 0
 var _last_damage_time: float = 0.0
 var _combo_active: bool = false
+var _combo_timer: Timer = null
+var _combo_duration: float = 5.0  # Seconds before combo expires
 
 var PLAYER_DEATH_SOUND: AudioStream = null
 var HURT_SOUND: AudioStream = null
@@ -151,6 +152,9 @@ func _ready() -> void:
 	HURT_SOUND = load("res://sounds/hurt.mp3")
 	BLOOD_SPLAT_SOUND = load("res://sounds/blood-splat.mp3")
 	RUNNING_SOUND = load("res://sounds/running.mp3")
+	
+	# Setup combo timer
+	_setup_combo_timer()
 	
 	# Cache audio streams for performance
 	_air_attack_sound_cache = load(PLAYER_AIR_ATTACK_SOUND_PATH)
@@ -853,6 +857,18 @@ func take_damage_with_direction(amount: int, bullet_direction: Vector2, bullet_p
 	
 	# Apply damage effects using CharacterUtils with bullet direction and position
 	CharacterUtils.apply_damage_with_effects(self, amount, BLOOD_SCENE, BLOOD_SPLAT_SOUND, hit_player, bullet_direction, bullet_position)
+	
+	# Add pink flash after damage if healing was applied
+	if combo_streak > 0:
+		var current_scene = get_tree().current_scene
+		if current_scene and current_scene.has_method("set_health_bar_color"):
+			# Use unified health bar color function for pink flash
+			var pink_color = Color(1.0, 0.75, 0.8)  # Pink color
+			current_scene.set_health_bar_color(pink_color, 0.1)
+			
+			# Restore normal color after delay
+			await get_tree().create_timer(0.3).timeout
+			current_scene.restore_health_bar_color(0.2)
 
 	health = max(health - amount, 0)
 	emit_signal("health_changed", health, MAX_HEALTH)
@@ -926,17 +942,34 @@ func _highlight_health_bar() -> void:
 	).set_delay(0.3)
 
 # Combo streak system functions
+func _setup_combo_timer() -> void:
+	_combo_timer = Timer.new()
+	_combo_timer.wait_time = _combo_duration
+	_combo_timer.one_shot = true
+	_combo_timer.timeout.connect(_on_combo_timer_expired)
+	add_child(_combo_timer)
+
+func _on_combo_timer_expired() -> void:
+	apply_combo_healing()
+
 func increment_combo_streak() -> void:
 	combo_streak += 1
 	_combo_active = true
-	print("DEBUG: Combo increased to: ", combo_streak)
 	emit_signal("combo_streak_changed", combo_streak)
+	
+	# Refresh combo timer
+	if _combo_timer:
+		_combo_timer.stop()
+		_combo_timer.start()
 
 func reset_combo_streak() -> void:
 	combo_streak = 0
 	_combo_active = false
-	print("DEBUG: Combo reset to 0")
 	emit_signal("combo_streak_changed", combo_streak)
+	
+	# Stop combo timer
+	if _combo_timer:
+		_combo_timer.stop()
 
 func apply_combo_healing() -> void:
 	print("DEBUG: Applying combo healing, current combo: ", combo_streak)
@@ -951,6 +984,17 @@ func apply_combo_healing() -> void:
 			print("DEBUG: Healed for: ", actual_heal, " (combo: ", combo_streak, ", potential: ", heal_potential, ")")
 			# Show healing popup
 			CharacterUtils.spawn_floating_popup(self, "+" + str(actual_heal) + "♡", Color(1.0, 0.75, 0.8), Vector2(-20, -25), POPUP_FONT_SIZE + 10, HEALTH_POPUP_HEIGHT)
+			# Sync health bar color to show pink flash
+			var current_scene = get_tree().current_scene
+			if current_scene and current_scene.has_method("sync_health_bar_fill_color"):
+				current_scene.sync_health_bar_fill_color()
+			# Add temporary pink flash effect
+			if current_scene and current_scene.has_method("set_health_bar_color"):
+				var pink_color = Color(1.0, 0.75, 0.8)  # Pink color
+				current_scene.set_health_bar_color(pink_color, 0.1)
+				# Reset to original color after 0.3 seconds
+				await get_tree().create_timer(0.3).timeout
+				current_scene.restore_health_bar_color(0.2)
 		reset_combo_streak()
 
 # Helper function to get proper health color based on current health

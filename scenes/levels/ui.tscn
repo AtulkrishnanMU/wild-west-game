@@ -46,6 +46,16 @@ offset_right = 300.0
 offset_bottom = 53.0
 text = "100%"
 
+[node name="ComboTimerBar" type="ProgressBar" parent="."]
+visible = false
+offset_left = 994.0
+offset_top = 71.0
+offset_right = 1143.9236
+offset_bottom = 82.24426
+scale = Vector2(0.43158525, 0.88934225)
+max_value = 3.0
+show_percentage = false
+
 [node name="ComboNumberLabel" type="Label" parent="."]
 visible = false
 offset_left = 903.99994
