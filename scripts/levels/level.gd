@@ -253,13 +253,18 @@ func _on_enemy_killed(enemy: Node) -> void:
 		print("DEBUG: Player or increment_combo_streak method not found")
 
 # SINGLE UNIFIED HEALTH BAR UPDATE METHOD - USE THIS EVERYWHERE
-func update_health_bar_unified(current: int, max_value: int, duration: float = 0.0) -> void:
+func update_health_bar_unified(current: int, max_value: int, duration: float = 0.3) -> void:
 	if health_bar == null:
 		return
 	
-	# Update health values
+	# Update max_value immediately
 	health_bar.max_value = max_value
-	health_bar.value = current
+	
+	# Animate health bar value with smooth easing
+	var health_tween := create_tween()
+	health_tween.set_ease(Tween.EASE_IN_OUT)
+	health_tween.set_trans(Tween.TRANS_CUBIC)
+	health_tween.tween_property(health_bar, "value", current, duration)
 	
 	# Calculate and apply color
 	var ratio: float = 0.0
@@ -338,7 +343,6 @@ func _on_player_health_changed(current: int, max_value: int) -> void:
 	
 	if health_bar != null:
 		health_bar.max_value = max_value
-		health_bar.value = current
 		
 		# Use unified color function to ensure both modulate and fill are always the same
 		update_health_bar_unified(current, max_value)
