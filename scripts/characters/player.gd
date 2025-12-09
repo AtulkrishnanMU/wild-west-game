@@ -33,6 +33,7 @@ const HEALTH_HIGH_COLOR := Color(0.2, 0.6, 0.2)    # Green (less bright)
 const HEALTH_MEDIUM_COLOR := Color(0.95, 0.8, 0.2)  # Yellow
 const HEALTH_LOW_COLOR := Color(0.95, 0.2, 0.2)    # Red
 const HEALTH_HIGHLIGHT_COLOR := Color(1.0, 0.75, 0.8)  # Pink for healing highlights
+const HEALTH_GAIN_SOUND := preload("res://sounds/health-gain.mp3")  # Health gain sound effect
 
 # Health bar highlight variables
 var _health_bar_highlight_tween: Tween = null
@@ -1045,6 +1046,8 @@ func apply_combo_healing() -> void:
 			print("DEBUG: Healed for: ", actual_heal, " (combo: ", combo_streak, ", potential: ", heal_potential, ")")
 			# Show healing popup
 			CharacterUtils.spawn_floating_popup(self, "+" + str(actual_heal) + "HP", Color(1.0, 0.75, 0.8), Vector2(-20, -25), POPUP_FONT_SIZE + 10, HEALTH_POPUP_HEIGHT)
+			# Play health gain sound
+			AudioUtils.play_positioned_sound(HEALTH_GAIN_SOUND, global_position)
 			# Sync health bar color to show pink flash
 			var current_scene = get_tree().current_scene
 			if current_scene and current_scene.has_method("update_health_bar_unified"):

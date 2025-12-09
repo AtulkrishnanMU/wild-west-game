@@ -106,6 +106,17 @@ static func spawn_floating_popup(character: Node2D, text: String, color: Color, 
 	popup_root.add_child(label)
 
 	var tween := scene.get_tree().create_tween()
+	
+	# Check if this is an HP popup (contains "HP" text)
+	var is_hp_popup = "HP" in text
+	
+	if is_hp_popup:
+		# Add flicker effect for HP popups
+		var flicker_tween := scene.get_tree().create_tween()
+		flicker_tween.set_loops(3)  # Flicker 3 times
+		flicker_tween.tween_property(label, "modulate:a", 0.3, 0.1)  # Fade to 30% opacity
+		flicker_tween.tween_property(label, "modulate:a", 1.0, 0.1)  # Back to full opacity
+	
 	# Popup: float up and fade over ~0.5 seconds
 	tween.tween_property(popup_root, "position:y", popup_root.position.y - 20.0, 1.0)
 	tween.tween_property(label, "modulate:a", 0.0, 0.5)
