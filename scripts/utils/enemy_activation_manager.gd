@@ -66,8 +66,14 @@ func _should_activate_enemy(enemy: Enemy) -> bool:
 	if enemy.notifier == null or player_notifier == null:
 		return true
 	
-	# Check if both are on screen
-	return enemy.notifier.is_on_screen() and player_notifier.is_on_screen()
+	# Check if both are on screen (original condition)
+	var both_on_screen = enemy.notifier.is_on_screen() and player_notifier.is_on_screen()
+	
+	# Check if player and enemy are on the same horizontal level (line of sight)
+	var same_horizontal_level = _is_same_horizontal_level(enemy)
+	
+	# Activate only if BOTH conditions are met: on screen AND same horizontal level
+	return both_on_screen and same_horizontal_level
 
 # Activate enemy
 func activate_enemy(enemy: Enemy):
@@ -75,6 +81,14 @@ func activate_enemy(enemy: Enemy):
 	enemy.is_active = true
 	if enemy not in active_enemies:
 		active_enemies.append(enemy)
+
+func _is_same_horizontal_level(enemy: Enemy) -> bool:
+	# Check if player and enemy are on the same horizontal level
+	# Define a threshold for what counts as "same level" (in pixels)
+	var horizontal_threshold = 50.0  # Adjust this value as needed
+	
+	var vertical_distance = abs(enemy.global_position.y - player.global_position.y)
+	return vertical_distance <= horizontal_threshold
 
 func get_active_enemies() -> Array[Enemy]:
 	return active_enemies.filter(func(e): return e.is_active and not e.is_dead)

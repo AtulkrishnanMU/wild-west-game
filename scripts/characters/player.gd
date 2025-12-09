@@ -25,6 +25,15 @@ const BACKUP_EQUIPPED_HEIGHT = 40.0  # "BACKUP EQUIPPED" popup
 const OUT_OF_AMMO_HEIGHT = 45.0      # "OUT OF AMMO" popup
 const AudioUtils = preload("res://scripts/utils/audio_utils.gd")
 const GunUtils = preload("res://scripts/utils/gun_utils.gd")
+
+# Health color constants - should match level.gd constants
+const HEALTH_HIGH_THRESHOLD := 0.6  # Above this = green
+const HEALTH_LOW_THRESHOLD := 0.3   # Above this = yellow, below = red
+const HEALTH_HIGH_COLOR := Color(0.2, 0.9, 0.2)    # Green
+const HEALTH_MEDIUM_COLOR := Color(0.95, 0.8, 0.2)  # Yellow
+const HEALTH_LOW_COLOR := Color(0.95, 0.2, 0.2)    # Red
+const HEALTH_HIGHLIGHT_COLOR := Color(1.0, 0.75, 0.8)  # Pink for healing highlights
+
 # Health bar highlight variables
 var _health_bar_highlight_tween: Tween = null
 var _original_health_bar_color: Color = Color.WHITE
@@ -120,6 +129,16 @@ var jump_start_y: float = 0.0
 var jump_buffer_time: float = 0.0
 const JUMP_BUFFER_WINDOW: float = 0.1  # 100ms buffer window
 
+# Wall jump variables
+var is_wall_jumping: bool = false
+var wall_jump_direction: float = 0.0
+const WALL_JUMP_HORIZONTAL_VELOCITY: float = 350.0
+const WALL_JUMP_VERTICAL_VELOCITY: float = -300.0
+var last_wall_jump_time: float = 0.0
+const WALL_JUMP_COOLDOWN: float = 0.2  # Prevent immediate re-jumps
+var consecutive_wall_jumps: int = 0  # Track consecutive wall jumps
+const MAX_CONSECUTIVE_WALL_JUMPS: int = 4  # Maximum allowed consecutive wall jumps
+
 # Cursor management
 var gun_cursor_texture: Texture2D = null
 var normal_cursor_shape: Input.CursorShape = Input.CURSOR_ARROW
@@ -190,6 +209,8 @@ func _physics_process(delta: float) -> void:
 	# Reset jump state when landing
 	if is_on_floor() and not was_on_floor:
 		is_jumping = false
+		is_wall_jumping = false  # Reset wall jump state
+		consecutive_wall_jumps = 0  # Reset consecutive wall jump counter
 		_air_attack_just_ended = false     # Clear air attack flags immediately when landing
 		_force_idle_after_air_attack = false
 		_air_attack_finished_mid_air = false  # Clear air attack finished flag when landing
@@ -236,6 +257,10 @@ func _physics_process(delta: float) -> void:
 	if jump_buffer_time > 0.0:
 		jump_buffer_time -= delta
 	
+	# Update wall jump cooldown
+	if last_wall_jump_time > 0.0:
+		last_wall_jump_time -= delta
+	
 	# Start jump (either immediate press or buffered)
 	if (jump_just_pressed or jump_buffer_time > 0.0) and is_on_floor() and not is_attacking and not is_jumping:
 		# Clear force idle flag when player wants to jump
@@ -249,6 +274,21 @@ func _physics_process(delta: float) -> void:
 		jump_start_y = global_position.y
 		velocity.y = JUMP_VELOCITY
 		jump_buffer_time = 0.0  # Consume the buffer
+	
+	# Wall jump logic
+	elif jump_just_pressed and not is_on_floor() and not is_attacking and last_wall_jump_time <= 0.0 and Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT):
+		var wall_dir = _get_wall_direction()
+		if wall_dir != 0.0 and consecutive_wall_jumps < MAX_CONSECUTIVE_WALL_JUMPS:
+			# Perform wall jump
+			is_wall_jumping = true
+			wall_jump_direction = wall_dir
+			velocity.x = wall_jump_direction * WALL_JUMP_HORIZONTAL_VELOCITY
+			velocity.y = WALL_JUMP_VERTICAL_VELOCITY
+			last_wall_jump_time = WALL_JUMP_COOLDOWN
+			jump_buffer_time = 0.0  # Consume the buffer
+			consecutive_wall_jumps += 1  # Increment consecutive wall jump counter
+			# Face away from wall
+			animated_sprite.flip_h = wall_jump_direction < 0
 	
 	# Continue jumping while holding space (with max height limit)
 	if is_jumping and jump_pressed and jump_hold_time < MAX_JUMP_HOLD_TIME:
@@ -294,7 +334,13 @@ func _physics_process(delta: float) -> void:
 		target_speed = 0.0
 	
 	# Apply smooth acceleration/deceleration using CharacterUtils
-	velocity.x = CharacterUtils.apply_smooth_movement(self, target_speed, SPEED, delta, ACCELERATION, DECELERATION, AIR_ACCELERATION)
+	# During wall jump, allow some control but with reduced acceleration
+	if is_wall_jumping:
+		# Allow limited horizontal control during wall jump
+		var wall_jump_acceleration = AIR_ACCELERATION * 0.7  # Reduced control during wall jump
+		velocity.x = CharacterUtils.apply_smooth_movement(self, target_speed, SPEED, delta, wall_jump_acceleration, DECELERATION, AIR_ACCELERATION)
+	else:
+		velocity.x = CharacterUtils.apply_smooth_movement(self, target_speed, SPEED, delta, ACCELERATION, DECELERATION, AIR_ACCELERATION)
 	
 	# Attack input (left mouse / attack action)
 	var attack_pressed: bool = Input.is_action_just_pressed("attack")
@@ -369,6 +415,13 @@ func _physics_process(delta: float) -> void:
 			animated_sprite.play("GUN_IDLE")
 		else:
 			animated_sprite.play("IDLE")
+		_stop_running_sound()
+	elif is_wall_jumping:
+		# Use jump animation for wall jump as well
+		if has_gun:
+			animated_sprite.play("GUN_JUMP")
+		else:
+			animated_sprite.play("JUMP")
 		_stop_running_sound()
 	elif not is_on_floor() and not _air_attack_just_ended:
 		# Only play jump animation if not in cooldown from air attack
@@ -624,6 +677,13 @@ func _update_animation_state() -> void:
 	elif is_attacking:
 		# attack animations handled by animation_finished
 		pass
+	elif is_wall_jumping:
+		# Use jump animation for wall jump as well
+		if has_gun:
+			animated_sprite.play("GUN_JUMP")
+		else:
+			animated_sprite.play("JUMP")
+		_stop_running_sound()
 	elif not is_on_floor() and not _air_attack_just_ended:
 		# Only play jump animation if not in cooldown from air attack
 		if has_gun:
@@ -863,8 +923,7 @@ func take_damage_with_direction(amount: int, bullet_direction: Vector2, bullet_p
 		var current_scene = get_tree().current_scene
 		if current_scene and current_scene.has_method("set_health_bar_color"):
 			# Use unified health bar color function for pink flash
-			var pink_color = Color(1.0, 0.75, 0.8)  # Pink color
-			current_scene.set_health_bar_color(pink_color, 0.1)
+			current_scene.set_health_bar_color(HEALTH_HIGHLIGHT_COLOR, 0.1)
 			
 			# Restore normal color after delay
 			await get_tree().create_timer(0.3).timeout
@@ -879,6 +938,11 @@ func take_damage_with_direction(amount: int, bullet_direction: Vector2, bullet_p
 			is_attacking = false
 			CharacterUtils.play_character_animation(animated_sprite, "DEATH")
 			_play_player_death_sound()
+			
+			# Stop heartbeat sound when player dies
+			var current_scene = get_tree().current_scene
+			if current_scene and current_scene.has_method("stop_heartbeat_sound"):
+				current_scene.stop_heartbeat_sound()
 	else:
 		# Only visual feedback — everything else continues uninterrupted
 		_flicker_red()
@@ -913,12 +977,11 @@ func _highlight_health_bar() -> void:
 	_health_bar_highlight_tween.set_parallel(true)
 	
 	# Flash to pink
-	var pink_color = Color(1.0, 0.75, 0.8)  # Same as popup color
-	_health_bar_highlight_tween.tween_property(health_bar, "modulate", pink_color, 0.1)
+	_health_bar_highlight_tween.tween_property(health_bar, "modulate", HEALTH_HIGHLIGHT_COLOR, 0.1)
 	
 	# Create pink fill style directly
 	var pink_fill = StyleBoxFlat.new()
-	pink_fill.bg_color = pink_color
+	pink_fill.bg_color = HEALTH_HIGHLIGHT_COLOR
 	pink_fill.corner_radius_top_left = 2
 	pink_fill.corner_radius_top_right = 2
 	pink_fill.corner_radius_bottom_left = 2
@@ -926,7 +989,7 @@ func _highlight_health_bar() -> void:
 	health_bar.add_theme_stylebox_override("fill", pink_fill)
 	
 	# Hold pink color briefly
-	_health_bar_highlight_tween.tween_property(health_bar, "modulate", pink_color, 0.2).set_delay(0.1)
+	_health_bar_highlight_tween.tween_property(health_bar, "modulate", HEALTH_HIGHLIGHT_COLOR, 0.2).set_delay(0.1)
 	
 	# Fade back to proper color based on current health
 	var proper_color = get_health_color()
@@ -990,25 +1053,26 @@ func apply_combo_healing() -> void:
 				current_scene.sync_health_bar_fill_color()
 			# Add temporary pink flash effect
 			if current_scene and current_scene.has_method("set_health_bar_color"):
-				var pink_color = Color(1.0, 0.75, 0.8)  # Pink color
-				current_scene.set_health_bar_color(pink_color, 0.1)
+				current_scene.set_health_bar_color(HEALTH_HIGHLIGHT_COLOR, 0.1)
 				# Reset to original color after 0.3 seconds
 				await get_tree().create_timer(0.3).timeout
 				current_scene.restore_health_bar_color(0.2)
 		reset_combo_streak()
 
 # Helper function to get proper health color based on current health
+# Uses same thresholds as level.gd - SINGLE SOURCE OF TRUTH
 func get_health_color() -> Color:
 	var ratio: float = 0.0
 	if MAX_HEALTH > 0:
 		ratio = float(health) / float(MAX_HEALTH)
 	
-	if ratio > 0.6:
-		return Color(0.2, 0.9, 0.2)  # Green
-	elif ratio > 0.3:
-		return Color(0.95, 0.8, 0.2)  # Yellow
+	# Use shared constants instead of hardcoded values
+	if ratio > HEALTH_HIGH_THRESHOLD:
+		return HEALTH_HIGH_COLOR
+	elif ratio > HEALTH_LOW_THRESHOLD:
+		return HEALTH_MEDIUM_COLOR
 	else:
-		return Color(0.95, 0.2, 0.2)  # Red
+		return HEALTH_LOW_COLOR
 
 # Old health gain system removed - now using combo streak system
 
@@ -1158,6 +1222,21 @@ func _play_blood_splat_sound() -> void:
 
 
 # ——— CURSOR MANAGEMENT ———
+func _get_wall_direction() -> float:
+	# Check if player is touching a wall and return the direction (-1 for left, 1 for right, 0 for no wall)
+	for i in range(get_slide_collision_count()):
+		var collision = get_slide_collision(i)
+		var collider = collision.get_collider()
+		
+		# Check if collision is with a wall (vertical surface)
+		if collider and (collider.is_in_group("walls") or collider is TileMap):
+			var normal = collision.get_normal()
+			# Check if this is a vertical wall (normal.x is significant)
+			if abs(normal.x) > 0.5:  # Mostly horizontal normal means vertical wall
+				return -normal.x  # Return direction away from wall
+	
+	return 0.0  # No wall detected
+
 func _update_cursor() -> void:
 	if has_gun and gun_cursor_texture:
 		# Set custom cursor when holding gun

@@ -212,7 +212,7 @@ func _process(delta: float) -> void:
 
 
 func _start_typing(text: String) -> void:
-	_full_text = text
+	_full_text = text.to_upper()
 	_break_indices.clear()
 	_next_break_i = 0
 	_awaiting_break_continue = false
@@ -240,7 +240,7 @@ func _start_typing(text: String) -> void:
 	while i < raw.length():
 		var consumed := false
 		# pause tag: (pause=...)
-		if i + 7 <= raw.length() and raw.substr(i, 7) == "(pause=":
+		if i + 7 <= raw.length() and raw.substr(i, 7).to_lower() == "(pause=":
 			var close := raw.find(")", i + 7)
 			if close == -1:
 				break
@@ -254,29 +254,29 @@ func _start_typing(text: String) -> void:
 			i = close + 1
 			consumed = true
 		# break tag: (break)
-		elif i + 7 <= raw.length() and raw.substr(i, 7) == "(break)":
+		elif i + 7 <= raw.length() and raw.substr(i, 7).to_lower() == "(break)":
 			_break_indices.append(visible_index)
 			i += 7
 			consumed = true
 		# opening color tags
-		elif i + 3 <= raw.length() and raw.substr(i, 3) == "<r>":
+		elif i + 3 <= raw.length() and raw.substr(i, 3).to_lower() == "<r>":
 			stack.append({"color": "red", "start": visible_index})
 			i += 3
 			consumed = true
-		elif i + 3 <= raw.length() and raw.substr(i, 3) == "<y>":
+		elif i + 3 <= raw.length() and raw.substr(i, 3).to_lower() == "<y>":
 			stack.append({"color": "yellow", "start": visible_index})
 			i += 3
 			consumed = true
-		elif i + 3 <= raw.length() and raw.substr(i, 3) == "<g>":
+		elif i + 3 <= raw.length() and raw.substr(i, 3).to_lower() == "<g>":
 			stack.append({"color": "green", "start": visible_index})
 			i += 3
 			consumed = true
-		elif i + 3 <= raw.length() and raw.substr(i, 3) == "<b>":
+		elif i + 3 <= raw.length() and raw.substr(i, 3).to_lower() == "<b>":
 			stack.append({"color": "blue", "start": visible_index})
 			i += 3
 			consumed = true
 		# closing color tags
-		elif i + 4 <= raw.length() and (raw.substr(i, 4) == "</r>" or raw.substr(i, 4) == "</y>" or raw.substr(i, 4) == "</g>" or raw.substr(i, 4) == "</b>"):
+		elif i + 4 <= raw.length() and (raw.substr(i, 4).to_lower() == "</r>" or raw.substr(i, 4).to_lower() == "</y>" or raw.substr(i, 4).to_lower() == "</g>" or raw.substr(i, 4).to_lower() == "</b>"):
 			if stack.size() > 0:
 				var span = stack.pop_back()
 				span["end"] = visible_index

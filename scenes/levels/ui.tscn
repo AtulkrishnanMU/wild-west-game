@@ -5,9 +5,12 @@
 [sub_resource type="LabelSettings" id="LabelSettings_258gi"]
 font = ExtResource("1_jsomr")
 font_size = 70
+outline_size = 3
+outline_color = Color(0, 0, 0, 1)
 
 [sub_resource type="LabelSettings" id="LabelSettings_jsomr"]
-outline_size = 1
+outline_size = 3
+outline_color = Color(0, 0, 0, 1)
 
 [node name="UI" type="CanvasLayer"]
 
@@ -40,10 +43,10 @@ offset_bottom = 135.0
 text = "RELOADS 0/5"
 
 [node name="HealthPercentLabel" type="Label" parent="."]
-offset_left = 220.0
-offset_top = 26.0
-offset_right = 300.0
-offset_bottom = 53.0
+offset_left = 89.0
+offset_top = 28.0
+offset_right = 169.0
+offset_bottom = 55.0
 text = "100%"
 
 [node name="ComboTimerBar" type="ProgressBar" parent="."]
@@ -71,9 +74,9 @@ horizontal_alignment = 1
 [node name="ComboTextLabel" type="Label" parent="."]
 visible = false
 offset_left = 910.99994
-offset_top = 151.0
+offset_top = 153.0
 offset_right = 1112.5225
-offset_bottom = 174.39534
+offset_bottom = 176.39534
 scale = Vector2(1.2107829, 1.2107829)
 text = "K I L L S"
 label_settings = SubResource("LabelSettings_jsomr")

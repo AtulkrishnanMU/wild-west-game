@@ -2,10 +2,10 @@ class_name FontConfig
 extends RefCounted
 
 # Global font configuration
-const DEFAULT_FONT_PATH := "res://fonts/Messy Board.otf"
+const DEFAULT_FONT_PATH := "res://fonts/LTHoodlum-Regular.ttf"
 const DEFAULT_FONT_SIZE := 20
 const DEFAULT_UI_FONT_SIZE := 20
-const DEFAULT_DIALOGUE_FONT_SIZE := 15
+const DEFAULT_DIALOGUE_FONT_SIZE := 20
 const DEFAULT_TITLE_FONT_SIZE := 36
 const DEFAULT_POPUP_FONT_SIZE := 20
 
@@ -24,9 +24,9 @@ static func apply_default_font(label: Label, font_size: int = DEFAULT_FONT_SIZE)
 	if font and label:
 		label.add_theme_font_override("font", font)
 		label.add_theme_font_size_override("font_size", font_size)
-		# Create bold effect with outline
-		label.add_theme_constant_override("outline_size", 1)
-		label.add_theme_color_override("font_outline_color", label.get_theme_color("font_color"))
+		# Add black outline for better visibility
+		label.add_theme_constant_override("outline_size", 3)
+		label.add_theme_color_override("font_outline_color", Color.BLACK)
 
 # Apply default font styling to a RichTextLabel
 static func apply_default_font_rich(rich_label: RichTextLabel, font_size: int = DEFAULT_DIALOGUE_FONT_SIZE) -> void:
@@ -49,9 +49,9 @@ static func apply_default_font_button(button: Button, font_size: int = DEFAULT_U
 	if font and button:
 		button.add_theme_font_override("font", font)
 		button.add_theme_font_size_override("font_size", font_size)
-		# Create bold effect with outline
-		button.add_theme_constant_override("outline_size", 1)
-		button.add_theme_color_override("font_outline_color", button.get_theme_color("font_color"))
+		# Add black outline for better visibility
+		button.add_theme_constant_override("outline_size", 3)
+		button.add_theme_color_override("font_outline_color", Color.BLACK)
 
 # Apply font with LabelSettings (alternative approach)
 static func apply_font_with_settings(label: Label, font_size: int = DEFAULT_FONT_SIZE) -> void:
@@ -60,6 +60,8 @@ static func apply_font_with_settings(label: Label, font_size: int = DEFAULT_FONT
 		var label_settings := LabelSettings.new()
 		label_settings.font = font
 		label_settings.font_size = font_size
+		label_settings.outline_size = 3
+		label_settings.outline_color = Color.BLACK
 		label.label_settings = label_settings
 
 # Convenience methods for specific use cases

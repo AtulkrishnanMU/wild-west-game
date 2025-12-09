@@ -4,6 +4,25 @@ extends Node2D
 const BULLET_ICON_TEXTURE_PATH := "res://assets/icons/bullet-icon.png"
 const DEFAULT_MUSIC_VOLUME_DB := -8.0
 
+# Health color thresholds - SINGLE SOURCE OF TRUTH
+const HEALTH_HIGH_THRESHOLD := 0.6  # Above this = green
+const HEALTH_LOW_THRESHOLD := 0.3   # Above this = yellow, below = red
+
+# Health color definitions - SINGLE SOURCE OF TRUTH
+const HEALTH_HIGH_COLOR := Color(0.2, 0.9, 0.2)    # Green
+const HEALTH_MEDIUM_COLOR := Color(0.95, 0.8, 0.2)  # Yellow
+const HEALTH_LOW_COLOR := Color(0.95, 0.2, 0.2)    # Red
+
+# Heartbeat sound system
+var heartbeat_player: AudioStreamPlayer = null
+var is_heartbeat_playing: bool = false
+const HEARTBEAT_SOUND_PATH := "res://sounds/heartbeat-sound.mp3"
+
+# Health bar pulsing system
+var health_bar_pulse_tween: Tween = null
+var is_pulsing: bool = false
+var original_health_bar_scale: Vector2 = Vector2.ONE
+
 # These are expected to be set by child scripts via @onready vars
 var player: Node = null
 var health_bar: ProgressBar = null
@@ -28,6 +47,15 @@ var camera_zoom_duration: float = 0.15  # Time to zoom in/out
 var _camera_zoom_tween: Tween = null
 var _original_camera_zoom: float = 1.0
 
+# Helper function to get health color based on ratio - SINGLE SOURCE OF TRUTH
+func get_health_color(ratio: float) -> Color:
+	if ratio > HEALTH_HIGH_THRESHOLD:
+		return HEALTH_HIGH_COLOR
+	elif ratio > HEALTH_LOW_THRESHOLD:
+		return HEALTH_MEDIUM_COLOR
+	else:
+		return HEALTH_LOW_COLOR
+
 # Common setup function
 func _connect_existing_enemies() -> void:
 	# Find all existing enemies in the scene and connect them to combo system
@@ -42,6 +70,14 @@ func _connect_existing_enemies() -> void:
 
 # Common UI setup function
 func setup_ui() -> void:
+	# Configure progress bars FIRST before initializing health
+	if health_bar:
+		health_bar.show_percentage = false
+		# Reduce corner radius and add white outline
+		health_bar.add_theme_stylebox_override("background", create_health_bar_background())
+		health_bar.add_theme_stylebox_override("fill", create_health_bar_fill())
+		health_bar.add_theme_stylebox_override("foreground", create_health_bar_foreground())
+	
 	# Connect player signals if available
 	if player:
 		if player.has_signal("health_changed"):
@@ -55,7 +91,7 @@ func setup_ui() -> void:
 		if player.has_signal("combo_streak_changed"):
 			player.combo_streak_changed.connect(_on_combo_streak_changed)
 		
-		# Initialize UI to current player state
+		# Initialize UI to current player state AFTER styling is configured
 		_on_player_health_changed(player.health, player.MAX_HEALTH)
 		_on_player_cash_changed(player.cash)
 		_on_player_reloads_changed(player._player_reload_count, player.PLAYER_MAX_RELOADS)
@@ -71,20 +107,15 @@ func setup_ui() -> void:
 	if reload_label:
 		FontConfig.apply_ui_font(reload_label)
 	# Combo labels are styled individually in the combo handler
-	
-	# Configure progress bars
-	if health_bar:
-		health_bar.show_percentage = false
-		# Reduce corner radius and add white outline
-		health_bar.add_theme_stylebox_override("background", create_health_bar_background())
-		health_bar.add_theme_stylebox_override("fill", create_health_bar_fill())
-		health_bar.add_theme_stylebox_override("foreground", create_health_bar_foreground())
 
 # Common setup function
 func setup_level() -> void:
 	# Initialize camera follow if available
 	if player and player.has_node("Camera2D"):
 		camera = player.get_node("Camera2D")
+	
+	# Initialize heartbeat sound system
+	_setup_heartbeat_sound()
 	
 	# Setup music if present
 	setup_music()
@@ -116,14 +147,26 @@ func create_health_bar_background() -> StyleBoxFlat:
 
 func create_health_bar_fill() -> StyleBoxFlat:
 	var style_box := StyleBoxFlat.new()
-	# Use the health bar's current modulate color for dynamic coloring
-	var fill_color = health_bar.modulate if health_bar else Color(0.2, 0.9, 0.2)
+	# Get current health color instead of always using green
+	var fill_color = get_current_health_color()  # Use current health color
 	style_box.bg_color = fill_color
 	style_box.corner_radius_top_left = 2  # Reduced corner radius
 	style_box.corner_radius_top_right = 2
 	style_box.corner_radius_bottom_left = 2
 	style_box.corner_radius_bottom_right = 2
 	return style_box
+
+# Helper function to get current health color
+func get_current_health_color() -> Color:
+	if player == null:
+		return HEALTH_HIGH_COLOR  # Default to green if no player
+	
+	# Ensure we don't divide by zero
+	if player.MAX_HEALTH <= 0:
+		return HEALTH_HIGH_COLOR
+	
+	var ratio = float(player.health) / float(player.MAX_HEALTH)
+	return get_health_color(ratio)
 
 func create_health_bar_foreground() -> StyleBoxFlat:
 	var style_box := StyleBoxFlat.new()
@@ -249,14 +292,7 @@ func restore_health_bar_color(duration: float = 0.3) -> void:
 		return
 	
 	var ratio = float(player.health) / float(player.MAX_HEALTH)
-	var appropriate_color: Color
-	
-	if ratio > 0.6:
-		appropriate_color = Color(0.2, 0.9, 0.2)  # Green
-	elif ratio > 0.3:
-		appropriate_color = Color(0.95, 0.8, 0.2)  # Yellow
-	else:
-		appropriate_color = Color(0.95, 0.2, 0.2)  # Red
+	var appropriate_color = get_health_color(ratio)
 	
 	set_health_bar_color(appropriate_color, duration)
 
@@ -264,19 +300,120 @@ func _on_player_health_changed(current: int, max_value: int) -> void:
 	var ratio: float = 0.0
 	if max_value > 0:
 		ratio = float(current) / float(max_value)
+	
+	# Calculate health color outside the if block for proper scope
+	var health_color = get_health_color(ratio)
+	
 	if health_bar != null:
 		health_bar.max_value = max_value
 		health_bar.value = current
-		if ratio > 0.6:
-			health_bar.modulate = Color(0.2, 0.9, 0.2)
-		elif ratio > 0.3:
-			health_bar.modulate = Color(0.95, 0.8, 0.2)
-		else:
-			health_bar.modulate = Color(0.95, 0.2, 0.2)
-		# Update fill color to match the new modulate color
-		sync_health_bar_fill_color()
+		
+		# Use unified color function to ensure both modulate and fill are always the same
+		set_health_bar_color(health_color)
+	
+	# Manage heartbeat sound based on health level
+	_manage_heartbeat_sound(ratio)
+	
+	# Manage health bar pulsing based on health color
+	if health_color == HEALTH_LOW_COLOR:  # Red color
+		_start_health_bar_pulse()
+	else:
+		_stop_health_bar_pulse()
+		
 	if health_percent_label != null and max_value > 0:
 		health_percent_label.text = str(int(round(ratio * 100.0))) + "%"
+
+func _setup_heartbeat_sound() -> void:
+	# Create heartbeat sound player
+	heartbeat_player = AudioStreamPlayer.new()
+	add_child(heartbeat_player)
+	
+	# Load the heartbeat sound
+	var heartbeat_sound = load(HEARTBEAT_SOUND_PATH)
+	if heartbeat_sound:
+		heartbeat_player.stream = heartbeat_sound
+		heartbeat_player.volume_db = 0.0  # Increased volume (was -5.0)
+		heartbeat_player.stream.loop = true  # Enable looping
+	else:
+		print("Warning: Heartbeat sound not found at ", HEARTBEAT_SOUND_PATH)
+
+func _manage_heartbeat_sound(health_ratio: float) -> void:
+	if heartbeat_player == null or heartbeat_player.stream == null:
+		return
+	
+	# Stop heartbeat if player is dead
+	if player and player.is_dead:
+		if is_heartbeat_playing:
+			heartbeat_player.stop()
+			is_heartbeat_playing = false
+			print("DEBUG: Stopped heartbeat sound (player died)")
+		return
+	
+	var should_play = health_ratio <= HEALTH_LOW_THRESHOLD  # Play when health is 30% or less
+	
+	if should_play and not is_heartbeat_playing:
+		# Start playing heartbeat sound
+		heartbeat_player.play()
+		is_heartbeat_playing = true
+		print("DEBUG: Started heartbeat sound (health ratio: ", health_ratio, ")")
+	elif not should_play and is_heartbeat_playing:
+		# Stop playing heartbeat sound
+		heartbeat_player.stop()
+		is_heartbeat_playing = false
+		print("DEBUG: Stopped heartbeat sound (health ratio: ", health_ratio, ")")
+
+# Public function to stop heartbeat sound immediately (called from player)
+func stop_heartbeat_sound() -> void:
+	if heartbeat_player and is_heartbeat_playing:
+		heartbeat_player.stop()
+		is_heartbeat_playing = false
+		print("DEBUG: Stopped heartbeat sound (external call)")
+	
+	# Also stop health bar pulsing when player dies
+	_stop_health_bar_pulse()
+
+func _start_health_bar_pulse() -> void:
+	if is_pulsing or health_bar == null:
+		return
+	
+	# Store original scale and set pivot to center
+	if original_health_bar_scale == Vector2.ONE:
+		original_health_bar_scale = health_bar.scale
+		# Set pivot to center for proper pulsing anchor
+		health_bar.pivot_offset = health_bar.size / 2
+	
+	is_pulsing = true
+	_pulse_health_bar()
+
+func _stop_health_bar_pulse() -> void:
+	if not is_pulsing:
+		return
+	
+	# Cancel existing tween
+	if health_bar_pulse_tween and health_bar_pulse_tween.is_valid():
+		health_bar_pulse_tween.kill()
+	
+	# Reset health bar scale
+	if health_bar:
+		health_bar.scale = original_health_bar_scale
+	
+	is_pulsing = false
+
+func _pulse_health_bar() -> void:
+	if not is_pulsing or health_bar == null:
+		return
+	
+	# Create pulsing tween
+	health_bar_pulse_tween = create_tween()
+	health_bar_pulse_tween.set_loops()
+	
+	# Pulsing parameters - faster and smaller
+	var pulse_scale = 1.05  # 5% bigger (reduced from 10%)
+	var pulse_duration = 0.4  # Duration of one pulse cycle (faster, was 0.8)
+	
+	# Health bar pulsing from center
+	health_bar_pulse_tween.tween_property(health_bar, "scale", original_health_bar_scale * pulse_scale, pulse_duration * 0.5)
+	health_bar_pulse_tween.tween_property(health_bar, "scale", original_health_bar_scale, pulse_duration * 0.5).set_delay(pulse_duration * 0.5)
 
 
 func _on_player_cash_changed(current: int) -> void:
@@ -394,9 +531,11 @@ func _update_bullet_icons(current: int, max_value: int) -> void:
 	for child in bullet_icons.get_children():
 		child.queue_free()
 	
-	# Hide bullet icons if player has no gun
+	# Hide bullet icons if player has no gun, otherwise show them
 	if player and not player.has_gun:
 		bullet_icons.visible = false
+	else:
+		bullet_icons.visible = true
 	
 	# Create bullet icons
 	for i in range(max_value):

@@ -467,10 +467,24 @@ func _check_visibility_activation():
 		is_active = true
 		return
 	
-	# Activate once this enemy is on screen
-	if notifier.is_on_screen():
+	# Check if both are on screen (original condition)
+	var both_on_screen = notifier.is_on_screen() and player_notifier.is_on_screen()
+	
+	# Check if player and enemy are on the same horizontal level (line of sight)
+	var same_horizontal_level = _is_same_horizontal_level()
+	
+	# Activate only if BOTH conditions are met: on screen AND same horizontal level
+	if both_on_screen and same_horizontal_level:
 		has_been_visible_with_player = true
 		is_active = true
+
+func _is_same_horizontal_level() -> bool:
+	# Check if player and enemy are on the same horizontal level
+	# Define a threshold for what counts as "same level" (in pixels)
+	var horizontal_threshold = 50.0  # Adjust this value as needed
+	
+	var vertical_distance = abs(global_position.y - player.global_position.y)
+	return vertical_distance <= horizontal_threshold
 
 # Virtual method for attack movement - override in child classes
 func _get_attack_movement(delta: float) -> void:
