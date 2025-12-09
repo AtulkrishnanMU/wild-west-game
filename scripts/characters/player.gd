@@ -29,7 +29,7 @@ const GunUtils = preload("res://scripts/utils/gun_utils.gd")
 # Health color constants - should match level.gd constants
 const HEALTH_HIGH_THRESHOLD := 0.6  # Above this = green
 const HEALTH_LOW_THRESHOLD := 0.3   # Above this = yellow, below = red
-const HEALTH_HIGH_COLOR := Color(0.2, 0.9, 0.2)    # Green
+const HEALTH_HIGH_COLOR := Color(0.2, 0.6, 0.2)    # Green (less bright)
 const HEALTH_MEDIUM_COLOR := Color(0.95, 0.8, 0.2)  # Yellow
 const HEALTH_LOW_COLOR := Color(0.95, 0.2, 0.2)    # Red
 const HEALTH_HIGHLIGHT_COLOR := Color(1.0, 0.75, 0.8)  # Pink for healing highlights
@@ -1008,7 +1008,10 @@ func _setup_combo_timer() -> void:
 	add_child(_combo_timer)
 
 func _on_combo_timer_expired() -> void:
-	apply_combo_healing()
+	print("DEBUG: Combo timer expired, combo will fade out")
+	# Emit signal to trigger fade out animation
+	emit_signal("combo_streak_changed", 0)  # Send 0 to indicate combo should fade out
+	# Healing is now triggered by the fade out animation in level.gd
 
 func increment_combo_streak() -> void:
 	combo_streak += 1
@@ -1030,7 +1033,7 @@ func reset_combo_streak() -> void:
 		_combo_timer.stop()
 
 func apply_combo_healing() -> void:
-	print("DEBUG: Applying combo healing, current combo: ", combo_streak)
+	print("DEBUG: apply_combo_healing called, current combo: ", combo_streak)
 	if combo_streak > 0:
 		# Calculate heal potential using triangular formula: n(n+1)/2
 		var heal_potential: int = combo_streak * (combo_streak + 1) / 2
@@ -1041,7 +1044,7 @@ func apply_combo_healing() -> void:
 			emit_signal("health_changed", health, MAX_HEALTH)
 			print("DEBUG: Healed for: ", actual_heal, " (combo: ", combo_streak, ", potential: ", heal_potential, ")")
 			# Show healing popup
-			CharacterUtils.spawn_floating_popup(self, "+" + str(actual_heal) + "♡", Color(1.0, 0.75, 0.8), Vector2(-20, -25), POPUP_FONT_SIZE + 10, HEALTH_POPUP_HEIGHT)
+			CharacterUtils.spawn_floating_popup(self, "+" + str(actual_heal) + "HP", Color(1.0, 0.75, 0.8), Vector2(-20, -25), POPUP_FONT_SIZE + 10, HEALTH_POPUP_HEIGHT)
 			# Sync health bar color to show pink flash
 			var current_scene = get_tree().current_scene
 			if current_scene and current_scene.has_method("update_health_bar_unified"):
@@ -1052,6 +1055,7 @@ func apply_combo_healing() -> void:
 				# Reset to original color after 0.3 seconds
 				await get_tree().create_timer(0.3).timeout
 				current_scene.restore_health_bar_color(0.2)
+		
 		reset_combo_streak()
 
 # Helper function to get proper health color based on current health

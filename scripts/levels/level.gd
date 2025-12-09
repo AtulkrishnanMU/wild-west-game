@@ -9,7 +9,7 @@ const HEALTH_HIGH_THRESHOLD := 0.6  # Above this = green
 const HEALTH_LOW_THRESHOLD := 0.3   # Above this = yellow, below = red
 
 # Health color definitions - SINGLE SOURCE OF TRUTH
-const HEALTH_HIGH_COLOR := Color(0.2, 0.9, 0.2)    # Green
+const HEALTH_HIGH_COLOR := Color(0.2, 0.6, 0.2)    # Green (less bright)
 const HEALTH_MEDIUM_COLOR := Color(0.95, 0.8, 0.2)  # Yellow
 const HEALTH_LOW_COLOR := Color(0.95, 0.2, 0.2)    # Red
 
@@ -32,6 +32,7 @@ var reload_label: Label = null
 var bullet_icons: HBoxContainer = null
 var combo_number_label: Label = null
 var combo_text_label: Label = null
+var combo_total_label: Label = null
 var combo_timer_bar: ProgressBar = null
 
 # Common level variables
@@ -106,6 +107,9 @@ func setup_ui() -> void:
 		FontConfig.apply_ui_font(cash_label)
 	if health_percent_label:
 		FontConfig.apply_ui_font(health_percent_label)
+		# Set initial text to MAX_HEALTH/MAX_HEALTH format
+		if player:
+			health_percent_label.text = str(player.MAX_HEALTH) + "/" + str(player.MAX_HEALTH) + " HP"
 	if reload_label:
 		FontConfig.apply_ui_font(reload_label)
 	# Combo labels are styled individually in the combo handler
@@ -149,6 +153,18 @@ func create_health_bar_background() -> StyleBoxFlat:
 
 # DEPRECATED: create_health_bar_fill() is no longer needed - use set_health_bar_color_unified() instead
 
+# Helper function to get current health color for outline
+func get_current_health_color() -> Color:
+	if player == null:
+		return HEALTH_HIGH_COLOR  # Default to green if no player
+	
+	# Ensure we don't divide by zero
+	if player.MAX_HEALTH <= 0:
+		return HEALTH_HIGH_COLOR
+	
+	var ratio = float(player.health) / float(player.MAX_HEALTH)
+	return get_health_color(ratio)
+
 func create_health_bar_foreground() -> StyleBoxFlat:
 	var style_box := StyleBoxFlat.new()
 	style_box.bg_color = Color.TRANSPARENT  # Transparent foreground
@@ -156,7 +172,9 @@ func create_health_bar_foreground() -> StyleBoxFlat:
 	style_box.border_width_right = 1
 	style_box.border_width_top = 1
 	style_box.border_width_bottom = 1
-	style_box.border_color = Color.WHITE  # White outline
+	# Use current health color for outline instead of white
+	var health_color = get_current_health_color()
+	style_box.border_color = health_color  # Same color as fill
 	style_box.corner_radius_top_left = 2  # Reduced corner radius
 	style_box.corner_radius_top_right = 2
 	style_box.corner_radius_bottom_left = 2
@@ -274,6 +292,8 @@ func set_health_bar_color_unified(color: Color, duration: float = 0.0) -> void:
 		
 		# Apply fill style immediately, then animate
 		health_bar.add_theme_stylebox_override("fill", fill_style)
+		# Also update foreground outline to match fill color
+		health_bar.add_theme_stylebox_override("foreground", create_health_bar_foreground())
 	else:
 		# Immediate color change - ALWAYS set both together
 		health_bar.modulate = color
@@ -284,6 +304,8 @@ func set_health_bar_color_unified(color: Color, duration: float = 0.0) -> void:
 		fill_style.corner_radius_bottom_left = 2
 		fill_style.corner_radius_bottom_right = 2
 		health_bar.add_theme_stylebox_override("fill", fill_style)
+		# Also update foreground outline to match fill color
+		health_bar.add_theme_stylebox_override("foreground", create_health_bar_foreground())
 
 # Helper function to sync fill color with health bar modulate - DEPRECATED, use set_health_bar_color_unified instead
 func sync_health_bar_fill_color() -> void:
@@ -331,7 +353,7 @@ func _on_player_health_changed(current: int, max_value: int) -> void:
 		_stop_health_bar_pulse()
 		
 	if health_percent_label != null and max_value > 0:
-		health_percent_label.text = str(int(round(ratio * 100.0))) + "%"
+		health_percent_label.text = str(current) + "/" + str(max_value) + " HP"
 
 func _setup_heartbeat_sound() -> void:
 	# Create heartbeat sound player
@@ -464,10 +486,24 @@ func _on_combo_streak_changed(current: int) -> void:
 			combo_text_label.text = "K I L L S"
 			combo_text_label.add_theme_font_size_override("font_size", 16)  # Smaller font for text
 			FontConfig.apply_ui_font(combo_text_label)
-			# Fade in animation
+
 			_fade_in_combo_element(combo_text_label)
 		
-		# Setup timer bar (only style once)
+		if combo_total_label:
+			# Calculate total HP that will be added (triangular formula: n(n+1)/2)
+			var total_hp = current * (current + 1) / 2
+			combo_total_label.text = "HP: +" + str(total_hp)
+			combo_total_label.label_settings = null  # Remove LabelSettings to allow font override
+			FontConfig.apply_ui_font(combo_total_label)
+			# Apply custom overrides AFTER FontConfig
+			combo_total_label.add_theme_font_size_override("font_size", 30)  # Much larger font
+			combo_total_label.modulate = Color(1.0, 0.75, 0.8)  # Pink color
+			combo_total_label.add_theme_color_override("font_color", Color(1.0, 0.75, 0.8))  # Pink font color
+			combo_total_label.add_theme_color_override("font_outline_color", Color.BLACK)  # Black outline
+
+			_fade_in_combo_element(combo_total_label)
+		
+# Setup timer bar (only style once)
 		if combo_timer_bar and player and player._combo_timer:
 			combo_timer_bar.max_value = player._combo_duration
 			combo_timer_bar.value = 0  # Start empty
@@ -513,6 +549,8 @@ func _on_combo_streak_changed(current: int) -> void:
 			_fade_out_combo_element(combo_number_label)
 		if combo_text_label:
 			_fade_out_combo_element(combo_text_label)
+		if combo_total_label:
+			_fade_out_combo_element(combo_total_label)
 		if combo_timer_bar:
 			_fade_out_combo_element(combo_timer_bar)
 
@@ -629,6 +667,8 @@ func _fade_out_combo_element(element: Control) -> void:
 	if not element or not element.visible:
 		return
 	
+	print("DEBUG: Fading out combo element: ", element.name)
+	
 	# Kill any existing tweens
 	if element.has_meta("fade_tween"):
 		var existing_tween = element.get_meta("fade_tween")
@@ -639,7 +679,17 @@ func _fade_out_combo_element(element: Control) -> void:
 	tween.set_ease(Tween.EASE_IN)
 	tween.set_trans(Tween.TRANS_CUBIC)
 	tween.tween_property(element, "modulate:a", 0.0, 0.2)
-	tween.tween_callback(func(): element.visible = false)
+	tween.tween_callback(func(): 
+		element.visible = false
+		print("DEBUG: Element faded out and hidden: ", element.name)
+		# Check if this is the combo number label (last element) and trigger healing after fade
+		if element == combo_number_label and player and player.has_method("apply_combo_healing"):
+			print("DEBUG: Combo number label faded out, starting 0.1 second delay before healing")
+			# Add small delay to ensure fade out is complete before healing popup
+			await get_tree().create_timer(0.1).timeout
+			print("DEBUG: Delay complete, calling apply_combo_healing")
+			player.apply_combo_healing()
+	)
 	
 	# Store tween reference
 	element.set_meta("fade_tween", tween)

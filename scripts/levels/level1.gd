@@ -28,6 +28,7 @@ func _ready() -> void:
 	reload_label = $UI/ReloadLabel
 	combo_number_label = $UI/ComboNumberLabel
 	combo_text_label = $UI/ComboTextLabel
+	combo_total_label = $UI/ComboTotalLabel
 	combo_timer_bar = $UI/ComboTimerBar
 	ui_layer = $UI
 	

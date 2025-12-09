@@ -5,66 +5,66 @@
 [sub_resource type="LabelSettings" id="LabelSettings_258gi"]
 font = ExtResource("1_jsomr")
 font_size = 70
-outline_size = 3
+outline_size = 4
 outline_color = Color(0, 0, 0, 1)
 
 [sub_resource type="LabelSettings" id="LabelSettings_jsomr"]
-outline_size = 3
+outline_size = 4
 outline_color = Color(0, 0, 0, 1)
 
 [node name="UI" type="CanvasLayer"]
 
 [node name="HealthBar" type="ProgressBar" parent="."]
 offset_left = 10.0
-offset_top = 26.0
-offset_right = 210.0
-offset_bottom = 53.0
+offset_top = 30.0
+offset_right = 321.11108
+offset_bottom = 72.0
 max_value = 200.0
 value = 200.0
 
 [node name="CashLabel" type="Label" parent="."]
 offset_left = 10.0
-offset_top = 58.0
+offset_top = 81.0
 offset_right = 210.0
-offset_bottom = 85.0
+offset_bottom = 108.0
 text = "CASH: 0"
 
 [node name="BulletIcons" type="HBoxContainer" parent="."]
 offset_left = 10.0
-offset_top = 88.0
+offset_top = 111.0
 offset_right = 210.0
-offset_bottom = 110.0
+offset_bottom = 133.0
 
 [node name="ReloadLabel" type="Label" parent="."]
 offset_left = 10.0
-offset_top = 115.0
+offset_top = 138.0
 offset_right = 210.0
-offset_bottom = 135.0
+offset_bottom = 161.0
 text = "RELOADS 0/5"
 
 [node name="HealthPercentLabel" type="Label" parent="."]
-offset_left = 89.0
-offset_top = 28.0
-offset_right = 169.0
-offset_bottom = 55.0
+offset_left = 17.0
+offset_top = 41.0
+offset_right = 88.11111
+offset_bottom = 65.0
 text = "100%"
 
 [node name="ComboTimerBar" type="ProgressBar" parent="."]
 visible = false
-offset_left = 994.0
-offset_top = 71.0
-offset_right = 1143.9236
-offset_bottom = 82.24426
+offset_left = 544.0001
+offset_top = 145.0
+offset_right = 693.9237
+offset_bottom = 156.24426
 scale = Vector2(0.43158525, 0.88934225)
 max_value = 3.0
 show_percentage = false
 
 [node name="ComboNumberLabel" type="Label" parent="."]
 visible = false
-offset_left = 903.99994
-offset_top = 91.47867
-offset_right = 1104.0
-offset_bottom = 187.4787
+offset_left = 454.0
+offset_top = 165.47867
+offset_right = 654.00006
+offset_bottom = 261.4787
 rotation = -0.059826303
 scale = Vector2(1.2107829, 1.2107829)
 text = "1"
@@ -73,11 +73,22 @@ horizontal_alignment = 1
 
 [node name="ComboTextLabel" type="Label" parent="."]
 visible = false
-offset_left = 910.99994
-offset_top = 153.0
-offset_right = 1112.5225
-offset_bottom = 176.39534
+offset_left = 461.00003
+offset_top = 227.00002
+offset_right = 662.5226
+offset_bottom = 250.39534
 scale = Vector2(1.2107829, 1.2107829)
 text = "K I L L S"
+label_settings = SubResource("LabelSettings_jsomr")
+horizontal_alignment = 1
+
+[node name="ComboTotalLabel" type="Label" parent="."]
+visible = false
+offset_left = 501.00003
+offset_top = 252.00002
+offset_right = 702.5226
+offset_bottom = 275.0
+scale = Vector2(0.8, 0.8)
+text = "TOTAL: 0"
 label_settings = SubResource("LabelSettings_jsomr")
 horizontal_alignment = 1

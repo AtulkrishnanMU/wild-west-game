@@ -8,6 +8,7 @@ const DEFAULT_UI_FONT_SIZE := 20
 const DEFAULT_DIALOGUE_FONT_SIZE := 20
 const DEFAULT_TITLE_FONT_SIZE := 36
 const DEFAULT_POPUP_FONT_SIZE := 20
+const DEFAULT_OUTLINE_SIZE := 8
 
 # Cached font resource
 static var _default_font: FontFile = null
@@ -25,7 +26,7 @@ static func apply_default_font(label: Label, font_size: int = DEFAULT_FONT_SIZE)
 		label.add_theme_font_override("font", font)
 		label.add_theme_font_size_override("font_size", font_size)
 		# Add black outline for better visibility
-		label.add_theme_constant_override("outline_size", 3)
+		label.add_theme_constant_override("outline_size", DEFAULT_OUTLINE_SIZE)
 		label.add_theme_color_override("font_outline_color", Color.BLACK)
 
 # Apply default font styling to a RichTextLabel
@@ -50,7 +51,7 @@ static func apply_default_font_button(button: Button, font_size: int = DEFAULT_U
 		button.add_theme_font_override("font", font)
 		button.add_theme_font_size_override("font_size", font_size)
 		# Add black outline for better visibility
-		button.add_theme_constant_override("outline_size", 3)
+		button.add_theme_constant_override("outline_size", DEFAULT_OUTLINE_SIZE)
 		button.add_theme_color_override("font_outline_color", Color.BLACK)
 
 # Apply font with LabelSettings (alternative approach)
@@ -60,7 +61,7 @@ static func apply_font_with_settings(label: Label, font_size: int = DEFAULT_FONT
 		var label_settings := LabelSettings.new()
 		label_settings.font = font
 		label_settings.font_size = font_size
-		label_settings.outline_size = 3
+		label_settings.outline_size = DEFAULT_OUTLINE_SIZE
 		label_settings.outline_color = Color.BLACK
 		label.label_settings = label_settings
 
