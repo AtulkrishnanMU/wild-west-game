@@ -48,7 +48,17 @@ static func create_blood_effect(character: Node2D, spread: float = 4.0) -> void:
 				var sprite = character.get_node("AnimatedSprite2D") as AnimatedSprite2D
 				var facing_dir := Vector2.LEFT if sprite.flip_h else Vector2.RIGHT
 				blood.set_direction(facing_dir)
-			scene.add_child(blood)
+			
+			# Add blood to scene tree at correct position (after Ground, before Player)
+			var ground_node = scene.get_node_or_null("Ground")
+			if ground_node:
+				# Insert blood after Ground node
+				var blood_index = ground_node.get_index()
+				scene.add_child(blood)
+				scene.move_child(blood, blood_index + 1)
+			else:
+				# Fallback: just add to scene
+				scene.add_child(blood)
 
 # Dust tracking for landing detection
 static func check_dust_landing(character: Node2D, was_on_floor: bool, velocity: Vector2, threshold: float = 50.0) -> bool:
@@ -169,7 +179,17 @@ static func apply_damage_with_effects(character: Node2D, amount: int, blood_scen
 						var sprite = character.get_node("AnimatedSprite2D") as AnimatedSprite2D
 						facing_dir = Vector2.LEFT if sprite.flip_h else Vector2.RIGHT
 					blood.set_direction(facing_dir)
-			scene.add_child(blood)
+			
+			# Add blood to scene tree at correct position (after Ground, before Player)
+			var ground_node = scene.get_node_or_null("Ground")
+			if ground_node:
+				# Insert blood after Ground node
+				var blood_index = ground_node.get_index()
+				scene.add_child(blood)
+				scene.move_child(blood, blood_index + 1)
+			else:
+				# Fallback: just add to scene
+				scene.add_child(blood)
 	
 	# Play blood splat sound
 	if blood_splat_sound:

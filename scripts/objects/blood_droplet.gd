@@ -17,10 +17,10 @@ func _setup_particle_appearance() -> void:
 		var image = Image.create(6, 6, false, Image.FORMAT_RGBA8)
 		image.fill(Color.TRANSPARENT)
 		
-		# Generate random red shade
-		var red_value = randf_range(0.7, 1.0)        # Red channel: 70%-100%
-		var green_value = randf_range(0.0, 0.2)      # Green channel: 0%-20% (for darker/brighter reds)
-		var blue_value = randf_range(0.0, 0.15)       # Blue channel: 0%-15% (minimal blue)
+		# Generate darker red shade
+		var red_value = randf_range(0.4, 0.7)        # Red channel: 40%-70% (darker)
+		var green_value = randf_range(0.0, 0.1)      # Green channel: 0%-10% (for darker reds)
+		var blue_value = randf_range(0.0, 0.05)       # Blue channel: 0%-5% (minimal blue)
 		
 		# Create small blood droplet
 		var center = Vector2(3, 3)

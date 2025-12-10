@@ -2,13 +2,13 @@ class_name FontConfig
 extends RefCounted
 
 # Global font configuration
-const DEFAULT_FONT_PATH := "res://fonts/LTHoodlum-Regular.ttf"
-const DEFAULT_FONT_SIZE := 20
-const DEFAULT_UI_FONT_SIZE := 20
-const DEFAULT_DIALOGUE_FONT_SIZE := 20
+const DEFAULT_FONT_PATH := "res://fonts/PixelOperator8.ttf"
+const DEFAULT_FONT_SIZE := 12
+const DEFAULT_UI_FONT_SIZE := 12
+const DEFAULT_DIALOGUE_FONT_SIZE := 12
 const DEFAULT_TITLE_FONT_SIZE := 36
-const DEFAULT_POPUP_FONT_SIZE := 20
-const DEFAULT_OUTLINE_SIZE := 8
+const DEFAULT_POPUP_FONT_SIZE := 12
+const DEFAULT_OUTLINE_SIZE := 10
 
 # Cached font resource
 static var _default_font: FontFile = null

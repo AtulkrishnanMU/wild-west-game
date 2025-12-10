@@ -17,8 +17,8 @@ func _ready() -> void:
 				var dist = Vector2(x, y).distance_to(center)
 				if dist < 6:
 					var alpha = 1.0 - (dist / 6.0)
-					var redness = randf_range(0.7, 1.0)
-					image.set_pixel(x, y, Color(redness, 0.1, 0.1, alpha * 0.7))
+					var redness = randf_range(0.4, 0.7)
+					image.set_pixel(x, y, Color(redness, 0.05, 0.05, alpha * 0.7))
 		
 		texture.set_image(image)
 		sprite.texture = texture

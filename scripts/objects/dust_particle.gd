@@ -22,9 +22,9 @@ func _setup_particle_appearance() -> void:
 				var dist = Vector2(x, y).distance_to(center)
 				if dist < 6.0:  # Larger radius
 					var alpha = 1.0 - (dist / 6.0)
-					# White dust colors with very reduced opacity
-					var white_value = randf_range(0.8, 1.0)
-					image.set_pixel(x, y, Color(white_value, white_value, white_value, alpha * 0.15))
+					# Black dust colors with very reduced opacity
+					var black_value = randf_range(0.0, 0.2)  # Dark black values
+					image.set_pixel(x, y, Color(black_value, black_value, black_value, alpha * 0.15))
 		
 		texture.set_image(image)
 		sprite.texture = texture
