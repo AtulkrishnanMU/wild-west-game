@@ -759,8 +759,15 @@ func _on_animation_finished() -> void:
 	if anim == "ATTACK1" or anim == "ATTACK2" or anim == "ATTACK3":
 		_apply_damage_to_enemies()
 		is_attacking = false
+		# Return to idle animation after attack
+		if has_gun:
+			animated_sprite.play("GUN_IDLE")
+		else:
+			animated_sprite.play("IDLE")
 	elif anim == "GUN_ATTACK":
 		is_attacking = false
+		# Return to idle animation after gun attack
+		animated_sprite.play("GUN_IDLE")
 
 
 

@@ -15,10 +15,22 @@ var _tutorial_left_clicked: bool = false
 var _tutorial_right_clicked: bool = false
 var _tutorial_space_pressed: bool = false
 
+# Level-specific nodes
+@onready var _axe_enemy2: CharacterBody2D = $Axe_enemy2
+@onready var _alert_alarm: Node = $AlertAlarm
+@onready var _alarm_trigger: Area2D = $AlarmTrigger
+
+# Alarm system
+var alarm_active: bool = false
+
 func _ready() -> void:
 	# Find the player and gun enemy in the scene
 	player = $Player
 	_gun_enemy = $Gun_enemy
+	
+	# Connect alarm trigger if it exists
+	if _alarm_trigger:
+		_alarm_trigger.alarm_triggered.connect(_on_alarm_triggered)
 	
 	# Assign UI references to parent class variables
 	health_bar = $UI/HealthBar
@@ -37,10 +49,61 @@ func _ready() -> void:
 	# Use common level setup   
 	setup_level()
 	
+	# Make UI invisible during intro (after setup_ui is complete)
+	if ui_layer:
+		# Hide individual UI elements since CanvasLayer doesn't have modulate
+		if health_bar:
+			health_bar.modulate.a = 0.0
+			health_bar.visible = false  # Also hide visibility
+			# Hide any potential child elements
+			for child in health_bar.get_children():
+				child.modulate.a = 0.0
+				child.visible = false
+		if cash_label:
+			cash_label.modulate.a = 0.0
+			cash_label.visible = false
+		if health_percent_label:
+			health_percent_label.modulate.a = 0.0
+			health_percent_label.visible = false
+		if bullet_icons:
+			bullet_icons.modulate.a = 0.0
+			bullet_icons.visible = false
+		if reload_label:
+			reload_label.modulate.a = 0.0
+			reload_label.visible = false
+		if combo_text_label:
+			combo_text_label.modulate.a = 0.0
+			combo_text_label.visible = false
+		if combo_total_label:
+			combo_total_label.modulate.a = 0.0
+			combo_total_label.visible = false
+		if combo_timer_bar:
+			combo_timer_bar.modulate.a = 0.0
+			combo_timer_bar.visible = false
+	
 	# Start intro animation
 	_start_intro_animation()
 	
 	print("Level1 initialized with UI connections and intro animation")
+
+# Override UI update functions to ensure visibility works correctly
+func _update_bullet_icons(current: int, max_value: int) -> void:
+	# Call parent function first
+	super._update_bullet_icons(current, max_value)
+	
+	# Ensure visibility is set correctly when player has gun
+	if player and player.has_gun and bullet_icons:
+		bullet_icons.visible = true
+		bullet_icons.modulate.a = 1.0
+
+func _update_reload_label(current: int, max_value: int) -> void:
+	# Call parent function first
+	super._update_reload_label(current, max_value)
+	
+	# Ensure visibility is set correctly when player has gun
+	if player and player.has_gun and reload_label:
+		reload_label.visible = true
+		reload_label.modulate.a = 1.0
 
 func _process(delta: float) -> void:
 	# Only process level logic if intro animation is complete
@@ -93,8 +156,8 @@ func _start_intro_animation() -> void:
 		# Position camera to show the player
 		camera.global_position = _player_center_position
 	
-	# Wait a moment, then enable controls
-	await get_tree().create_timer(0.5).timeout
+	# Wait 8 seconds before enabling controls
+	await get_tree().create_timer(8.0).timeout
 	
 	# Enable player controls and end intro animation
 	_end_intro_animation()
@@ -184,6 +247,24 @@ func _show_tutorial_popup() -> void:
 	var fade_tween := create_tween()
 	fade_tween.tween_property(_tutorial_popup, "modulate:a", 1.0, 0.5)
 	
+	# Fade in UI at the same time as tutorial (only essential elements initially)
+	if ui_layer:
+		if health_bar:
+			health_bar.visible = true  # Restore visibility
+			fade_tween.tween_property(health_bar, "modulate:a", 1.0, 0.5)
+			# Also fade in child elements
+			for child in health_bar.get_children():
+				child.visible = true
+				fade_tween.tween_property(child, "modulate:a", 1.0, 0.5)
+		if cash_label:
+			cash_label.visible = true
+			fade_tween.tween_property(cash_label, "modulate:a", 1.0, 0.5)
+		if health_percent_label:
+			health_percent_label.visible = true
+			fade_tween.tween_property(health_percent_label, "modulate:a", 1.0, 0.5)
+		# Don't show bullet icons, reload label, and combo-related items initially
+		# These will appear when the player gets a gun or starts killing enemies
+	
 	_tutorial_active = true
 	print("Tutorial popup displayed")
 
@@ -195,6 +276,17 @@ func _hide_tutorial_popup() -> void:
 		fade_tween.tween_callback(_remove_tutorial_popup)
 	_tutorial_active = false
 	print("Tutorial popup hiding")
+
+func _on_alarm_triggered() -> void:
+	if not alarm_active:
+		alarm_active = true
+		print("Alarm system activated!")
+		
+		# Start the alarm sound if the alarm node exists and has the start_alarm method
+		if _alert_alarm and _alert_alarm.has_method("start_alarm"):
+			_alert_alarm.start_alarm()
+		else:
+			print("Warning: Alert alarm node doesn't have start_alarm method")
 
 func _remove_tutorial_popup() -> void:
 	if _tutorial_popup:

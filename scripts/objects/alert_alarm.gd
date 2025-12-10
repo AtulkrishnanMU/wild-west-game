@@ -13,6 +13,7 @@ var _fade_tween: Tween = null
 var _blink_tween: Tween = null
 var _damage_flash_tween: Tween = null
 var _is_destroyed: bool = false
+var _is_active: bool = false
 
 signal alarm_destroyed()
 
@@ -25,13 +26,11 @@ func _ready() -> void:
 	body_entered.connect(_on_body_entered)
 	area_entered.connect(_on_area_entered)
 	
-	# Make sure audio is playing and looping
+	# Setup audio for looping but don't start playing yet
 	if audio_player:
 		audio_player.stream.loop = true
-		audio_player.play()
 	
-	# Start blinking effect
-	start_blinking()
+	# Don't start blinking until alarm is activated
 
 func _on_body_entered(body: Node) -> void:
 	# Handle bullet collision (if bullets are CharacterBody2D)
@@ -48,13 +47,45 @@ func _on_area_entered(area: Area2D) -> void:
 			area.destroy()
 
 func start_blinking() -> void:
-	if _is_destroyed:
+	if _is_destroyed or not _is_active:
 		return
 	
 	_blink_tween = create_tween()
 	_blink_tween.set_loops()
 	_blink_tween.tween_property(sprite, "modulate", Color.BLUE, 0.5)
 	_blink_tween.tween_property(sprite, "modulate", Color.RED, 0.5)
+
+func start_alarm() -> void:
+	if _is_destroyed or _is_active:
+		return
+	
+	_is_active = true
+	print("Alarm started!")
+	
+	# Start audio
+	if audio_player:
+		audio_player.play()
+	
+	# Start blinking
+	start_blinking()
+
+func stop_alarm() -> void:
+	if not _is_active:
+		return
+	
+	_is_active = false
+	print("Alarm stopped!")
+	
+	# Stop audio
+	if audio_player:
+		audio_player.stop()
+	
+	# Stop blinking
+	if _blink_tween:
+		_blink_tween.kill()
+	
+	# Reset to normal color
+	sprite.modulate = Color.WHITE
 
 func take_damage(damage_amount: int) -> void:
 	if _is_destroyed:

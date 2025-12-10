@@ -90,3 +90,18 @@ static func apply_custom_font(label: Label, font_path: String, font_size: int = 
 	if custom_font and label:
 		label.add_theme_font_override("font", custom_font)
 		label.add_theme_font_size_override("font_size", font_size)
+
+# Apply custom font to RichTextLabel
+static func apply_custom_font_rich(rich_label: RichTextLabel, font_path: String, font_size: int = DEFAULT_DIALOGUE_FONT_SIZE) -> void:
+	var custom_font := load(font_path) as FontFile
+	if custom_font and rich_label:
+		rich_label.add_theme_font_override("normal_font", custom_font)
+		rich_label.add_theme_font_override("bold_font", custom_font)
+		rich_label.add_theme_font_override("italics_font", custom_font)
+		rich_label.add_theme_font_override("bold_italics_font", custom_font)
+		rich_label.add_theme_font_override("mono_font", custom_font)
+		rich_label.add_theme_font_size_override("normal_font_size", font_size)
+		rich_label.add_theme_font_size_override("bold_font_size", font_size)
+		rich_label.add_theme_font_size_override("italics_font_size", font_size)
+		rich_label.add_theme_font_size_override("bold_italics_font_size", font_size)
+		rich_label.add_theme_font_size_override("mono_font_size", font_size)

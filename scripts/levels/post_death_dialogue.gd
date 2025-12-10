@@ -7,18 +7,25 @@ signal dialogue_finished
 @onready var typing_player: AudioStreamPlayer = $TypingPlayer
 
 var dialogue_text: String = ""
-var typing_speed: float = 40.0  # Match cutscene typing speed
-var _char_index: int = 0
+var words: PackedStringArray = []
+var current_word_index: int = 0
+var word_display_delay: float = 0.8  # Seconds between words
 var _time_accum: float = 0.0
-var _typing_active: bool = false
+var _word_display_active: bool = false
 var _can_advance: bool = false
+
+# Gun shot sound
+const GUN_SHOT_SOUND_PATH := "res://sounds/gun-shot.mp3"
 
 func _ready() -> void:
 	# Get text from the scene
 	dialogue_text = dialogue_label.text
 	
+	# Split text into words
+	words = dialogue_text.split(" ")
+	
 	# Setup dialogue label styling
-	FontConfig.apply_dialogue_font(dialogue_label)
+	FontConfig.apply_custom_font_rich(dialogue_label, "res://fonts/Crédible-Regular.otf", 24)
 	dialogue_label.add_theme_constant_override("line_separation", 14)
 	dialogue_label.bbcode_enabled = true
 	dialogue_label.autowrap_mode = 2
@@ -28,51 +35,57 @@ func _ready() -> void:
 
 func show_dialogue() -> void:
 	visible = true
-	_char_index = 0
+	current_word_index = 0
 	_time_accum = 0.0
-	_typing_active = true
+	_word_display_active = true
 	_can_advance = false
-	dialogue_label.text = ""  # Clear text for typing effect
+	dialogue_label.text = ""  # Clear text initially
 	
-	print("Starting dialogue with text: ", dialogue_text)
+	print("Starting dialogue with words: ", words)
 	print("Dialogue label position: ", dialogue_label.global_position)
 	print("Dialogue label size: ", dialogue_label.size)
-	print("Dialogue visible: ", visible)
-	print("Typing speed: ", typing_speed)
 	
-	# Start typing effect
-	_typing_active = true
+	# Start word display effect
+	_word_display_active = true
 
 func _process(delta: float) -> void:
-	if not _typing_active:
+	if not _word_display_active:
 		return
 	
-	# Typing effect
+	# Word display effect
 	_time_accum += delta
-	var chars_to_type: int = int(_time_accum * typing_speed)
 	
-	print("Time accum: ", _time_accum, " Chars to type: ", chars_to_type, " Current index: ", _char_index)
-	
-	while _char_index < dialogue_text.length() and _char_index < chars_to_type:
-		dialogue_label.text += dialogue_text[_char_index]
-		_char_index += 1
+	# Check if it's time to show next word
+	if _time_accum >= word_display_delay:
+		_time_accum = 0.0
 		
-		# Play typing sound for each character (but stop previous sound first)
-		if typing_player:
-			typing_player.stop()
-			typing_player.pitch_scale = randf_range(0.8, 1.2)
-			typing_player.play()
-		
-		print("Added character '", dialogue_text[_char_index - 1], "'. Current text: '", dialogue_label.text, "'")
-	
-	# Check if typing is complete
-	if _char_index >= dialogue_text.length():
-		_typing_active = false
-		_can_advance = true
-		# Stop typing sound when complete
-		if typing_player:
-			typing_player.stop()
-		print("Typing complete, press spacebar to continue")
+		if current_word_index < words.size():
+			# Show next word
+			if current_word_index > 0:
+				dialogue_label.text += " "  # Add space between words
+			dialogue_label.text += words[current_word_index]
+			
+			# Play gun shot sound
+			_play_gun_shot_sound()
+			
+			print("Added word '", words[current_word_index], "'. Current text: '", dialogue_label.text, "'")
+			
+			current_word_index += 1
+		else:
+			# All words displayed
+			_word_display_active = false
+			_can_advance = true
+			print("All words displayed, press spacebar to continue")
+
+func _play_gun_shot_sound() -> void:
+	var gun_shot_sound = load(GUN_SHOT_SOUND_PATH)
+	if gun_shot_sound:
+		var audio := AudioStreamPlayer2D.new()
+		audio.stream = gun_shot_sound
+		audio.position = global_position
+		get_tree().current_scene.add_child(audio)
+		AudioUtils.play_random_pitch(audio, 0.9, 1.2)
+		audio.finished.connect(audio.queue_free)
 
 func _input(event: InputEvent) -> void:
 	if not _can_advance:
@@ -83,13 +96,17 @@ func _input(event: InputEvent) -> void:
 		_finish_dialogue()
 
 func _finish_dialogue() -> void:
-	visible = false  # Hide instead of removing
+	# Keep the text visible, just emit the signal
 	dialogue_finished.emit()
-	# Don't queue_free() since this is now a permanent node in the scene
+	# Don't hide the dialogue or queue_free() - let the text stay visible
 
 func skip_typing() -> void:
-	if _typing_active:
-		_char_index = dialogue_text.length()
-		dialogue_label.text = dialogue_text
-		_typing_active = false
+	if _word_display_active:
+		# Show all remaining words at once
+		dialogue_label.text = ""
+		for i in range(words.size()):
+			if i > 0:
+				dialogue_label.text += "  "
+			dialogue_label.text += words[i]
+		_word_display_active = false
 		_can_advance = true
