@@ -575,14 +575,25 @@ func _update_bullet_icons(current: int, max_value: int) -> void:
 	if bullet_icons == null:
 		return
 	bullet_icons.add_theme_constant_override("separation", 10)
+	
+	# Clear existing children
 	for child in bullet_icons.get_children():
 		child.queue_free()
 	
 	# Hide bullet icons if player has no gun, otherwise show them
 	if player and not player.has_gun:
 		bullet_icons.visible = false
+		# Also hide the background panel
+		var background = bullet_icons.get_parent().get_node_or_null("BulletBackground")
+		if background:
+			background.visible = false
+		return
 	else:
 		bullet_icons.visible = true
+		# Also show the background panel
+		var background = bullet_icons.get_parent().get_node_or_null("BulletBackground")
+		if background:
+			background.visible = true
 	
 	# Create bullet icons
 	for i in range(max_value):
@@ -598,7 +609,7 @@ func _update_bullet_icons(current: int, max_value: int) -> void:
 		else:
 			icon.texture = tex
 		icon.stretch_mode = TextureRect.STRETCH_KEEP_CENTERED
-		icon.custom_minimum_size = Vector2(12, 12)  # Slightly larger for visibility
+		icon.custom_minimum_size = Vector2(12, 12)
 		
 		if i < current:
 			# Available bullet - full opacity

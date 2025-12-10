@@ -25,6 +25,10 @@ window/stretch/mode="canvas_items"
 #Pixelperfectsettingswindow/stretch/mode="viewport"
 #Pixelartsettingswindow/size/viewport_width=1190
 
+[editor]
+
+movie_writer/movie_file="D:/games/My_Games/wild-west/demo/demo.avi"
+
 [input]
 
 space_bar={

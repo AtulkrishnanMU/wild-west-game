@@ -1,10 +1,24 @@
-[gd_scene load_steps=2 format=3 uid="uid://vi8yy0g5xqwb"]
+[gd_scene load_steps=3 format=3 uid="uid://vi8yy0g5xqwb"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_bkgnd"]
+bg_color = Color(0, 0, 0, 1)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
 
 [sub_resource type="LabelSettings" id="LabelSettings_jsomr"]
 outline_size = 4
 outline_color = Color(0, 0, 0, 1)
 
 [node name="UI" type="CanvasLayer"]
+
+[node name="BulletBackground" type="Panel" parent="."]
+offset_left = 16.0
+offset_top = 590.0
+offset_right = 260.0
+offset_bottom = 651.0
+theme_override_styles/panel = SubResource("StyleBoxFlat_bkgnd")
 
 [node name="HealthBar" type="ProgressBar" parent="."]
 offset_left = 52.0
