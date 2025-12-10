@@ -7,7 +7,7 @@ signal dialogue_finished
 @onready var typing_player: AudioStreamPlayer = $TypingPlayer
 
 var dialogue_text: String = ""
-var typing_speed: float = 5.0  # Much slower typing speed
+var typing_speed: float = 40.0  # Match cutscene typing speed
 var _char_index: int = 0
 var _time_accum: float = 0.0
 var _typing_active: bool = false
@@ -83,8 +83,9 @@ func _input(event: InputEvent) -> void:
 		_finish_dialogue()
 
 func _finish_dialogue() -> void:
+	visible = false  # Hide instead of removing
 	dialogue_finished.emit()
-	queue_free()  # Remove the dialogue box
+	# Don't queue_free() since this is now a permanent node in the scene
 
 func skip_typing() -> void:
 	if _typing_active:

@@ -35,7 +35,7 @@ grow_vertical = 2
 bbcode_enabled = true
 autowrap_mode = 3
 fit_content = true
-text = "Ya'll are gonna get what you fuckin' deserve."
+text = "TIME FOR VEGEANCE"
 
 [node name="TypingPlayer" type="AudioStreamPlayer" parent="."]
 stream = ExtResource("2")

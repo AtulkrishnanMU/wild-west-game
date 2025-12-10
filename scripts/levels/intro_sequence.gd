@@ -5,6 +5,7 @@ signal intro_sequence_finished
 
 @onready var player: CharacterBody2D = get_parent().get_node("Player")
 @onready var dead_axe_man: CharacterBody2D = get_parent().get_node("DeadAxeMan")
+@onready var dialogue: Control = get_parent().get_node("PostDeathDialogue")
 
 func _ready() -> void:
 	# Start the intro sequence immediately
@@ -66,18 +67,16 @@ func _trigger_axe_man_death() -> void:
 func _show_dialogue() -> void:
 	print("Showing post-death dialogue")
 	
-	# Create and show dialogue
-	var dialogue_scene = preload("res://scenes/levels/post_death_dialogue.tscn").instantiate()
-	get_parent().add_child(dialogue_scene)
-	
-	# Dialogue is now centered by default in the scene
-	
-	# Wait for dialogue to finish
-	dialogue_scene.dialogue_finished.connect(_on_dialogue_finished)
-	
-	# Start the dialogue
-	dialogue_scene.show_dialogue()
-	print("Dialogue started")
+	# Use the existing dialogue node instead of creating a new one
+	if dialogue:
+		dialogue.visible = true
+		dialogue.show_dialogue()
+		print("Dialogue started")
+	else:
+		print("ERROR: Dialogue node not found!")
+		# Fallback - make player controllable
+		_make_player_controllable()
+		intro_sequence_finished.emit()
 
 func _on_dialogue_finished() -> void:
 	print("Dialogue finished")

@@ -1,4 +1,4 @@
-[gd_scene load_steps=18 format=3 uid="uid://8frbpgqpdtbu"]
+[gd_scene load_steps=19 format=3 uid="uid://8frbpgqpdtbu"]
 
 [ext_resource type="Script" uid="uid://bon2tqed1f4g0" path="res://scripts/levels/level1.gd" id="1_level_script"]
 [ext_resource type="PackedScene" uid="uid://c5a3w2pm50uds" path="res://scenes/characters/player.tscn" id="2_player"]
@@ -15,6 +15,7 @@
 [ext_resource type="PackedScene" path="res://scenes/objects/blood_decal.tscn" id="13_jprdt"]
 [ext_resource type="Script" uid="uid://4ccwbri40ij0" path="res://scripts/characters/dead_axe_man.gd" id="dead_axe_man_script"]
 [ext_resource type="Script" uid="uid://bccg4dohsb380" path="res://scripts/levels/intro_sequence.gd" id="intro_sequence_script"]
+[ext_resource type="PackedScene" path="res://scenes/levels/post_death_dialogue.tscn" id="post_death_dialogue"]
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_plydf"]
 texture = ExtResource("3_plydf")
@@ -725,3 +726,9 @@ script = ExtResource("dead_axe_man_script")
 
 [node name="IntroSequence" type="Node2D" parent="."]
 script = ExtResource("intro_sequence_script")
+
+[node name="PostDeathDialogue" parent="." instance=ExtResource("post_death_dialogue")]
+offset_left = 731.0
+offset_top = 387.0
+offset_right = 731.0
+offset_bottom = 387.0
