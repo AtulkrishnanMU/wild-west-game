@@ -11,10 +11,10 @@ func _ready() -> void:
 	super._ready()
 
 func _setup_particle_appearance() -> void:
-	# Set up blood droplet appearance with random red shade
+	# Set up blood droplet appearance with solid pixels
 	if sprite:
 		var texture = ImageTexture.new()
-		var image = Image.create(6, 6, false, Image.FORMAT_RGBA8)
+		var image = Image.create(8, 8, false, Image.FORMAT_RGBA8)
 		image.fill(Color.TRANSPARENT)
 		
 		# Generate darker red shade
@@ -22,18 +22,17 @@ func _setup_particle_appearance() -> void:
 		var green_value = randf_range(0.0, 0.1)      # Green channel: 0%-10% (for darker reds)
 		var blue_value = randf_range(0.0, 0.05)       # Blue channel: 0%-5% (minimal blue)
 		
-		# Create small blood droplet
-		var center = Vector2(3, 3)
-		for x in range(6):
-			for y in range(6):
-				var dist = Vector2(x, y).distance_to(center)
-				if dist < 2.5:
-					var alpha = 1.0 - (dist / 2.5)
-					image.set_pixel(x, y, Color(red_value, green_value, blue_value, alpha * 0.8))
+		# Create solid pixel blood droplet (4x4 square)
+		for x in range(2, 6):  # Center 4x4 pixels
+			for y in range(2, 6):
+				image.set_pixel(x, y, Color(red_value, green_value, blue_value, 1.0))
 		
 		texture.set_image(image)
 		sprite.texture = texture
 		sprite.centered = true
+		
+		# Disable texture filtering for crisp pixels
+		sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 
 func _should_collide_with(body: Node) -> bool:
 	# Blood collides with more surfaces including characters
@@ -42,12 +41,35 @@ func _should_collide_with(body: Node) -> bool:
 func _on_collision(body: Node) -> void:
 	# Create blood decal on collision
 	_create_blood_decal()
+	
+	# Start disappearance timer after hitting floor
+	if body is TileMap or body.is_in_group("ground"):
+		# Set a short timer to disappear after 0.5 seconds
+		var timer = get_tree().create_timer(0.5)
+		timer.timeout.connect(queue_free)
 
 func _create_blood_decal() -> void:
 	var decal = BLOOD_DECAL_SCENE.instantiate()
 	if decal:
-		# Add decal to the scene tree (not as child of droplet)
-		get_tree().current_scene.add_child(decal)
+		# Add decal to the scene tree with correct positioning (after Wall, before background)
+		var scene = get_tree().current_scene
+		var wall_node = scene.get_node_or_null("Wall")
+		var background_node = scene.get_node_or_null("background")
+		
+		if wall_node and background_node:
+			# Insert decal after Wall node but before background
+			var decal_index = wall_node.get_index() + 1
+			scene.add_child(decal)
+			scene.move_child(decal, decal_index)
+		elif wall_node:
+			# Fallback: insert after Wall
+			var decal_index = wall_node.get_index() + 1
+			scene.add_child(decal)
+			scene.move_child(decal, decal_index)
+		else:
+			# Fallback: just add to scene
+			scene.add_child(decal)
+		
 		decal.global_position = global_position
 		
 		# Random rotation and scale for variety

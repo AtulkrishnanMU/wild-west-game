@@ -49,13 +49,20 @@ static func create_blood_effect(character: Node2D, spread: float = 4.0) -> void:
 				var facing_dir := Vector2.LEFT if sprite.flip_h else Vector2.RIGHT
 				blood.set_direction(facing_dir)
 			
-			# Add blood to scene tree at correct position (after Ground, before Player)
-			var ground_node = scene.get_node_or_null("Ground")
-			if ground_node:
-				# Insert blood after Ground node
-				var blood_index = ground_node.get_index()
+			# Add blood to scene tree at correct position (after Wall, before background)
+			var wall_node = scene.get_node_or_null("Wall")
+			var background_node = scene.get_node_or_null("background")
+			
+			if wall_node and background_node:
+				# Insert blood after Wall node but before background
+				var blood_index = wall_node.get_index() + 1
 				scene.add_child(blood)
-				scene.move_child(blood, blood_index + 1)
+				scene.move_child(blood, blood_index)
+			elif wall_node:
+				# Fallback: insert after Wall
+				var blood_index = wall_node.get_index() + 1
+				scene.add_child(blood)
+				scene.move_child(blood, blood_index)
 			else:
 				# Fallback: just add to scene
 				scene.add_child(blood)
@@ -183,13 +190,20 @@ static func apply_damage_with_effects(character: Node2D, amount: int, blood_scen
 						facing_dir = Vector2.LEFT if sprite.flip_h else Vector2.RIGHT
 					blood.set_direction(facing_dir)
 			
-			# Add blood to scene tree at correct position (after Ground, before Player)
-			var ground_node = scene.get_node_or_null("Ground")
-			if ground_node:
-				# Insert blood after Ground node
-				var blood_index = ground_node.get_index()
+			# Add blood to scene tree at correct position (after Wall, before background)
+			var wall_node = scene.get_node_or_null("Wall")
+			var background_node = scene.get_node_or_null("background")
+			
+			if wall_node and background_node:
+				# Insert blood after Wall node but before background
+				var blood_index = wall_node.get_index() + 1
 				scene.add_child(blood)
-				scene.move_child(blood, blood_index + 1)
+				scene.move_child(blood, blood_index)
+			elif wall_node:
+				# Fallback: insert after Wall
+				var blood_index = wall_node.get_index() + 1
+				scene.add_child(blood)
+				scene.move_child(blood, blood_index)
 			else:
 				# Fallback: just add to scene
 				scene.add_child(blood)

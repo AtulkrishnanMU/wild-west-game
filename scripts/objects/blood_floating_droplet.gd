@@ -25,10 +25,10 @@ func _ready() -> void:
 	super._ready()
 
 func _setup_particle_appearance() -> void:
-	# Set up floating blood droplet appearance - same size as regular droplets
+	# Set up floating blood droplet appearance with solid pixels
 	if sprite:
 		var texture = ImageTexture.new()
-		var image = Image.create(6, 6, false, Image.FORMAT_RGBA8)  # Same size as regular
+		var image = Image.create(8, 8, false, Image.FORMAT_RGBA8)  # Same size as regular
 		image.fill(Color.TRANSPARENT)
 		
 		# Generate lighter red shade for floating particles
@@ -36,18 +36,17 @@ func _setup_particle_appearance() -> void:
 		var green_value = randf_range(0.0, 0.15)     # Green channel: 0%-15%
 		var blue_value = randf_range(0.0, 0.1)       # Blue channel: 0%-10%
 		
-		# Create blood droplet - same size as regular
-		var center = Vector2(3, 3)  # Same center as regular
-		for x in range(6):
-			for y in range(6):
-				var dist = Vector2(x, y).distance_to(center)
-				if dist < 2.5:  # Same radius as regular
-					var alpha = 1.0 - (dist / 2.5)
-					image.set_pixel(x, y, Color(red_value, green_value, blue_value, alpha * 0.8))  # Same alpha
+		# Create solid pixel blood droplet (4x4 square)
+		for x in range(2, 6):  # Center 4x4 pixels
+			for y in range(2, 6):
+				image.set_pixel(x, y, Color(red_value, green_value, blue_value, 1.0))
 		
 		texture.set_image(image)
 		sprite.texture = texture
 		sprite.centered = true
+		
+		# Disable texture filtering for crisp pixels
+		sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 
 func _physics_process(delta: float) -> void:
 	if has_stuck or has_stuck_in_air:
@@ -99,8 +98,25 @@ func _on_collision(body: Node) -> void:
 func _create_blood_decal() -> void:
 	var decal = BLOOD_DECAL_SCENE.instantiate()
 	if decal:
-		# Add decal to the scene tree (not as child of droplet)
-		get_tree().current_scene.add_child(decal)
+		# Add decal to the scene tree with correct positioning (after Wall, before background)
+		var scene = get_tree().current_scene
+		var wall_node = scene.get_node_or_null("Wall")
+		var background_node = scene.get_node_or_null("background")
+		
+		if wall_node and background_node:
+			# Insert decal after Wall node but before background
+			var decal_index = wall_node.get_index() + 1
+			scene.add_child(decal)
+			scene.move_child(decal, decal_index)
+		elif wall_node:
+			# Fallback: insert after Wall
+			var decal_index = wall_node.get_index() + 1
+			scene.add_child(decal)
+			scene.move_child(decal, decal_index)
+		else:
+			# Fallback: just add to scene
+			scene.add_child(decal)
+		
 		decal.global_position = global_position
 		
 		# Smaller scale for floating droplet decals
