@@ -110,8 +110,11 @@ static func spawn_floating_popup(character: Node2D, text: String, color: Color, 
 	var label := Label.new()
 	label.text = text
 	label.modulate = color
-# Apply default font to floating popup
-	FontConfig.apply_default_font(label, font_size)
+# Apply popup font (no outlines)
+	FontConfig.apply_popup_font(label)
+	# Override font size if it's not the default
+	if font_size != FontConfig.DEFAULT_POPUP_FONT_SIZE:
+		label.add_theme_font_size_override("font_size", font_size)
 
 	popup_root.add_child(label)
 

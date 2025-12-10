@@ -9,6 +9,7 @@ const DAMAGE_H_RANGE: float = 60.0        # Increased horizontal range
 const DAMAGE_V_RANGE: float = 50.0        # Good vertical coverage (jumping, etc.)
 const DAMAGE_COOLDOWN: float = 0.20       # Prevents insane damage spam
 const ENEMY_KNOCKBACK_SPEED: float = 120.0
+const DEATH_KNOCKBACK_SPEED: float = 300.0  # Stronger knockback for death
 const MAX_HEALTH := 50
 
 # Movement acceleration constants (for CharacterUtils)
@@ -328,10 +329,12 @@ func take_damage_with_direction(amount: int, bullet_direction: Vector2, bullet_p
 	# Check if enemy died from this damage
 	if health <= 0 and not is_dead:
 		print("DEBUG: Enemy died! Emitting enemy_killed signal")
-		# Death handling
+		# Death handling with knockback
 		is_dead = true
 		is_attacking = false
-		velocity = Vector2.ZERO
+		# Apply strong horizontal knockback in death
+		var dir: float = sign(global_position.x - player.global_position.x)
+		velocity = Vector2(dir * DEATH_KNOCKBACK_SPEED, 0)  # Purely horizontal knockback
 		
 		# Play death animation
 		CharacterUtils.play_character_animation(animated_sprite, "DEATH")

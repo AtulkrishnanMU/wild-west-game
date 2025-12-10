@@ -813,13 +813,20 @@ func _start_player_reload_animation() -> void:
 		_player_reload_tween.kill()
 	# Base the reload rotation on the current gun rotation
 	var start_rotation: float = gun_sprite.rotation
-	# Rotate about 20 degrees; flip sign when facing left so the motion feels natural
-	var angle_offset: float = deg_to_rad(20.0)
+	# Full 360 degree rotation (2 * PI radians)
+	var full_rotation: float = deg_to_rad(360.0)
+	# Adjust rotation direction based on facing
 	if animated_sprite and animated_sprite.flip_h:
-		angle_offset = -angle_offset
+		full_rotation = -full_rotation
+	
+	# Create a smooth 360-degree rotation tween
 	_player_reload_tween = create_tween()
-	_player_reload_tween.tween_property(gun_sprite, "rotation", start_rotation + angle_offset, 0.08)
-	_player_reload_tween.tween_property(gun_sprite, "rotation", start_rotation, 0.08)
+	_player_reload_tween.set_trans(Tween.TRANS_QUAD)
+	_player_reload_tween.set_ease(Tween.EASE_OUT)
+	# Rotate 360 degrees over 0.4 seconds
+	_player_reload_tween.tween_property(gun_sprite, "rotation", start_rotation + full_rotation, 0.4)
+	# Ensure we end up at the exact starting rotation
+	_player_reload_tween.tween_property(gun_sprite, "rotation", start_rotation, 0)
 	_player_reload_tween.finished.connect(_on_player_reload_finished)
 	# Play reload sound at the gun position (using cached stream)
 	var scene_for_sound := get_tree().current_scene
@@ -1018,10 +1025,11 @@ func _setup_combo_timer() -> void:
 	add_child(_combo_timer)
 
 func _on_combo_timer_expired() -> void:
-	print("DEBUG: Combo timer expired, combo will fade out")
-	# Emit signal to trigger fade out animation
-	emit_signal("combo_streak_changed", 0)  # Send 0 to indicate combo should fade out
-	# Healing is now triggered by the fade out animation in level.gd
+	print("DEBUG: Combo timer expired, applying combo healing")
+	# Apply healing before resetting the combo
+	apply_combo_healing()
+	# Emit signal to trigger fade out animation (0 means combo ended)
+	emit_signal("combo_streak_changed", 0)
 
 func increment_combo_streak() -> void:
 	combo_streak += 1
@@ -1053,8 +1061,8 @@ func apply_combo_healing() -> void:
 			health = min(health + actual_heal, MAX_HEALTH)
 			emit_signal("health_changed", health, MAX_HEALTH)
 			print("DEBUG: Healed for: ", actual_heal, " (combo: ", combo_streak, ", potential: ", heal_potential, ")")
-			# Show healing popup
-			CharacterUtils.spawn_floating_popup(self, "+" + str(actual_heal) + "HP", Color(1.0, 0.75, 0.8), Vector2(-20, -25), POPUP_FONT_SIZE + 10, HEALTH_POPUP_HEIGHT)
+			# Show healing popup with consistent size
+			CharacterUtils.spawn_floating_popup(self, "+" + str(actual_heal) + " HP", Color(1.0, 0.75, 0.8), Vector2(-20, -25), 14, HEALTH_POPUP_HEIGHT)
 			# Play health gain sound
 			AudioUtils.play_positioned_sound(HEALTH_GAIN_SOUND, global_position)
 			# Sync health bar color to show pink flash

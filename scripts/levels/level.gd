@@ -477,21 +477,16 @@ func _on_combo_streak_changed(current: int) -> void:
 		else:
 			display_text = str(current)
 		
-		# Update number label with big font
-		if combo_number_label:
-			combo_number_label.text = display_text
-			combo_number_label.add_theme_font_size_override("font_size", 32)  # Big font for number
-			FontConfig.apply_ui_font(combo_number_label)
-			# Fade in animation
-			_fade_in_combo_element(combo_number_label)
-		
-		# Update text label with smaller font
+		# Update combined kills label with smaller font
 		if combo_text_label:
-			combo_text_label.text = "K I L L S"
-			combo_text_label.add_theme_font_size_override("font_size", 16)  # Smaller font for text
+			combo_text_label.text = display_text + " KILLS"
+			combo_text_label.add_theme_font_size_override("font_size", 18)  # Smaller combined font
 			FontConfig.apply_ui_font(combo_text_label)
-
 			_fade_in_combo_element(combo_text_label)
+		
+		# Hide the number label since we're combining them
+		if combo_number_label:
+			combo_number_label.visible = false
 		
 		if combo_total_label:
 			# Calculate total HP that will be added (triangular formula: n(n+1)/2)

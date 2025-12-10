@@ -7,7 +7,7 @@ const DEFAULT_FONT_SIZE := 12
 const DEFAULT_UI_FONT_SIZE := 12
 const DEFAULT_DIALOGUE_FONT_SIZE := 12
 const DEFAULT_TITLE_FONT_SIZE := 36
-const DEFAULT_POPUP_FONT_SIZE := 12
+const DEFAULT_POPUP_FONT_SIZE := 10
 const DEFAULT_OUTLINE_SIZE := 10
 
 # Cached font resource
@@ -76,7 +76,13 @@ static func apply_title_font(label: Label) -> void:
 	apply_default_font(label, DEFAULT_TITLE_FONT_SIZE)
 
 static func apply_popup_font(label: Label) -> void:
-	apply_default_font(label, DEFAULT_POPUP_FONT_SIZE)
+	# Apply font without outlines for popup text
+	var font := get_default_font()
+	if font and label:
+		label.add_theme_font_override("font", font)
+		label.add_theme_font_size_override("font_size", DEFAULT_POPUP_FONT_SIZE)
+		# Explicitly remove outlines
+		label.add_theme_constant_override("outline_size", 0)
 
 # Apply custom font (for when you need a different font)
 static func apply_custom_font(label: Label, font_path: String, font_size: int = DEFAULT_FONT_SIZE) -> void:

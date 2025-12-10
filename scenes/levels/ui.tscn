@@ -1,12 +1,4 @@
-[gd_scene load_steps=4 format=3 uid="uid://vi8yy0g5xqwb"]
-
-[ext_resource type="FontFile" uid="uid://cjkauli15n6cv" path="res://fonts/Scribynumbers.ttf" id="1_jsomr"]
-
-[sub_resource type="LabelSettings" id="LabelSettings_258gi"]
-font = ExtResource("1_jsomr")
-font_size = 70
-outline_size = 4
-outline_color = Color(0, 0, 0, 1)
+[gd_scene load_steps=2 format=3 uid="uid://vi8yy0g5xqwb"]
 
 [sub_resource type="LabelSettings" id="LabelSettings_jsomr"]
 outline_size = 4
@@ -60,24 +52,12 @@ scale = Vector2(0.43158525, 0.88934225)
 max_value = 3.0
 show_percentage = false
 
-[node name="ComboNumberLabel" type="Label" parent="."]
-visible = false
-offset_left = 477.0
-offset_top = 444.47864
-offset_right = 677.00006
-offset_bottom = 540.47864
-rotation = -0.059826303
-scale = Vector2(1.2107829, 1.2107829)
-text = "1"
-label_settings = SubResource("LabelSettings_258gi")
-horizontal_alignment = 1
-
 [node name="ComboTextLabel" type="Label" parent="."]
 visible = false
-offset_left = 484.00003
-offset_top = 510.00003
-offset_right = 685.5226
-offset_bottom = 533.3954
+offset_left = 477.0
+offset_top = 443.0
+offset_right = 678.5226
+offset_bottom = 466.39536
 scale = Vector2(1.2107829, 1.2107829)
 text = "K I L L S"
 label_settings = SubResource("LabelSettings_jsomr")
@@ -85,10 +65,10 @@ horizontal_alignment = 1
 
 [node name="ComboTotalLabel" type="Label" parent="."]
 visible = false
-offset_left = 524.0
-offset_top = 533.0
-offset_right = 725.5226
-offset_bottom = 556.0
+offset_left = 516.9999
+offset_top = 466.0
+offset_right = 718.5225
+offset_bottom = 489.0
 scale = Vector2(0.8, 0.8)
 text = "TOTAL: 0"
 label_settings = SubResource("LabelSettings_jsomr")
