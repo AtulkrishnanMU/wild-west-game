@@ -73,67 +73,32 @@ func _start_intro_animation() -> void:
 		_intro_animation_active = false
 		return
 	
-	# Disable player controls during animation
-	if player.has_method("set_controls_enabled"):
-		player.set_controls_enabled(false)
-	else:
-		player.controls_enabled = false
+	# Position player directly at center position (no running animation)
+	player.global_position = _player_center_position
 	
-	# Position player off-screen to the left
-	player.global_position = _player_start_position
+	# Set player to IDLE animation
+	var animated_sprite = player.get_node_or_null("AnimatedSprite2D")
+	if animated_sprite:
+		animated_sprite.play("IDLE")
+		animated_sprite.flip_h = false
 	
-	# Make gun enemy face right initially
-	_set_gun_enemy_facing_direction("right")
+	# Make gun enemy face left initially (since player is already in position)
+	_set_gun_enemy_facing_direction("left")
 	
 	# >>> DO NOT FOLLOW PLAYER DURING INTRO <<<
 	camera_follow_enabled = false
 	
 	if camera:
 		camera.make_current()
-		# Position camera to show the intro action (center of level)
+		# Position camera to show the player
 		camera.global_position = _player_center_position
 	
-	# Start the player run animation
-	_animate_player_running()
-
-func _animate_player_running() -> void:
-	if not player:
-		return
-	
-	# Manually play the RUN animation
-	var animated_sprite = player.get_node_or_null("AnimatedSprite2D")
-	if animated_sprite:
-		animated_sprite.play("RUN")
-		# Make sprite face right while running
-		animated_sprite.flip_h = false
-	
-	# Create tween for smooth movement
-	var tween := create_tween()
-	tween.set_parallel(false)  # Sequential animations
-	
-	# Animate player running to center position
-	tween.tween_property(player, "global_position", _player_center_position, _animation_duration)
-	
-	# Wait for movement to complete, then trigger enemy turn
-	tween.tween_callback(_on_player_reached_center)
-
-func _on_player_reached_center() -> void:
-	if not _gun_enemy:
-		return
-	
-	# Switch to IDLE animation when player stops
-	var animated_sprite = player.get_node_or_null("AnimatedSprite2D")
-	if animated_sprite:
-		animated_sprite.play("IDLE")
-	
-	# Make gun enemy turn to face left
-	_set_gun_enemy_facing_direction("left")
-	
-	# Wait a moment for the turn to register, then enable controls
+	# Wait a moment, then enable controls
 	await get_tree().create_timer(0.5).timeout
 	
 	# Enable player controls and end intro animation
 	_end_intro_animation()
+
 
 func _set_gun_enemy_facing_direction(direction: String) -> void:
 	if not _gun_enemy:

@@ -1,4 +1,4 @@
-[gd_scene load_steps=13 format=3 uid="uid://8frbpgqpdtbu"]
+[gd_scene load_steps=18 format=3 uid="uid://8frbpgqpdtbu"]
 
 [ext_resource type="Script" uid="uid://bon2tqed1f4g0" path="res://scripts/levels/level1.gd" id="1_level_script"]
 [ext_resource type="PackedScene" uid="uid://c5a3w2pm50uds" path="res://scenes/characters/player.tscn" id="2_player"]
@@ -10,6 +10,11 @@
 [ext_resource type="PackedScene" uid="uid://cgi4k0orycx0" path="res://scenes/characters/axe_enemy.tscn" id="7_2r1tl"]
 [ext_resource type="PackedScene" uid="uid://vi8yy0g5xqwb" path="res://scenes/levels/ui.tscn" id="8_ui"]
 [ext_resource type="PackedScene" uid="uid://dhbfe5hauejqw" path="res://scenes/objects/fan.tscn" id="10_5ntmo"]
+[ext_resource type="PackedScene" path="res://scenes/objects/blood_floating_droplet.tscn" id="11_nkeig"]
+[ext_resource type="PackedScene" path="res://scenes/objects/blood_droplet.tscn" id="12_lgguw"]
+[ext_resource type="PackedScene" path="res://scenes/objects/blood_decal.tscn" id="13_jprdt"]
+[ext_resource type="Script" uid="uid://4ccwbri40ij0" path="res://scripts/characters/dead_axe_man.gd" id="dead_axe_man_script"]
+[ext_resource type="Script" uid="uid://bccg4dohsb380" path="res://scripts/levels/intro_sequence.gd" id="intro_sequence_script"]
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_plydf"]
 texture = ExtResource("3_plydf")
@@ -326,7 +331,7 @@ position = Vector2(1717, 500)
 position = Vector2(1195, 479)
 
 [node name="Player" parent="." instance=ExtResource("2_player")]
-position = Vector2(480, 405)
+position = Vector2(450, 405)
 
 [node name="Axe_enemy" parent="." instance=ExtResource("7_2r1tl")]
 position = Vector2(2324, 807)
@@ -365,7 +370,7 @@ position = Vector2(4000, 527)
 position = Vector2(3948, 526)
 
 [node name="Camera2D" type="Camera2D" parent="."]
-position = Vector2(473, 411)
+position = Vector2(443, 411)
 zoom = Vector2(1.6, 1.6)
 position_smoothing_enabled = true
 
@@ -383,3 +388,340 @@ position = Vector2(3991, 473)
 
 [node name="Fan5" parent="." instance=ExtResource("10_5ntmo")]
 position = Vector2(3523, 777)
+
+[node name="BloodEffects" type="Node2D" parent="."]
+position = Vector2(141, 0)
+
+[node name="BloodFloatingDroplet" parent="BloodEffects" instance=ExtResource("11_nkeig")]
+position = Vector2(393, 402)
+
+[node name="BloodFloatingDroplet2" parent="BloodEffects" instance=ExtResource("11_nkeig")]
+position = Vector2(385, 403)
+
+[node name="BloodFloatingDroplet3" parent="BloodEffects" instance=ExtResource("11_nkeig")]
+position = Vector2(389, 399)
+
+[node name="BloodFloatingDroplet4" parent="BloodEffects" instance=ExtResource("11_nkeig")]
+position = Vector2(390, 409)
+
+[node name="BloodFloatingDroplet5" parent="BloodEffects" instance=ExtResource("11_nkeig")]
+position = Vector2(367, 406)
+
+[node name="BloodFloatingDroplet6" parent="BloodEffects" instance=ExtResource("11_nkeig")]
+position = Vector2(376, 398)
+
+[node name="BloodFloatingDroplet7" parent="BloodEffects" instance=ExtResource("11_nkeig")]
+position = Vector2(381, 412)
+
+[node name="BloodFloatingDroplet8" parent="BloodEffects" instance=ExtResource("11_nkeig")]
+position = Vector2(389, 415)
+
+[node name="BloodFloatingDroplet9" parent="BloodEffects" instance=ExtResource("11_nkeig")]
+position = Vector2(347, 420)
+
+[node name="BloodFloatingDroplet10" parent="BloodEffects" instance=ExtResource("11_nkeig")]
+position = Vector2(351, 412)
+
+[node name="BloodFloatingDroplet11" parent="BloodEffects" instance=ExtResource("11_nkeig")]
+position = Vector2(379, 408)
+
+[node name="BloodFloatingDroplet12" parent="BloodEffects" instance=ExtResource("11_nkeig")]
+position = Vector2(359, 404)
+
+[node name="BloodDroplet" parent="BloodEffects" instance=ExtResource("12_lgguw")]
+position = Vector2(365, 429)
+
+[node name="BloodDecal" parent="BloodEffects" instance=ExtResource("13_jprdt")]
+position = Vector2(369, 428)
+
+[node name="BloodDroplet2" parent="BloodEffects" instance=ExtResource("12_lgguw")]
+position = Vector2(360, 430)
+
+[node name="BloodDroplet3" parent="BloodEffects" instance=ExtResource("12_lgguw")]
+position = Vector2(375, 430)
+
+[node name="BloodDroplet4" parent="BloodEffects" instance=ExtResource("12_lgguw")]
+position = Vector2(381, 429)
+
+[node name="BloodDroplet5" parent="BloodEffects" instance=ExtResource("12_lgguw")]
+position = Vector2(386, 429)
+
+[node name="BloodDroplet6" parent="BloodEffects" instance=ExtResource("12_lgguw")]
+position = Vector2(378, 429)
+
+[node name="BloodDroplet7" parent="BloodEffects" instance=ExtResource("12_lgguw")]
+position = Vector2(356, 429)
+
+[node name="BloodDroplet8" parent="BloodEffects" instance=ExtResource("12_lgguw")]
+position = Vector2(352, 429)
+
+[node name="BloodDroplet9" parent="BloodEffects" instance=ExtResource("12_lgguw")]
+position = Vector2(370, 429)
+
+[node name="BloodDroplet10" parent="BloodEffects" instance=ExtResource("12_lgguw")]
+position = Vector2(362, 429)
+
+[node name="BloodDroplet11" parent="BloodEffects" instance=ExtResource("12_lgguw")]
+position = Vector2(391, 429)
+
+[node name="BloodDecal2" parent="BloodEffects" instance=ExtResource("13_jprdt")]
+position = Vector2(395, 429)
+
+[node name="BloodDroplet12" parent="BloodEffects" instance=ExtResource("12_lgguw")]
+position = Vector2(347, 430)
+
+[node name="BloodDroplet13" parent="BloodEffects" instance=ExtResource("12_lgguw")]
+position = Vector2(350, 431)
+
+[node name="BloodDroplet14" parent="BloodEffects" instance=ExtResource("12_lgguw")]
+position = Vector2(363, 429)
+
+[node name="BloodDroplet15" parent="BloodEffects" instance=ExtResource("12_lgguw")]
+position = Vector2(368, 429)
+
+[node name="BloodDroplet16" parent="BloodEffects" instance=ExtResource("12_lgguw")]
+position = Vector2(366, 430)
+
+[node name="BloodDroplet17" parent="BloodEffects" instance=ExtResource("12_lgguw")]
+position = Vector2(373, 429)
+
+[node name="BloodDroplet18" parent="BloodEffects" instance=ExtResource("12_lgguw")]
+position = Vector2(366, 429)
+
+[node name="BloodDroplet19" parent="BloodEffects" instance=ExtResource("12_lgguw")]
+position = Vector2(370, 430)
+
+[node name="BloodDroplet20" parent="BloodEffects" instance=ExtResource("12_lgguw")]
+position = Vector2(377, 430)
+
+[node name="BloodDroplet21" parent="BloodEffects" instance=ExtResource("12_lgguw")]
+position = Vector2(380, 430)
+
+[node name="BloodDroplet22" parent="BloodEffects" instance=ExtResource("12_lgguw")]
+position = Vector2(360, 429)
+
+[node name="BloodDroplet23" parent="BloodEffects" instance=ExtResource("12_lgguw")]
+position = Vector2(368, 429)
+
+[node name="BloodDroplet24" parent="BloodEffects" instance=ExtResource("12_lgguw")]
+position = Vector2(384, 429)
+
+[node name="BloodDroplet25" parent="BloodEffects" instance=ExtResource("12_lgguw")]
+position = Vector2(354, 430)
+
+[node name="BloodDroplet26" parent="BloodEffects" instance=ExtResource("12_lgguw")]
+position = Vector2(358, 430)
+
+[node name="BloodFloatingDropletCopy" parent="BloodEffects" instance=ExtResource("11_nkeig")]
+position = Vector2(415, 418)
+
+[node name="BloodFloatingDroplet2Copy" parent="BloodEffects" instance=ExtResource("11_nkeig")]
+position = Vector2(428, 395)
+
+[node name="BloodFloatingDroplet3Copy" parent="BloodEffects" instance=ExtResource("11_nkeig")]
+position = Vector2(371, 421)
+
+[node name="BloodFloatingDroplet4Copy" parent="BloodEffects" instance=ExtResource("11_nkeig")]
+position = Vector2(407, 401)
+
+[node name="BloodFloatingDroplet5Copy" parent="BloodEffects" instance=ExtResource("11_nkeig")]
+position = Vector2(364, 427)
+
+[node name="BloodFloatingDroplet6Copy" parent="BloodEffects" instance=ExtResource("11_nkeig")]
+position = Vector2(398, 384)
+
+[node name="BloodFloatingDroplet7Copy" parent="BloodEffects" instance=ExtResource("11_nkeig")]
+position = Vector2(403, 427)
+
+[node name="BloodFloatingDroplet8Copy" parent="BloodEffects" instance=ExtResource("11_nkeig")]
+position = Vector2(376, 432)
+
+[node name="BloodFloatingDroplet9Copy" parent="BloodEffects" instance=ExtResource("11_nkeig")]
+position = Vector2(334, 405)
+
+[node name="BloodFloatingDroplet10Copy" parent="BloodEffects" instance=ExtResource("11_nkeig")]
+position = Vector2(339, 428)
+
+[node name="BloodFloatingDroplet11Copy" parent="BloodEffects" instance=ExtResource("11_nkeig")]
+position = Vector2(421, 398)
+
+[node name="BloodFloatingDroplet12Copy" parent="BloodEffects" instance=ExtResource("11_nkeig")]
+position = Vector2(342, 416)
+
+[node name="BloodDropletCopy" parent="BloodEffects" instance=ExtResource("12_lgguw")]
+position = Vector2(414, 428)
+
+[node name="BloodDroplet3Copy" parent="BloodEffects" instance=ExtResource("12_lgguw")]
+position = Vector2(391, 416)
+
+[node name="BloodDroplet4Copy" parent="BloodEffects" instance=ExtResource("12_lgguw")]
+position = Vector2(433, 423)
+
+[node name="BloodDroplet6Copy" parent="BloodEffects" instance=ExtResource("12_lgguw")]
+position = Vector2(429, 419)
+
+[node name="BloodDroplet8Copy" parent="BloodEffects" instance=ExtResource("12_lgguw")]
+position = Vector2(358, 417)
+
+[node name="BloodDroplet9Copy" parent="BloodEffects" instance=ExtResource("12_lgguw")]
+position = Vector2(398, 412)
+
+[node name="BloodDroplet10Copy" parent="BloodEffects" instance=ExtResource("12_lgguw")]
+position = Vector2(347, 431)
+
+[node name="BloodDroplet11Copy" parent="BloodEffects" instance=ExtResource("12_lgguw")]
+position = Vector2(443, 415)
+
+[node name="BloodDroplet12Copy" parent="BloodEffects" instance=ExtResource("12_lgguw")]
+position = Vector2(328, 425)
+
+[node name="BloodDroplet14Copy" parent="BloodEffects" instance=ExtResource("12_lgguw")]
+position = Vector2(415, 419)
+
+[node name="BloodDroplet16Copy" parent="BloodEffects" instance=ExtResource("12_lgguw")]
+position = Vector2(421, 432)
+
+[node name="BloodDroplet17Copy" parent="BloodEffects" instance=ExtResource("12_lgguw")]
+position = Vector2(368, 417)
+
+[node name="BloodDroplet19Copy" parent="BloodEffects" instance=ExtResource("12_lgguw")]
+position = Vector2(361, 427)
+
+[node name="BloodDroplet20Copy" parent="BloodEffects" instance=ExtResource("12_lgguw")]
+position = Vector2(425, 413)
+
+[node name="BloodDroplet22Copy" parent="BloodEffects" instance=ExtResource("12_lgguw")]
+position = Vector2(338, 416)
+
+[node name="BloodDroplet23Copy" parent="BloodEffects" instance=ExtResource("12_lgguw")]
+position = Vector2(416, 409)
+
+[node name="BloodDroplet24Copy" parent="BloodEffects" instance=ExtResource("12_lgguw")]
+position = Vector2(433, 432)
+
+[node name="BloodDroplet25Copy" parent="BloodEffects" instance=ExtResource("12_lgguw")]
+position = Vector2(301, 425)
+
+[node name="BloodFloatingDropletCopy2" parent="BloodEffects" instance=ExtResource("11_nkeig")]
+position = Vector2(442, 387)
+
+[node name="BloodFloatingDroplet2Copy2" parent="BloodEffects" instance=ExtResource("11_nkeig")]
+position = Vector2(363, 432)
+
+[node name="BloodFloatingDroplet3Copy2" parent="BloodEffects" instance=ExtResource("11_nkeig")]
+position = Vector2(408, 376)
+
+[node name="BloodFloatingDroplet4Copy2" parent="BloodEffects" instance=ExtResource("11_nkeig")]
+position = Vector2(375, 427)
+
+[node name="BloodFloatingDroplet5Copy2" parent="BloodEffects" instance=ExtResource("11_nkeig")]
+position = Vector2(389, 391)
+
+[node name="BloodFloatingDroplet6Copy2" parent="BloodEffects" instance=ExtResource("11_nkeig")]
+position = Vector2(354, 412)
+
+[node name="BloodFloatingDroplet7Copy2" parent="BloodEffects" instance=ExtResource("11_nkeig")]
+position = Vector2(395, 398)
+
+[node name="BloodFloatingDroplet8Copy2" parent="BloodEffects" instance=ExtResource("11_nkeig")]
+position = Vector2(412, 401)
+
+[node name="BloodFloatingDroplet9Copy2" parent="BloodEffects" instance=ExtResource("11_nkeig")]
+position = Vector2(330, 429)
+
+[node name="BloodFloatingDroplet10Copy2" parent="BloodEffects" instance=ExtResource("11_nkeig")]
+position = Vector2(365, 403)
+
+[node name="BloodFloatingDroplet11Copy2" parent="BloodEffects" instance=ExtResource("11_nkeig")]
+position = Vector2(357, 421)
+
+[node name="BloodFloatingDroplet12Copy2" parent="BloodEffects" instance=ExtResource("11_nkeig")]
+position = Vector2(379, 389)
+
+[node name="BloodDropletCopy2" parent="BloodEffects" instance=ExtResource("12_lgguw")]
+position = Vector2(398, 427)
+
+[node name="BloodDecalCopy2" parent="BloodEffects" instance=ExtResource("13_jprdt")]
+position = Vector2(361, 430)
+
+[node name="BloodDroplet2Copy2" parent="BloodEffects" instance=ExtResource("12_lgguw")]
+position = Vector2(378, 418)
+
+[node name="BloodDroplet3Copy2" parent="BloodEffects" instance=ExtResource("12_lgguw")]
+position = Vector2(373, 427)
+
+[node name="BloodDroplet4Copy2" parent="BloodEffects" instance=ExtResource("12_lgguw")]
+position = Vector2(403, 429)
+
+[node name="BloodDroplet5Copy2" parent="BloodEffects" instance=ExtResource("12_lgguw")]
+position = Vector2(369, 411)
+
+[node name="BloodDroplet6Copy2" parent="BloodEffects" instance=ExtResource("12_lgguw")]
+position = Vector2(445, 428)
+
+[node name="BloodDroplet7Copy2" parent="BloodEffects" instance=ExtResource("12_lgguw")]
+position = Vector2(372, 408)
+
+[node name="BloodDroplet8Copy2" parent="BloodEffects" instance=ExtResource("12_lgguw")]
+position = Vector2(336, 433)
+
+[node name="BloodDroplet9Copy2" parent="BloodEffects" instance=ExtResource("12_lgguw")]
+position = Vector2(428, 432)
+
+[node name="BloodDroplet10Copy2" parent="BloodEffects" instance=ExtResource("12_lgguw")]
+position = Vector2(362, 429)
+
+[node name="BloodDroplet11Copy2" parent="BloodEffects" instance=ExtResource("12_lgguw")]
+position = Vector2(405, 402)
+
+[node name="BloodDroplet12Copy2" parent="BloodEffects" instance=ExtResource("12_lgguw")]
+position = Vector2(317, 432)
+
+[node name="BloodDroplet13Copy2" parent="BloodEffects" instance=ExtResource("12_lgguw")]
+position = Vector2(403, 432)
+
+[node name="BloodDroplet14Copy2" parent="BloodEffects" instance=ExtResource("12_lgguw")]
+position = Vector2(399, 405)
+
+[node name="BloodDroplet15Copy2" parent="BloodEffects" instance=ExtResource("12_lgguw")]
+position = Vector2(342, 432)
+
+[node name="BloodDroplet16Copy2" parent="BloodEffects" instance=ExtResource("12_lgguw")]
+position = Vector2(418, 428)
+
+[node name="BloodDroplet17Copy2" parent="BloodEffects" instance=ExtResource("12_lgguw")]
+position = Vector2(345, 404)
+
+[node name="BloodDroplet18Copy2" parent="BloodEffects" instance=ExtResource("12_lgguw")]
+position = Vector2(414, 427)
+
+[node name="BloodDroplet19Copy2" parent="BloodEffects" instance=ExtResource("12_lgguw")]
+position = Vector2(342, 432)
+
+[node name="BloodDroplet20Copy2" parent="BloodEffects" instance=ExtResource("12_lgguw")]
+position = Vector2(438, 424)
+
+[node name="BloodDroplet21Copy2" parent="BloodEffects" instance=ExtResource("12_lgguw")]
+position = Vector2(403, 432)
+
+[node name="BloodDroplet22Copy2" parent="BloodEffects" instance=ExtResource("12_lgguw")]
+position = Vector2(319, 403)
+
+[node name="BloodDroplet23Copy2" parent="BloodEffects" instance=ExtResource("12_lgguw")]
+position = Vector2(427, 395)
+
+[node name="BloodDroplet24Copy2" parent="BloodEffects" instance=ExtResource("12_lgguw")]
+position = Vector2(452, 419)
+
+[node name="BloodDroplet25Copy2" parent="BloodEffects" instance=ExtResource("12_lgguw")]
+position = Vector2(299, 432)
+
+[node name="BloodDroplet26Copy2" parent="BloodEffects" instance=ExtResource("12_lgguw")]
+position = Vector2(393, 429)
+
+[node name="DeadAxeMan" parent="." instance=ExtResource("7_2r1tl")]
+position = Vector2(514, 417)
+script = ExtResource("dead_axe_man_script")
+
+[node name="IntroSequence" type="Node2D" parent="."]
+script = ExtResource("intro_sequence_script")
