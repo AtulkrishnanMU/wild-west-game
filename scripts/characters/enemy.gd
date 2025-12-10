@@ -37,9 +37,9 @@ var was_on_floor: bool = false  # Track if enemy was on floor in previous frame
 @onready var slash_player: AudioStreamPlayer2D = $SlashEnemyPlayer
 @onready var hit_player: AudioStreamPlayer2D = $HitEnemyPlayer
 @onready var running_player: AudioStreamPlayer2D = get_node_or_null("RunningPlayer")
-@onready var player: CharacterBody2D = get_parent().get_node("Player")
+@onready var player: CharacterBody2D = get_parent().get_node_or_null("Player")
 @onready var notifier: VisibleOnScreenNotifier2D = $VisibilityNotifier2D
-@onready var player_notifier: VisibleOnScreenNotifier2D = player.get_node("VisibilityNotifier2D")
+@onready var player_notifier: VisibleOnScreenNotifier2D = player.get_node_or_null("VisibilityNotifier2D") if player else null
 @onready var sprite_material: ShaderMaterial = animated_sprite.material
 @onready var attack_hitbox: Area2D = $AttackHitbox
 @onready var attack_hitbox_shape: CollisionShape2D = $AttackHitbox/CollisionShape2D
@@ -129,7 +129,7 @@ func _physics_process(delta: float) -> void:
 		return
 
 	# If the player is dead, stop attacking and stay idle
-	if player.is_dead:
+	if player and player.is_dead:
 		is_attacking = false
 		if not is_on_floor():
 			velocity.y += GRAVITY * delta
@@ -166,11 +166,18 @@ func _physics_process(delta: float) -> void:
 	if _leap_cooldown > 0.0:
 		_leap_cooldown -= delta
 
-	var to_player: Vector2 = player.global_position - global_position
-	var distance_x: float = to_player.x
-	var abs_distance: float = abs(distance_x)
-	var direction: float = sign(distance_x)
-	var vertical_distance: float = abs(player.global_position.y - global_position.y)
+	var to_player: Vector2 = Vector2.ZERO
+	var distance_x: float = 0.0
+	var abs_distance: float = 0.0
+	var direction: float = 0.0
+	var vertical_distance: float = 0.0
+	
+	if player:
+		to_player = player.global_position - global_position
+		distance_x = to_player.x
+		abs_distance = abs(distance_x)
+		direction = sign(distance_x)
+		vertical_distance = abs(player.global_position.y - global_position.y)
 
 	# Avoid exact overlapping
 	var overlap_x_threshold := 10.0
@@ -266,7 +273,7 @@ func _start_attack_running() -> void:
 func _on_animation_finished() -> void:
 	var anim = animated_sprite.animation
 	if anim.begins_with("ATTACK"):
-		# Apply damage ONCE at the end of the attack if the player is in range
+		# Apply damage ONCE at the end of attack if player is in range
 		if _is_player_in_attack_range():
 			_apply_damage_to_player()
 			damage_cooldown_timer = DAMAGE_COOLDOWN
@@ -283,7 +290,7 @@ func _is_player_in_attack_range() -> bool:
 	return _player_in_attack_hitbox
 
 func _apply_damage_to_player() -> void:
-	if not player.has_method("take_damage"):
+	if not player or not player.has_method("take_damage"):
 		return
 	var dmg: int = 0
 	match animated_sprite.animation:
@@ -322,7 +329,7 @@ func take_damage_with_direction(amount: int, bullet_direction: Vector2, bullet_p
 	_flash_reddish()
 	
 	# Apply knockback if not dead
-	if not is_dead:
+	if not is_dead and player:
 		var dir: float = sign(global_position.x - player.global_position.x)
 		CharacterUtils.apply_knockback(self, dir, ENEMY_KNOCKBACK_SPEED, 0.12)
 	
@@ -333,7 +340,9 @@ func take_damage_with_direction(amount: int, bullet_direction: Vector2, bullet_p
 		is_dead = true
 		is_attacking = false
 		# Apply strong horizontal knockback in death
-		var dir: float = sign(global_position.x - player.global_position.x)
+		var dir: float = 1.0  # Default knockback direction
+		if player:
+			dir = sign(global_position.x - player.global_position.x)
 		velocity = Vector2(dir * DEATH_KNOCKBACK_SPEED, 0)  # Purely horizontal knockback
 		
 		# Play death animation
@@ -471,7 +480,7 @@ func _check_visibility_activation():
 		return
 	
 	# Check if both are on screen (original condition)
-	var both_on_screen = notifier.is_on_screen() and player_notifier.is_on_screen()
+	var both_on_screen = notifier.is_on_screen() and (player_notifier and player_notifier.is_on_screen())
 	
 	# Check if player and enemy are on the same horizontal level (line of sight)
 	var same_horizontal_level = _is_same_horizontal_level()
@@ -486,7 +495,9 @@ func _is_same_horizontal_level() -> bool:
 	# Define a threshold for what counts as "same level" (in pixels)
 	var horizontal_threshold = 50.0  # Adjust this value as needed
 	
-	var vertical_distance = abs(global_position.y - player.global_position.y)
+	var vertical_distance = 0.0
+	if player:
+		vertical_distance = abs(global_position.y - player.global_position.y)
 	return vertical_distance <= horizontal_threshold
 
 # Virtual method for attack movement - override in child classes

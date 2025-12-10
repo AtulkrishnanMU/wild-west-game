@@ -6,6 +6,7 @@ const GUN_SCENE := preload("res://scenes/objects/gun.tscn")
 const GUN_SHOT_SOUND := preload("res://sounds/gun-shot.mp3")
 const RELOAD_SOUND_PATH := "res://sounds/reload.mp3"
 const GunUtils = preload("res://scripts/utils/gun_utils.gd")
+const ATTACK_COOLDOWN: float = 1.2  # Cooldown between gun enemy attacks
 
 @onready var gun_sprite: Sprite2D = $Gun
 var _aim_tween: Tween = null
@@ -16,6 +17,7 @@ var _gun_detached: bool = false
 var _gun_float_tween: Tween = null
 var _shots_since_reload: int = 0
 var _is_reloading: bool = false
+var attack_cooldown_timer: float = 0.0  # Cooldown between attacks
 
 func _ready() -> void:
 	# Call base enemy _ready first
@@ -34,6 +36,9 @@ func _ready() -> void:
 func _physics_process(delta: float) -> void:
 	# Run base enemy movement/attack logic
 	super._physics_process(delta)
+	# Update attack cooldown
+	if attack_cooldown_timer > 0.0:
+		attack_cooldown_timer -= delta
 	# Once dead, stop aiming logic so the gun doesn't keep tracking the player
 	if is_dead:
 		return
@@ -73,7 +78,7 @@ func _update_gun_aim() -> void:
 	_aim_tween.tween_property(gun_sprite, "rotation", target_angle, 0.1)
 
 func _start_attack_close() -> void:
-	if is_attacking:
+	if is_attacking or attack_cooldown_timer > 0.0:
 		return
 	is_attacking = true
 	if slash_player:
@@ -89,6 +94,7 @@ func _on_animation_finished() -> void:
 		_fire_bullet()
 		damage_cooldown_timer = DAMAGE_COOLDOWN
 		is_attacking = false
+		attack_cooldown_timer = ATTACK_COOLDOWN  # Set cooldown after attack
 		if is_on_floor() and abs(velocity.x) < 10.0 and not is_dead:
 			animated_sprite.play("IDLE")
 	elif anim == "DEATH":

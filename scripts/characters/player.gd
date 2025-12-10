@@ -45,6 +45,7 @@ const PLAYER_RELOAD_SOUND_PATH := "res://sounds/reload.mp3"
 const PLAYER_AIR_ATTACK_SOUND_PATH := "res://sounds/air-attack.mp3"
 const PLAYER_MAG_SIZE: int = 10
 const PLAYER_MAX_RELOADS: int = 5
+const PLAYER_GUN_FIRE_COOLDOWN: float = 0.5  # Cooldown between bullet fires
 const PLAYER_GUN_PICKUP_SCENE := preload("res://scenes/objects/gun.tscn")
 signal health_changed(current: int, max: int)
 signal cash_changed(current: int)
@@ -101,6 +102,7 @@ var _player_shots_since_reload: int = 0
 var _player_is_reloading: bool = false
 var _player_reload_tween: Tween = null
 var _player_reload_count: int = 0
+var _gun_fire_cooldown: float = 0.0  # Cooldown between bullet fires
 
 
 
@@ -352,8 +354,8 @@ func _physics_process(delta: float) -> void:
 		_start_air_attack()
 	elif has_gun:
 		# With gun: left-click shoots instead of melee; allow rapid fire on every click
-		# Block shooting while the player gun is reloading
-		if gun_attack_pressed and not is_dead and not _player_is_reloading:
+		# Block shooting while the player gun is reloading or on cooldown
+		if gun_attack_pressed and not is_dead and not _player_is_reloading and _gun_fire_cooldown <= 0.0:
 			_start_gun_attack()
 	else:
 		# Without gun: normal melee attack
@@ -473,6 +475,10 @@ func _physics_process(delta: float) -> void:
 			# Also clear force idle flag when cooldown expires
 			_force_idle_after_air_attack = false
 
+	# Update gun fire cooldown
+	if _gun_fire_cooldown > 0.0:
+		_gun_fire_cooldown -= delta
+
 	move_and_slide()
 
 
@@ -488,6 +494,7 @@ func _start_gun_attack() -> void:
 	is_attacking = true
 	animated_sprite.play("GUN_ATTACK")
 	_fire_player_bullet()
+	_gun_fire_cooldown = PLAYER_GUN_FIRE_COOLDOWN  # Set cooldown after firing
 
 func _start_attack_moving() -> void:
 	is_attacking = true
@@ -610,14 +617,18 @@ func _apply_air_attack_damage() -> void:
 	if air_attack_target and air_attack_target.has_method("take_damage"):
 		air_attack_target.take_damage(20)
 		
+		# Apply knockback to enemy in the direction player is facing during air attack
+		var facing_dir: int = -1 if animated_sprite.flip_h else 1
+		CharacterUtils.apply_knockback(air_attack_target, facing_dir, 320.0, 0.25)
+		
 		# Create impact effect
 		if BLOOD_SCENE:
 			var blood := BLOOD_SCENE.instantiate()
 			var scene := get_tree().current_scene
 			if blood and scene:
 				blood.global_position = air_attack_target.global_position
-				var facing_dir: Vector2 = (air_attack_target.global_position - global_position).normalized()
-				blood.set_direction(facing_dir)
+				var blood_direction: Vector2 = (air_attack_target.global_position - global_position).normalized()
+				blood.set_direction(blood_direction)
 				
 				# Add blood to scene tree at correct position (after Wall, before background)
 				var wall_node = scene.get_node_or_null("Wall")
@@ -1214,6 +1225,11 @@ func _apply_damage_to_enemies() -> void:
 		
 		body.take_damage(base_damage)
 		hit_something = true
+		
+		# Apply knockback to enemy in the direction player is facing
+		var knockback_direction = facing  # 1 for right, -1 for left
+		CharacterUtils.apply_knockback(body, knockback_direction, 250.0, 0.18)
+		
 		# Only hit each enemy once per attack resolution
 	
 	if hit_something:
