@@ -36,6 +36,9 @@ func _ready() -> void:
 	# Use common UI setup (now with player available)
 	setup_ui()
 	
+	# Setup weapon menu
+	_setup_weapon_menu()
+	
 	# Use common level setup   
 	setup_level()
 	
@@ -44,13 +47,22 @@ func _ready() -> void:
 	
 	print("Level1 initialized with UI connections and intro animation")
 
+func _setup_weapon_menu() -> void:
+	# Connect weapon menu to player
+	var weapon_menu = $UI
+	if weapon_menu and weapon_menu.has_method("set_player"):
+		weapon_menu.set_player(player)
+		print("Weapon menu connected to player")
+	else:
+		print("Warning: Weapon menu not found or missing set_player method")
+
 # Override UI update functions to ensure visibility works correctly
 func _update_bullet_icons(current: int, max_value: int) -> void:
 	# Call parent function first
 	super._update_bullet_icons(current, max_value)
 	
-	# Ensure visibility is set correctly when player has gun
-	if player and player.has_gun and bullet_icons:
+	# Ensure visibility is set correctly when player has gun equipped
+	if player and player.has_gun and player.current_equipped_weapon == "gun" and bullet_icons:
 		bullet_icons.visible = true
 		bullet_icons.modulate.a = 1.0
 
@@ -58,8 +70,8 @@ func _update_reload_label(current: int, max_value: int) -> void:
 	# Call parent function first
 	super._update_reload_label(current, max_value)
 	
-	# Ensure visibility is set correctly when player has gun
-	if player and player.has_gun and reload_label:
+	# Ensure visibility is set correctly when player has gun equipped
+	if player and player.has_gun and player.current_equipped_weapon == "gun" and reload_label:
 		reload_label.visible = true
 		reload_label.modulate.a = 1.0
 

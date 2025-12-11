@@ -617,8 +617,8 @@ func _update_bullet_icons(current: int, max_value: int) -> void:
 	for child in bullet_icons.get_children():
 		child.queue_free()
 	
-	# Hide bullet icons if player has no gun, otherwise show them
-	if player and not player.has_gun:
+	# Hide bullet icons if player has no gun or gun is not equipped, otherwise show them
+	if player and (not player.has_gun or player.current_equipped_weapon != "gun"):
 		bullet_icons.visible = false
 		# Also hide the background panel
 		var background = bullet_icons.get_parent().get_node_or_null("BulletBackground")
@@ -661,8 +661,8 @@ func _update_bullet_icons(current: int, max_value: int) -> void:
 func _update_reload_label(current: int, max_value: int) -> void:
 	if reload_label == null:
 		return
-	# Hide reload label if player has no gun (current=0 and player.has_gun is false)
-	if current == 0 and player and not player.has_gun:
+	# Hide reload label if player has no gun or gun is not equipped
+	if player and (not player.has_gun or player.current_equipped_weapon != "gun"):
 		reload_label.visible = false
 	else:
 		reload_label.visible = true

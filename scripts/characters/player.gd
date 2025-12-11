@@ -135,6 +135,9 @@ var _thrown_bat: Node2D = null
 var backup_gun_data: Dictionary = {}
 var has_backup_gun: bool = false
 
+# Current equipped weapon tracking
+var current_equipped_weapon: String = "bat"  # "bat" or "gun"
+
 # Jump variables for variable height jumping
 var is_jumping: bool = false
 var jump_hold_time: float = 0.0
@@ -362,7 +365,13 @@ func _physics_process(delta: float) -> void:
 	
 	# Attack input (left mouse / attack action)
 	var attack_pressed: bool = Input.is_action_just_pressed("attack")
-	var gun_attack_pressed: bool = has_gun and attack_pressed
+	
+	# Don't process attacks if weapon menu is open
+	var weapon_menu = get_tree().get_first_node_in_group("weapon_menu")
+	if weapon_menu and weapon_menu.is_menu_open:
+		return  # Skip all attack processing when menu is open
+	
+	var gun_attack_pressed: bool = current_equipped_weapon == "gun" and has_gun and attack_pressed
 	var bat_throw_pressed: bool = false  # Keyboard shortcut for bat throw
 	
 	# Only check for bat_throw action if it exists in InputMap
@@ -370,18 +379,18 @@ func _physics_process(delta: float) -> void:
 		bat_throw_pressed = Input.is_action_just_pressed("bat_throw")
 	
 	# Check for keyboard bat throw (alternative to double-click)
-	if bat_throw_pressed and has_bat and not has_gun and not is_dead and not is_attacking and not is_air_attacking and not _bat_thrown:
+	if bat_throw_pressed and current_equipped_weapon == "bat" and has_bat and not is_dead and not is_attacking and not is_air_attacking and not _bat_thrown:
 		print("Keyboard bat throw triggered!")
 		_start_bat_throw()
 	
 	# Alternative: Shift + Click for bat throw (easier than double-click)
-	if attack_pressed and Input.is_key_pressed(KEY_SHIFT) and has_bat and not has_gun and not is_dead and not is_attacking and not is_air_attacking and not _bat_thrown:
+	if attack_pressed and Input.is_key_pressed(KEY_SHIFT) and current_equipped_weapon == "bat" and has_bat and not is_dead and not is_attacking and not is_air_attacking and not _bat_thrown:
 		print("Shift+Click bat throw triggered!")
 		_start_bat_throw()
 		return  # Skip normal attack processing
 	
 	# Check for normal bat attack when holding bat
-	if has_bat and not has_gun and attack_pressed and not is_dead and not is_attacking and not is_air_attacking and not _bat_thrown:
+	if current_equipped_weapon == "bat" and has_bat and attack_pressed and not is_dead and not is_attacking and not is_air_attacking and not _bat_thrown:
 		# Single click - normal attack
 		if direction != 0 or velocity.x != 0:
 			_start_attack_moving()
@@ -389,9 +398,9 @@ func _physics_process(delta: float) -> void:
 			_start_attack_idle()
 	
 	# Check for air attack (in air + left click)
-	if attack_pressed and not is_on_floor() and not is_dead and not is_air_attacking and not has_gun and not _bat_thrown:
+	if attack_pressed and not is_on_floor() and not is_dead and not is_air_attacking and current_equipped_weapon == "bat" and has_bat and not _bat_thrown:
 		_start_air_attack()
-	elif has_gun:
+	elif current_equipped_weapon == "gun" and has_gun:
 		# With gun: left-click shoots instead of melee; allow rapid fire on every click
 		# Block shooting while the player gun is reloading or on cooldown
 		if gun_attack_pressed and not is_dead and not _player_is_reloading and _gun_fire_cooldown <= 0.0:
@@ -404,7 +413,7 @@ func _physics_process(delta: float) -> void:
 		pass
 	
 	# Gun aiming: rotate held gun toward mouse cursor (but not during air attacks)
-	if has_gun and gun_sprite and not is_air_attacking:
+	if current_equipped_weapon == "gun" and has_gun and gun_sprite and not is_air_attacking:
 		var to_mouse: Vector2 = get_global_mouse_position() - gun_sprite.global_position
 		if to_mouse.length() > 0.0:
 			var angle: float = to_mouse.angle()
@@ -458,21 +467,21 @@ func _physics_process(delta: float) -> void:
 		pass
 	elif _force_idle_after_air_attack:
 		# Force idle animation after air attack until player moves
-		if has_gun:
+		if current_equipped_weapon == "gun" and has_gun:
 			animated_sprite.play("GUN_IDLE")
 		else:
 			animated_sprite.play("IDLE")
 		_stop_running_sound()
 	elif is_wall_jumping:
 		# Use jump animation for wall jump as well
-		if has_gun:
+		if current_equipped_weapon == "gun" and has_gun:
 			animated_sprite.play("GUN_JUMP")
 		else:
 			animated_sprite.play("JUMP")
 		_stop_running_sound()
 	elif not is_on_floor() and not _air_attack_just_ended:
 		# Only play jump animation if not in cooldown from air attack
-		if has_gun:
+		if current_equipped_weapon == "gun" and has_gun:
 			animated_sprite.play("GUN_JUMP")
 		else:
 			animated_sprite.play("JUMP")
@@ -482,13 +491,13 @@ func _physics_process(delta: float) -> void:
 		_force_idle_after_air_attack = false
 		# Also clear air attack finished flag when player starts moving
 		_air_attack_finished_mid_air = false
-		if has_gun:
+		if current_equipped_weapon == "gun" and has_gun:
 			animated_sprite.play("GUN_RUN")
 		else:
 			animated_sprite.play("RUN")
 		_play_running_sound()
 	else:
-		if has_gun:
+		if current_equipped_weapon == "gun" and has_gun:
 			animated_sprite.play("GUN_IDLE")
 		else:
 			animated_sprite.play("IDLE")
@@ -533,10 +542,10 @@ func _update_weapon_visibility() -> void:
 	if bat_sprite and not is_attacking and not is_air_attacking:
 		bat_sprite.visible = false
 
-	# Show appropriate weapon based on state
-	if has_gun and gun_sprite:
+	# Show appropriate weapon based on currently equipped weapon
+	if current_equipped_weapon == "gun" and has_gun and gun_sprite:
 		gun_sprite.visible = true
-	elif has_bat and not _bat_thrown:
+	elif current_equipped_weapon == "bat" and has_bat and not _bat_thrown:
 		# Show bat when not in air attack OR during active melee attack
 		if bat_sprite:
 			# Bat must be visible during melee attack. Let attack code control visibility.
@@ -544,7 +553,7 @@ func _update_weapon_visibility() -> void:
 				bat_sprite.visible = true
 
 func _update_bat_aim() -> void:
-	if not bat_sprite or not has_bat or has_gun or is_air_attacking or is_attacking:
+	if not bat_sprite or not has_bat or current_equipped_weapon == "gun" or is_air_attacking or is_attacking:
 		return
 
 	var to_mouse := get_global_mouse_position() - bat_sprite.global_position
@@ -1429,7 +1438,7 @@ func _play_blood_splat_sound() -> void:
 
 # ——— BAT THROW ———
 func _start_bat_throw() -> void:
-	if _bat_thrown or not has_bat or has_gun:
+	if _bat_thrown or not has_bat or current_equipped_weapon == "gun":
 		return
 	
 	_bat_thrown = true
@@ -1508,9 +1517,33 @@ func _get_wall_direction() -> float:
 	return 0.0  # No wall detected
 
 func _update_cursor() -> void:
-	if has_gun and gun_cursor_texture:
+	if current_equipped_weapon == "gun" and has_gun and gun_cursor_texture:
 		# Set custom cursor when holding gun
 		Input.set_custom_mouse_cursor(gun_cursor_texture, Input.CURSOR_ARROW, Vector2(16, 16))
 	else:
 		# Reset to normal cursor when not holding gun
 		Input.set_custom_mouse_cursor(null, Input.CURSOR_ARROW)
+
+# ——— WEAPON SWITCHING ———
+func switch_to_weapon(weapon_type: String) -> void:
+	if weapon_type == "bat":
+		current_equipped_weapon = "bat"
+		print("Player switched to BAT")
+	elif weapon_type == "gun":
+		if has_gun:  # Only switch to gun if player has obtained it
+			current_equipped_weapon = "gun"
+			print("Player switched to GUN")
+		else:
+			print("Player cannot switch to GUN - not obtained")
+	else:
+		print("Invalid weapon type: ", weapon_type)
+	
+	# Update weapon visibility immediately
+	_update_weapon_visibility()
+	_update_cursor()
+	
+	# Force UI updates when switching weapons
+	if has_signal("bullets_changed"):
+		emit_signal("bullets_changed", PLAYER_MAG_SIZE - _player_shots_since_reload, PLAYER_MAG_SIZE)
+	if has_signal("reloads_changed"):
+		reloads_changed.emit(_player_reload_count, PLAYER_MAX_RELOADS)
