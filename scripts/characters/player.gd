@@ -47,7 +47,7 @@ const PLAYER_BAT_THROW_SOUND_PATH := "res://sounds/slash.mp3"
 const PLAYER_BAT_SCENE := preload("res://scenes/objects/thrown_bat.tscn")
 const PLAYER_MAG_SIZE: int = 10
 const PLAYER_MAX_RELOADS: int = 5
-const PLAYER_GUN_FIRE_COOLDOWN: float = 0.5  # Cooldown between bullet fires
+const PLAYER_GUN_FIRE_COOLDOWN: float = 0.2  # Cooldown between bullet fires
 const PLAYER_GUN_PICKUP_SCENE := preload("res://scenes/objects/gun.tscn")
 signal health_changed(current: int, max: int)
 signal cash_changed(current: int)
