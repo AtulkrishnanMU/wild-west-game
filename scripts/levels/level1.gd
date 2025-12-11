@@ -24,9 +24,11 @@ var _tutorial_space_pressed: bool = false
 var alarm_active: bool = false
 
 func _ready() -> void:
-	# Find the player and gun enemy in the scene
+	# Find the player in the scene
 	player = $Player
-	_gun_enemy = $Gun_enemy
+	
+	# Find gun enemy if it exists (optional)
+	_gun_enemy = $Gun_enemy if has_node("Gun_enemy") else null
 	
 	# Connect alarm trigger if it exists
 	if _alarm_trigger:

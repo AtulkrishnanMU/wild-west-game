@@ -82,6 +82,7 @@ var was_on_floor: bool = false  # Track if player was on floor in previous frame
 @onready var sword_hitbox: Area2D = $SwordHitbox
 @onready var sword_hitbox_shape: CollisionShape2D = $SwordHitbox/CollisionShape2D
 @onready var gun_sprite: Sprite2D = $GunSprite
+@onready var bat_sprite: Sprite2D = $BatSprite
 
 # Add this variable near the top with the others
 var _air_attack_finished_mid_air: bool = false
@@ -95,7 +96,10 @@ var _camera_shake_timer: float = 0.0
 var _camera_original_offset: Vector2 = Vector2.ZERO
 var _sword_hitbox_base_position: Vector2 = Vector2.ZERO
 var _gun_base_position: Vector2 = Vector2.ZERO
+var _bat_base_position: Vector2 = Vector2.ZERO
 var _gun_recoil_tween: Tween = null
+var _bat_swing_tween: Tween = null
+var _bat_aim_tween: Tween = null
 
 # Gun reload state (similar to gun enemy)
 var _player_shots_since_reload: int = 0
@@ -109,6 +113,7 @@ var _gun_fire_cooldown: float = 0.0  # Cooldown between bullet fires
 var is_attacking := false
 var is_dead := false
 var has_gun: bool = false
+var has_bat: bool = true  # Player always has bat for normal attacks
 var is_air_attacking := false
 var air_attack_target: Node = null
 var air_attack_speed: float = 1000.0
@@ -170,6 +175,8 @@ func _ready() -> void:
 		_sword_hitbox_base_position = sword_hitbox.position
 	if gun_sprite:
 		_gun_base_position = gun_sprite.position
+	if bat_sprite:
+		_bat_base_position = bat_sprite.position
 	PLAYER_DEATH_SOUND = load("res://sounds/player-death.mp3")
 	HURT_SOUND = load("res://sounds/hurt.mp3")
 	BLOOD_SPLAT_SOUND = load("res://sounds/blood-splat.mp3")
@@ -399,8 +406,14 @@ func _physics_process(delta: float) -> void:
 				target_angle = clamp(target_angle, -PI / 2.0, PI / 2.0)
 			gun_sprite.rotation = target_angle
 	
+	# Update bat aiming
+	_update_bat_aim()
+	
 	# Update cursor based on gun state
 	_update_cursor()
+	
+	# Update weapon visibility based on current weapon
+	_update_weapon_visibility()
 
 	# ——— ANIMATION CHOICE ———
 	if is_air_attacking:
@@ -481,6 +494,52 @@ func _physics_process(delta: float) -> void:
 
 	move_and_slide()
 
+func _update_weapon_visibility() -> void:
+	# Hide both weapons by default (but only if not currently swinging/attacking)
+	if gun_sprite:
+		gun_sprite.visible = false
+	# We won't forcibly hide the bat if an attack is in progress or an air attack is active.
+	if bat_sprite and not is_attacking and not is_air_attacking:
+		bat_sprite.visible = false
+
+	# Show appropriate weapon based on state
+	if has_gun and gun_sprite:
+		gun_sprite.visible = true
+	elif has_bat:
+		# Show bat when not in air attack OR during active melee attack
+		if bat_sprite:
+			# Bat must be visible during melee attack. Let attack code control visibility.
+			if is_attacking or not is_air_attacking:
+				bat_sprite.visible = true
+
+func _update_bat_aim() -> void:
+	if not bat_sprite or not has_bat or has_gun or is_air_attacking or is_attacking:
+		return
+
+	var to_mouse := get_global_mouse_position() - bat_sprite.global_position
+	if to_mouse.length() <= 0.0:
+		return
+
+	var facing_right := to_mouse.x >= 0.0
+	var target_rot := -PI/2 if facing_right else 0.0  # -90° when right, 0° when left
+	var target_pos := _bat_base_position  # Always use base position, no left offset
+
+	# Player flips like normal, but bat DOES NOT flip horizontally
+	animated_sprite.flip_h = not facing_right
+	bat_sprite.flip_h = false
+
+	# Kill old tween
+	if _bat_aim_tween and _bat_aim_tween.is_valid():
+		_bat_aim_tween.kill()
+
+	_bat_aim_tween = create_tween()
+	_bat_aim_tween.set_trans(Tween.TRANS_CUBIC)
+	_bat_aim_tween.set_ease(Tween.EASE_IN_OUT)
+
+	# Smooth aim
+	_bat_aim_tween.tween_property(bat_sprite, "rotation", target_rot, 0.05)
+	_bat_aim_tween.parallel().tween_property(bat_sprite, "position", target_pos, 0.05)
+
 
 # ——— ATTACK ———
 func _start_attack_idle() -> void:
@@ -489,6 +548,7 @@ func _start_attack_idle() -> void:
 	if slash_player:
 		AudioUtils.play_random_pitch(slash_player, 0.7, 1.6)
 	animated_sprite.play(anim)
+	_show_bat_and_swing()
 
 func _start_gun_attack() -> void:
 	is_attacking = true
@@ -502,6 +562,78 @@ func _start_attack_moving() -> void:
 		slash_player.pitch_scale = randf_range(0.7, 1.6)
 		slash_player.play()
 	animated_sprite.play("ATTACK3")
+	_show_bat_and_swing()
+
+
+func _show_bat_and_swing() -> void:
+	if not bat_sprite:
+		return
+
+	bat_sprite.visible = true
+
+	# Determine facing from cursor like the aim code
+	var to_mouse := get_global_mouse_position() - bat_sprite.global_position
+	var facing_right := to_mouse.x >= 0.0
+	var fm := 1 if facing_right else -1
+
+	# Start rotation (rest pose)
+	var rest_rot := -PI/2 if facing_right else 0.0  # -90° when right, 0° when left
+	bat_sprite.rotation = rest_rot
+
+	bat_sprite.flip_h = false  # IMPORTANT: no horizontal flip
+
+	# Base position
+	var base_pos := _bat_base_position
+
+	# Swing arc positions
+	var windup_pos := base_pos + Vector2(-4 * fm, -2)
+	var hit_pos := base_pos + Vector2(8 * fm, 4)
+	var follow_pos := base_pos + Vector2(10 * fm, 5)
+	var end_pos := base_pos
+
+	# --- ROTATION ARC (FULL 180° SWING) ---
+	var windup_rot := rest_rot + deg_to_rad(-90 * fm)
+	var hit_rot := rest_rot + deg_to_rad(90 * fm)
+	var follow_rot := rest_rot + deg_to_rad(110 * fm)
+
+	# Kill old tween
+	if _bat_swing_tween and _bat_swing_tween.is_valid():
+		_bat_swing_tween.kill()
+
+	_bat_swing_tween = create_tween()
+	_bat_swing_tween.set_trans(Tween.TRANS_CUBIC)
+	_bat_swing_tween.set_ease(Tween.EASE_IN_OUT)
+
+	# --- WIND UP ---
+	_bat_swing_tween.tween_property(bat_sprite, "rotation", windup_rot, 0.08)
+	_bat_swing_tween.parallel().tween_property(bat_sprite, "position", windup_pos, 0.08)
+
+	# --- STRIKE ---
+	_bat_swing_tween.tween_property(bat_sprite, "rotation", hit_rot, 0.10)
+	_bat_swing_tween.parallel().tween_property(bat_sprite, "position", hit_pos, 0.10)
+	_bat_swing_tween.parallel().tween_callback(_apply_damage_to_enemies)
+
+	# --- FOLLOW THROUGH ---
+	_bat_swing_tween.tween_property(bat_sprite, "rotation", follow_rot, 0.06)
+	_bat_swing_tween.parallel().tween_property(bat_sprite, "position", follow_pos, 0.06)
+
+	# --- RETURN ---
+	_bat_swing_tween.tween_property(bat_sprite, "rotation", rest_rot, 0.10)
+	_bat_swing_tween.parallel().tween_property(bat_sprite, "position", end_pos, 0.10)
+
+	_bat_swing_tween.tween_callback(func():
+		if bat_sprite:
+			bat_sprite.rotation = rest_rot
+			bat_sprite.position = end_pos
+	)
+
+func _hide_bat() -> void:
+	if bat_sprite:
+		bat_sprite.visible = false
+
+	if _bat_swing_tween and _bat_swing_tween.is_valid():
+		_bat_swing_tween.kill()
+	_bat_swing_tween = null
 
 
 # ——— AIR ATTACK ———
@@ -757,8 +889,9 @@ func _on_animation_finished() -> void:
 		return
 	
 	if anim == "ATTACK1" or anim == "ATTACK2" or anim == "ATTACK3":
-		_apply_damage_to_enemies()
 		is_attacking = false
+		# hide + reset bat now attack animation finished
+		_hide_bat()
 		# Return to idle animation after attack
 		if has_gun:
 			animated_sprite.play("GUN_IDLE")
@@ -1211,37 +1344,34 @@ func _flicker_red() -> void:
 	_flicker_tween.tween_property(animated_sprite, "modulate", Color.WHITE, 0.07)
 
 func _apply_damage_to_enemies() -> void:
-	if sword_hitbox == null:
+	if not bat_sprite:
 		return
+	
 	var base_damage: int = 15
-	var facing: int = -1 if animated_sprite.flip_h else 1
 	var hit_something := false
-	for body in sword_hitbox.get_overlapping_bodies():
-		if not body.is_in_group("enemies"):
-			continue
-		if not body.has_method("take_damage"):
-			continue
-		
-		# Check if enemy is on the same side the player is facing
-		var to_enemy: Vector2 = body.global_position - global_position
-		var enemy_direction: int = sign(to_enemy.x)
-		
-		# Only hit enemy if they're on the same side as player's facing direction
-		if enemy_direction != facing:
+	
+	# Check for bat collision with enemies
+	for enemy in get_tree().get_nodes_in_group("enemies"):
+		if not enemy.has_method("take_damage"):
 			continue
 		
-		body.take_damage(base_damage)
+		# Check if bat sprite collides with enemy using distance-based collision
+		var distance := bat_sprite.global_position.distance_to(enemy.global_position)
+		if distance > 40.0:  # Bat reach distance
+			continue
+		
+		# Apply damage to enemy
+		enemy.take_damage(base_damage)
 		hit_something = true
 		
-		# Apply knockback to enemy in the direction player is facing
-		var knockback_direction = facing  # 1 for right, -1 for left
-		CharacterUtils.apply_knockback(body, knockback_direction, 250.0, 0.18)
-		
-		# Only hit each enemy once per attack resolution
+		# Apply knockback away from bat position
+		var knockback_direction: int = sign(enemy.global_position.x - bat_sprite.global_position.x)
+		CharacterUtils.apply_knockback(enemy, knockback_direction, 250.0, 0.18)
 	
 	if hit_something:
-		# Apply knockback using CharacterUtils
-		CharacterUtils.apply_knockback(self, -facing, 180.0, PLAYER_KNOCKBACK_DURATION)
+		# Play hit sound
+		if hit_player:
+			hit_player.play()
 
 
 func _start_camera_shake() -> void:

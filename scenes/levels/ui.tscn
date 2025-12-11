@@ -1,4 +1,14 @@
-[gd_scene load_steps=3 format=3 uid="uid://vi8yy0g5xqwb"]
+[gd_scene load_steps=5 format=3 uid="uid://vi8yy0g5xqwb"]
+
+[ext_resource type="Shader" uid="uid://by14fga7fti8x" path="res://scenes/levels/vignette.gdshader" id="1_jsomr"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_s4fn1"]
+shader = ExtResource("1_jsomr")
+shader_parameter/inner_radius = 0.1
+shader_parameter/outer_radius = 1.0
+shader_parameter/vignette_strength = 1.0
+shader_parameter/dither_strength = 0.03
+shader_parameter/vignette_color = Color(0, 0, 0, 1)
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_bkgnd"]
 bg_color = Color(0, 0, 0, 1)
@@ -12,6 +22,14 @@ outline_size = 4
 outline_color = Color(0, 0, 0, 1)
 
 [node name="UI" type="CanvasLayer"]
+
+[node name="ColorRect" type="ColorRect" parent="."]
+material = SubResource("ShaderMaterial_s4fn1")
+offset_left = -10.0
+offset_top = -6.0
+offset_right = 1197.0
+offset_bottom = 673.0
+color = Color(0, 0, 0, 1)
 
 [node name="BulletBackground" type="Panel" parent="."]
 offset_left = 16.0
