@@ -35,6 +35,11 @@ var vertical_velocity: float = 0.0
 var drop_gravity: float = 200.0
 var return_timeout: float = 3.0  # 3 seconds timeout for clean return
 
+# Speed variation variables
+var current_speed: float = BAT_SPEED  # Current movement speed
+var min_flight_speed: float = BAT_SPEED * 0.3  # 30% of base speed at max distance
+var speed_transition_distance: float = BAT_TRAVEL_DISTANCE * 0.7  # Start slowing at 70% distance
+
 # Rotation speed variables for realistic spinning
 var current_spin_speed: float = 0.0  # Current rotation speed multiplier
 var target_spin_speed: float = 1.0   # Target rotation speed multiplier
@@ -56,13 +61,14 @@ func _physics_process(delta: float) -> void:
 	time_since_bounce += delta
 	
 	_update_spin_speed(delta)
+	_update_flight_speed()  # Update speed based on distance
 	
 	rotation_angle += SPIN_SPEED * current_spin_speed * 2 * PI * delta
 	sprite.rotation = rotation_angle
 	
-	if spin_sound_player and not spin_sound_player.playing:
+	if spin_sound_player and not spin_sound_player.playing and not is_dropping and not is_pickable:
 		spin_sound_player.play()
-	if spin_sound_player:
+	if spin_sound_player and not is_dropping and not is_pickable:
 		_update_sound_volume()
 	
 	_prev_position = global_position
@@ -256,9 +262,26 @@ func _apply_bounce_spin_loss() -> void:
 	current_spin_speed = current_spin_speed * spin_loss_factor
 	current_spin_speed = max(current_spin_speed, 0.2)  # Never go below 20% spin
 
+func _update_flight_speed() -> void:
+	var distance_traveled = global_position.distance_to(start_position)
+	
+	if is_returning:
+		# Accelerate while returning to player
+		var return_progress = 1.0 - (global_position.distance_to(thrower.global_position) / BAT_TRAVEL_DISTANCE)
+		current_speed = lerp(min_flight_speed, BAT_RETURN_SPEED, return_progress)
+	else:
+		# Normal flight - fast at first, slow down near max distance
+		if distance_traveled <= speed_transition_distance:
+			# Fast speed for first 70% of distance
+			current_speed = BAT_SPEED
+		else:
+			# Gradual slowdown from 70% to 100% distance
+			var slowdown_progress = (distance_traveled - speed_transition_distance) / (BAT_TRAVEL_DISTANCE - speed_transition_distance)
+			current_speed = lerp(BAT_SPEED, min_flight_speed, slowdown_progress)
+
 # Shared movement + bounce detection
 func _move_and_bounce(delta: float):
-	var move_vec = direction.normalized() * BAT_SPEED * delta
+	var move_vec = direction.normalized() * current_speed * delta
 	var intended_pos = global_position + move_vec
 	
 	var space := get_world_2d().direct_space_state
@@ -314,6 +337,7 @@ func _move_and_bounce(delta: float):
 func _enter_drop_state():
 	is_dropping = true
 	vertical_velocity = 0.0
+	_stop_spin_sound()  # Stop spinning audio when dropping
 	print("Bat entering drop state after 3 bounces")
 
 func _handle_dropping(delta: float):
@@ -329,7 +353,7 @@ func _handle_dropping(delta: float):
 	var ground_result = space.intersect_ray(ground_query)
 
 	if ground_result:
-		var float_height = 5.0
+		var float_height = 15.0  # Increased from 5.0 to 15.0
 		var target_y = ground_result.position.y - float_height
 
 		# Only stop if bat is at or below the target position
@@ -361,7 +385,7 @@ func _handle_auto_return(delta: float):
 		return
 
 	# Clamp movement to remaining distance
-	var move_distance = min(BAT_RETURN_SPEED * delta, distance)
+	var move_distance = min(current_speed * delta, distance)
 	global_position += to_player.normalized() * move_distance
 
 	# Check for pickup immediately after moving
