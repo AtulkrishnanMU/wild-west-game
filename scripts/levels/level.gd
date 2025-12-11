@@ -13,6 +13,22 @@ const HEALTH_HIGH_COLOR := Color(0.2, 0.6, 0.2)    # Green (less bright)
 const HEALTH_MEDIUM_COLOR := Color(0.95, 0.8, 0.2)  # Yellow
 const HEALTH_LOW_COLOR := Color(0.95, 0.2, 0.2)    # Red
 
+# Tutorial configuration class
+class TutorialConfig:
+	var tutorial_text: String
+	var fade_in_duration: float = 0.5
+	var fade_out_duration: float = 0.3
+	var position_offset: Vector2 = Vector2(0, 50)
+	var popup_size: Vector2 = Vector2(250, 250)
+	var label_position: Vector2 = Vector2(-125, -80)
+	var track_mouse_left: bool = true
+	var track_mouse_right: bool = true
+	var track_space: bool = true
+	var auto_hide_on_input: bool = true
+	
+	func _init(text: String):
+		tutorial_text = text
+
 # Heartbeat sound system
 var heartbeat_player: AudioStreamPlayer = null
 var is_heartbeat_playing: bool = false
@@ -48,6 +64,21 @@ var camera_zoom_duration: float = 0.15  # Time to zoom in/out
 var _camera_zoom_tween: Tween = null
 var _original_camera_zoom: float = 1.0
 
+# Intro animation system
+var _intro_animation_active: bool = false
+var _intro_config: IntroConfig = null
+
+# Tutorial popup system
+var _tutorial_popup: Control = null
+var _tutorial_active: bool = false
+var _tutorial_label: Label = null
+var _tutorial_config: TutorialConfig = null
+
+# Tutorial input tracking
+var _tutorial_left_clicked: bool = false
+var _tutorial_right_clicked: bool = false
+var _tutorial_space_pressed: bool = false
+
 # Helper function to get health color based on ratio - SINGLE SOURCE OF TRUTH
 func get_health_color(ratio: float) -> Color:
 	if ratio > HEALTH_HIGH_THRESHOLD:
@@ -80,6 +111,9 @@ func setup_ui() -> void:
 		
 		# Initialize health bar with proper color using unified function
 		set_health_bar_color_unified(HEALTH_HIGH_COLOR)
+	
+	# Hide conditional UI elements by default (they'll be shown when needed)
+	_set_conditional_ui_visibility(false)
 	
 	# Connect player signals if available
 	if player:
@@ -569,6 +603,9 @@ func _process(delta: float) -> void:
 	else:
 		if player and player._combo_timer:
 			print("DEBUG: Timer update failed - combo_timer_bar: ", combo_timer_bar, " _combo_active: ", player._combo_active, " time_left: ", player._combo_timer.time_left)
+	
+	# Process tutorial input tracking
+	_process_tutorial_input()
 
 
 func _update_bullet_icons(current: int, max_value: int) -> void:
@@ -720,3 +757,318 @@ func end_attack_zoom() -> void:
 	_camera_zoom_tween.set_ease(Tween.EASE_OUT)
 	
 	_camera_zoom_tween.tween_property(camera, "zoom", Vector2(_original_camera_zoom, _original_camera_zoom), camera_zoom_duration)
+
+# Generic tutorial popup framework
+func show_tutorial_popup(config: TutorialConfig) -> void:
+	if not player:
+		print("ERROR: Player not found for tutorial popup")
+		return
+	
+	_tutorial_config = config
+	_tutorial_active = true
+	
+	# Reset input tracking
+	_reset_tutorial_input_tracking()
+	
+	# Create tutorial popup
+	_tutorial_popup = Control.new()
+	_tutorial_popup.name = "TutorialPopup"
+	
+	# Create tutorial label
+	_tutorial_label = Label.new()
+	_tutorial_label.text = config.tutorial_text
+	_tutorial_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_tutorial_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_tutorial_label.position = config.label_position
+	_tutorial_label.size = config.popup_size
+	
+	# Apply default font and styling
+	_apply_tutorial_label_styling()
+	
+	_tutorial_popup.add_child(_tutorial_label)
+	
+	# Add to scene
+	add_child(_tutorial_popup)
+	
+	# Position and fade in
+	_position_tutorial_popup()
+	_fade_in_tutorial_popup(config.fade_in_duration)
+	
+	print("Tutorial popup displayed")
+
+func hide_tutorial_popup() -> void:
+	if not _tutorial_popup:
+		return
+	
+	var fade_out_duration = _tutorial_config.fade_out_duration if _tutorial_config else 0.3
+	
+	# Fade out before removing
+	var fade_tween := create_tween()
+	fade_tween.tween_property(_tutorial_popup, "modulate:a", 0.0, fade_out_duration)
+	fade_tween.tween_callback(_remove_tutorial_popup)
+	
+	_tutorial_active = false
+	print("Tutorial popup hiding")
+
+# Tutorial input tracking in process
+func _process_tutorial_input() -> void:
+	if not _tutorial_active or not _tutorial_config:
+		return
+	
+	# Track mouse clicks
+	if _tutorial_config.track_mouse_left and Input.is_action_just_pressed("attack"):
+		_tutorial_left_clicked = true
+	
+	if _tutorial_config.track_mouse_right and Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT):
+		_tutorial_right_clicked = true
+	
+	# Track spacebar
+	if _tutorial_config.track_space and (Input.is_action_just_pressed("ui_accept") or Input.is_physical_key_pressed(KEY_SPACE)):
+		_tutorial_space_pressed = true
+	
+	# Check if all required inputs have been used
+	if _tutorial_config.auto_hide_on_input:
+		var required_inputs_met = true
+		
+		if _tutorial_config.track_mouse_left and not _tutorial_left_clicked:
+			required_inputs_met = false
+		if _tutorial_config.track_mouse_right and not _tutorial_right_clicked:
+			required_inputs_met = false
+		if _tutorial_config.track_space and not _tutorial_space_pressed:
+			required_inputs_met = false
+		
+		if required_inputs_met:
+			hide_tutorial_popup()
+
+# Tutorial helper methods
+func _reset_tutorial_input_tracking() -> void:
+	_tutorial_left_clicked = false
+	_tutorial_right_clicked = false
+	_tutorial_space_pressed = false
+
+func _apply_tutorial_label_styling() -> void:
+	if not _tutorial_label:
+		return
+	
+	# Apply default font
+	FontConfig.apply_ui_font(_tutorial_label)
+	
+	# Ensure crisp pixel rendering
+	_tutorial_label.add_theme_constant_override("outline_size", 1)
+	_tutorial_label.add_theme_color_override("font_outline_color", Color.BLACK)
+	_tutorial_label.modulate = Color.WHITE
+
+func _position_tutorial_popup() -> void:
+	if not _tutorial_popup or not player:
+		return
+	
+	var config = _tutorial_config
+	if config:
+		_tutorial_popup.global_position = player.global_position + config.position_offset
+
+func _fade_in_tutorial_popup(duration: float) -> void:
+	if not _tutorial_popup:
+		return
+	
+	# Start with invisible and fade in
+	_tutorial_popup.modulate.a = 0.0
+	var fade_tween := create_tween()
+	fade_tween.tween_property(_tutorial_popup, "modulate:a", 1.0, duration)
+
+func _remove_tutorial_popup() -> void:
+	if _tutorial_popup:
+		_tutorial_popup.queue_free()
+		_tutorial_popup = null
+		_tutorial_label = null
+		_tutorial_config = null
+		print("Tutorial popup removed")
+
+# Intro animation configuration class
+class IntroConfig:
+	var player_start_position: Vector2
+	var player_center_position: Vector2
+	var animation_duration: float
+	var wait_duration: float
+	var initial_camera_position: Vector2
+	var disable_camera_follow: bool = true
+	var disable_player_controls: bool = true
+	var hide_ui_elements: bool = true
+	var target_character: Node = null
+	var character_facing: String = ""
+	
+	func _init(start_pos: Vector2, center_pos: Vector2, anim_dur: float, wait_dur: float, cam_pos: Vector2 = Vector2.ZERO):
+		player_start_position = start_pos
+		player_center_position = center_pos
+		animation_duration = anim_dur
+		wait_duration = wait_dur
+		initial_camera_position = cam_pos
+
+# Generic intro animation framework
+func start_intro_sequence(config: IntroConfig) -> void:
+	if not player:
+		print("ERROR: Player not found for intro animation")
+		return
+	
+	_intro_config = config
+	_intro_animation_active = true
+	
+	# Disable camera follow if requested
+	if config.disable_camera_follow:
+		camera_follow_enabled = false
+	
+	# Disable player controls if requested
+	if config.disable_player_controls:
+		_set_player_controls_enabled(false)
+	
+	# Hide UI elements if requested
+	if config.hide_ui_elements:
+		_set_ui_visibility(false)
+	
+	# Position player
+	player.global_position = config.player_center_position
+	
+	# Set player animation to IDLE
+	_set_player_animation("IDLE", false)
+	
+	# Set character facing direction if specified
+	if config.target_character and config.character_facing != "":
+		_set_character_facing_direction(config.target_character, config.character_facing)
+	
+	# Setup camera
+	if camera:
+		camera.make_current()
+		var cam_pos = config.initial_camera_position
+		if cam_pos == Vector2.ZERO:
+			cam_pos = config.player_center_position
+		camera.global_position = cam_pos
+	
+	# Wait for specified duration before ending intro
+	await get_tree().create_timer(config.wait_duration).timeout
+	
+	# End intro sequence
+	end_intro_sequence()
+
+func end_intro_sequence() -> void:
+	if not _intro_config:
+		return
+	
+	# Enable player controls
+	if _intro_config.disable_player_controls:
+		_set_player_controls_enabled(true)
+	
+	# Enable camera follow
+	if _intro_config.disable_camera_follow:
+		camera_follow_enabled = true
+		if camera and player:
+			camera.make_current()
+			camera.global_position = player.global_position
+	
+	# Show UI elements
+	if _intro_config.hide_ui_elements:
+		_set_ui_visibility(true)
+	
+	# Call post-intro hook for child classes
+	_on_intro_sequence_completed()
+	
+	# Mark intro animation as complete
+	_intro_animation_active = false
+	_intro_config = null
+	
+	print("Intro animation completed")
+
+# Virtual method for child classes to override
+func _on_intro_sequence_completed() -> void:
+	pass
+
+# Helper methods for intro animation
+func _set_player_controls_enabled(enabled: bool) -> void:
+	if not player:
+		return
+	
+	if player.has_method("set_controls_enabled"):
+		player.set_controls_enabled(enabled)
+	else:
+		player.controls_enabled = enabled
+
+func _set_player_animation(animation_name: String, flip_h: bool) -> void:
+	if not player:
+		return
+	
+	var animated_sprite = player.get_node_or_null("AnimatedSprite2D")
+	if animated_sprite:
+		animated_sprite.play(animation_name)
+		animated_sprite.flip_h = flip_h
+
+func _set_character_facing_direction(character: Node, direction: String) -> void:
+	if not character:
+		return
+	
+	# For gun enemies, we need to flip the sprite and adjust gun position
+	var animated_sprite = character.get_node_or_null("AnimatedSprite2D")
+	var gun_sprite = character.get_node_or_null("Gun")
+	
+	if direction == "right":
+		# Face right - no flip
+		if animated_sprite:
+			animated_sprite.flip_h = false
+		if gun_sprite:
+			# Adjust gun position for right-facing
+			gun_sprite.position.x = abs(gun_sprite.position.x)
+	elif direction == "left":
+		# Face left - flip horizontally
+		if animated_sprite:
+			animated_sprite.flip_h = true
+		if gun_sprite:
+			# Adjust gun position for left-facing
+			gun_sprite.position.x = -abs(gun_sprite.position.x)
+
+func _set_ui_visibility(visible: bool) -> void:
+	if not ui_layer:
+		return
+	
+	var alpha = 1.0 if visible else 0.0
+	var vis = visible
+	
+	# Apply visibility and alpha to essential UI elements only
+	if health_bar:
+		health_bar.modulate.a = alpha
+		health_bar.visible = vis
+		for child in health_bar.get_children():
+			child.modulate.a = alpha
+			child.visible = vis
+	
+	if cash_label:
+		cash_label.modulate.a = alpha
+		cash_label.visible = vis
+	
+	if health_percent_label:
+		health_percent_label.modulate.a = alpha
+		health_percent_label.visible = vis
+
+func _set_conditional_ui_visibility(visible: bool) -> void:
+	if not ui_layer:
+		return
+	
+	var alpha = 1.0 if visible else 0.0
+	var vis = visible
+	
+	# Apply visibility to conditional UI elements (bullet icons, reload, combo)
+	if bullet_icons:
+		bullet_icons.modulate.a = alpha
+		bullet_icons.visible = vis
+	
+	if reload_label:
+		reload_label.modulate.a = alpha
+		reload_label.visible = vis
+	
+	if combo_text_label:
+		combo_text_label.modulate.a = alpha
+		combo_text_label.visible = vis
+	
+	if combo_total_label:
+		combo_total_label.modulate.a = alpha
+		combo_total_label.visible = vis
+	
+	if combo_timer_bar:
+		combo_timer_bar.modulate.a = alpha
+		combo_timer_bar.visible = vis

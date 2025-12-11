@@ -43,6 +43,8 @@ const PLAYER_BULLET_SCENE := preload("res://scenes/objects/bullet.tscn")
 const PLAYER_GUN_SHOT_SOUND := preload("res://sounds/gun-shot.mp3")
 const PLAYER_RELOAD_SOUND_PATH := "res://sounds/reload.mp3"
 const PLAYER_AIR_ATTACK_SOUND_PATH := "res://sounds/air-attack.mp3"
+const PLAYER_BAT_THROW_SOUND_PATH := "res://sounds/slash.mp3"
+const PLAYER_BAT_SCENE := preload("res://scenes/objects/thrown_bat.tscn")
 const PLAYER_MAG_SIZE: int = 10
 const PLAYER_MAX_RELOADS: int = 5
 const PLAYER_GUN_FIRE_COOLDOWN: float = 0.5  # Cooldown between bullet fires
@@ -67,6 +69,7 @@ var RUNNING_SOUND: AudioStream = null
 # Performance optimization: cached audio streams to avoid repeated loading
 var _air_attack_sound_cache: AudioStream = null
 var _reload_sound_cache: AudioStream = null
+var _bat_throw_sound_cache: AudioStream = null
 
 const MAX_HEALTH := 200
 var health: int = MAX_HEALTH
@@ -123,6 +126,10 @@ var _air_attack_just_ended := false  # Prevent getting stuck in jump animation
 var _air_attack_cooldown := 0.0
 var _force_idle_after_air_attack := false  # Persistent flag to prevent override
 var _air_attack_ending := false  # Prevent multiple calls to _end_air_attack
+
+# Bat throw system
+var _bat_thrown: bool = false
+var _thrown_bat: Node2D = null
 
 # Backup weapon system
 var backup_gun_data: Dictionary = {}
@@ -188,6 +195,7 @@ func _ready() -> void:
 	# Cache audio streams for performance
 	_air_attack_sound_cache = load(PLAYER_AIR_ATTACK_SOUND_PATH)
 	_reload_sound_cache = load(PLAYER_RELOAD_SOUND_PATH)
+	_bat_throw_sound_cache = load(PLAYER_BAT_THROW_SOUND_PATH)
 	
 	
 	# Load gun cursor texture
@@ -355,22 +363,45 @@ func _physics_process(delta: float) -> void:
 	# Attack input (left mouse / attack action)
 	var attack_pressed: bool = Input.is_action_just_pressed("attack")
 	var gun_attack_pressed: bool = has_gun and attack_pressed
+	var bat_throw_pressed: bool = false  # Keyboard shortcut for bat throw
+	
+	# Only check for bat_throw action if it exists in InputMap
+	if InputMap.has_action("bat_throw"):
+		bat_throw_pressed = Input.is_action_just_pressed("bat_throw")
+	
+	# Check for keyboard bat throw (alternative to double-click)
+	if bat_throw_pressed and has_bat and not has_gun and not is_dead and not is_attacking and not is_air_attacking and not _bat_thrown:
+		print("Keyboard bat throw triggered!")
+		_start_bat_throw()
+	
+	# Alternative: Shift + Click for bat throw (easier than double-click)
+	if attack_pressed and Input.is_key_pressed(KEY_SHIFT) and has_bat and not has_gun and not is_dead and not is_attacking and not is_air_attacking and not _bat_thrown:
+		print("Shift+Click bat throw triggered!")
+		_start_bat_throw()
+		return  # Skip normal attack processing
+	
+	# Check for normal bat attack when holding bat
+	if has_bat and not has_gun and attack_pressed and not is_dead and not is_attacking and not is_air_attacking and not _bat_thrown:
+		# Single click - normal attack
+		if direction != 0 or velocity.x != 0:
+			_start_attack_moving()
+		else:
+			_start_attack_idle()
 	
 	# Check for air attack (in air + left click)
-	if attack_pressed and not is_on_floor() and not is_dead and not is_air_attacking and not has_gun:
+	if attack_pressed and not is_on_floor() and not is_dead and not is_air_attacking and not has_gun and not _bat_thrown:
 		_start_air_attack()
 	elif has_gun:
 		# With gun: left-click shoots instead of melee; allow rapid fire on every click
 		# Block shooting while the player gun is reloading or on cooldown
 		if gun_attack_pressed and not is_dead and not _player_is_reloading and _gun_fire_cooldown <= 0.0:
 			_start_gun_attack()
+	elif not has_bat or _bat_thrown:
+		# Without bat or bat is thrown: can't attack
+		pass
 	else:
-		# Without gun: normal melee attack
-		if attack_pressed and not is_attacking and not is_dead:
-			if direction != 0 or velocity.x != 0:
-				_start_attack_moving()
-			else:
-				_start_attack_idle()
+		# Normal attack handling already done in double-click section above
+		pass
 	
 	# Gun aiming: rotate held gun toward mouse cursor (but not during air attacks)
 	if has_gun and gun_sprite and not is_air_attacking:
@@ -505,7 +536,7 @@ func _update_weapon_visibility() -> void:
 	# Show appropriate weapon based on state
 	if has_gun and gun_sprite:
 		gun_sprite.visible = true
-	elif has_bat:
+	elif has_bat and not _bat_thrown:
 		# Show bat when not in air attack OR during active melee attack
 		if bat_sprite:
 			# Bat must be visible during melee attack. Let attack code control visibility.
@@ -1394,6 +1425,66 @@ func _stop_running_sound() -> void:
 
 func _play_blood_splat_sound() -> void:
 	AudioUtils.play_blood_splat_sound(BLOOD_SPLAT_SOUND, global_position)
+
+
+# ——— BAT THROW ———
+func _start_bat_throw() -> void:
+	if _bat_thrown or not has_bat or has_gun:
+		return
+	
+	_bat_thrown = true
+	is_attacking = true  # Prevent other attacks during throw
+	
+	# Hide the bat sprite
+	if bat_sprite:
+		bat_sprite.visible = false
+	
+	# Play throw sound
+	if _bat_throw_sound_cache:
+		var scene_for_sound := get_tree().current_scene
+		if scene_for_sound:
+			var audio := AudioStreamPlayer2D.new()
+			audio.stream = _bat_throw_sound_cache
+			audio.position = global_position
+			scene_for_sound.add_child(audio)
+			AudioUtils.play_random_pitch(audio, 0.9, 1.1)
+			audio.finished.connect(audio.queue_free)
+	
+	# Create thrown bat
+	var thrown_bat = PLAYER_BAT_SCENE.instantiate()
+	if thrown_bat:
+		# Set throw direction toward mouse
+		var mouse_pos := get_global_mouse_position()
+		var throw_direction := (mouse_pos - global_position).normalized()
+		thrown_bat.direction = throw_direction
+		thrown_bat.thrower = self
+		thrown_bat.global_position = global_position
+		
+		# Add to scene
+		var scene := get_tree().current_scene
+		if scene:
+			scene.add_child(thrown_bat)
+			_thrown_bat = thrown_bat
+	
+	# Short throw animation
+	animated_sprite.play("ATTACK1")
+	
+	# End throw animation quickly
+	await get_tree().create_timer(0.3).timeout
+	is_attacking = false
+
+func _on_bat_returned() -> void:
+	_bat_thrown = false
+	_thrown_bat = null
+	
+	# Show bat again
+	if bat_sprite:
+		bat_sprite.visible = true
+	
+	# Play catch sound (could use a soft hit sound)
+	if hit_player:
+		hit_player.pitch_scale = 0.8
+		hit_player.play()
 
 
 
