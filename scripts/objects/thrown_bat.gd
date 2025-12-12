@@ -70,6 +70,17 @@ func _physics_process(delta: float) -> void:
 	total_flight_time += delta
 	time_since_bounce += delta
 	
+	# DEBUG: Check for invalid/disappeared bat state
+	if _is_position_invalid():
+		print("[DISAPPEARANCE_DEBUG] BAT POSITION INVALID! Pos: ", global_position, " | Dir: ", direction, " | Speed: ", current_speed)
+		print("[DISAPPEARANCE_DEBUG] NaN/Inf detected - forcing cleanup")
+		queue_free()
+		return
+	
+	# DEBUG: Log frame-by-frame state
+	if total_flight_time < 5.0:  # Log for first 5 seconds to avoid spam
+		print("[DEBUG] Frame: ", total_flight_time, " | Pos: ", global_position, " | Dir: ", direction, " | Speed: ", current_speed, " | State: ", _get_current_state())
+	
 	_update_spin_speed(delta)
 	_update_flight_speed()  # Update speed based on distance
 	
@@ -109,11 +120,16 @@ func _physics_process(delta: float) -> void:
 	
 	# STATE 4: NORMAL FLIGHT - Movement with bouncing
 	# Check max distance before moving
-	if global_position.distance_to(start_position) >= BAT_TRAVEL_DISTANCE:
+	var current_distance = global_position.distance_to(start_position)
+	if current_distance >= BAT_TRAVEL_DISTANCE:
+		print("[DISTANCE_CHECK] Max distance reached: ", current_distance, "/", BAT_TRAVEL_DISTANCE)
+		print("[DISTANCE_CHECK] Bounces: ", bounce_count, " | Can return: ", can_return)
 		if bounce_count == 0:
 			is_returning = true  # start returning immediately
+			print("[DISTANCE_CHECK] Starting return (no bounces)")
 		else:
 			_enter_drop_state()
+			print("[DISTANCE_CHECK] Entering drop state (bounces occurred)")
 		return
 	
 	_move_and_bounce(delta)
@@ -398,7 +414,9 @@ func _update_flight_speed() -> void:
 	
 	if is_returning:
 		# Accelerate while returning to player
-		var return_progress = 1.0 - (global_position.distance_to(thrower.global_position) / BAT_TRAVEL_DISTANCE)
+		var distance_to_player = global_position.distance_to(thrower.global_position)
+		var return_progress = 1.0 - (distance_to_player / BAT_TRAVEL_DISTANCE)
+		return_progress = clamp(return_progress, 0.0, 1.0)  # Prevent negative values
 		current_speed = lerp(min_flight_speed, BAT_RETURN_SPEED, return_progress)
 	else:
 		# Normal flight - fast at first, slow down near max distance
@@ -412,8 +430,27 @@ func _update_flight_speed() -> void:
 
 # Shared movement + bounce detection
 func _move_and_bounce(delta: float):
+	# DEBUG: Validate inputs before movement
+	if _is_position_invalid() or _is_direction_invalid():
+		print("[DISAPPEARANCE_DEBUG] Invalid state detected in _move_and_bounce")
+		print("[DISAPPEARANCE_DEBUG] Pos: ", global_position, " | Dir: ", direction, " | Speed: ", current_speed)
+		_force_fallback_return()
+		return
+	
 	var move_vec = direction.normalized() * current_speed * delta
 	var intended_pos = global_position + move_vec
+	
+	# DEBUG: Check if intended position is valid
+	if _is_position_invalid(intended_pos):
+		print("[DISAPPEARANCE_DEBUG] Invalid intended position: ", intended_pos)
+		print("[DISAPPEARANCE_DEBUG] MoveVec: ", move_vec, " | From: ", global_position)
+		_force_fallback_return()
+		return
+	
+	# DEBUG: Log movement details for horizontal throws
+	if abs(direction.x) > 0.7 and total_flight_time < 3.0:  # Horizontal throw detection
+		print("[HORIZONTAL_DEBUG] MoveVec: ", move_vec, " | IntendedPos: ", intended_pos, " | From: ", global_position)
+		print("[HORIZONTAL_DEBUG] Distance from start: ", global_position.distance_to(start_position), "/", BAT_TRAVEL_DISTANCE)
 	
 	var space := get_world_2d().direct_space_state
 	var query := PhysicsRayQueryParameters2D.create(global_position, intended_pos)
@@ -466,6 +503,16 @@ func _move_and_bounce(delta: float):
 	
 	# No bounce → normal movement
 	global_position = intended_pos
+	
+	# DEBUG: Check if bat is going out of bounds
+	var screen_size = get_viewport().get_visible_rect().size
+	var camera_pos = get_viewport().get_camera_2d().global_position if get_viewport().get_camera_2d() else Vector2.ZERO
+	var screen_bounds = Rect2(camera_pos - screen_size/2, screen_size)
+	
+	if not screen_bounds.has_point(global_position):
+		print("[OUT_OF_FRAME] Bat left screen! Pos: ", global_position, " | Screen bounds: ", screen_bounds)
+		print("[OUT_OF_FRAME] Distance to player: ", global_position.distance_to(thrower.global_position) if thrower else "N/A")
+		print("[OUT_OF_FRAME] Should return: ", can_return, " | Bounces: ", bounce_count)
 
 # STATE HANDLERS
 
@@ -603,6 +650,14 @@ func _handle_pickable():
 
 func _handle_auto_return(delta: float):
 	if not thrower or not is_instance_valid(thrower):
+		print("[DISAPPEARANCE_DEBUG] Thrower invalid during return")
+		queue_free()
+		return
+
+	# DEBUG: Check for invalid states before return movement
+	if _is_position_invalid():
+		print("[DISAPPEARANCE_DEBUG] Invalid position during return, forcing cleanup")
+		queue_free()
 		return
 
 	var to_player = thrower.global_position - global_position
@@ -610,6 +665,18 @@ func _handle_auto_return(delta: float):
 	if distance <= 0.0:
 		_pickup_bat()
 		return
+	
+	# DEBUG: Check for infinite distance
+	if is_inf(distance) or is_nan(distance):
+		print("[DISAPPEARANCE_DEBUG] Infinite/NaN distance to player: ", distance)
+		print("[DISAPPEARANCE_DEBUG] Player pos: ", thrower.global_position, " | Bat pos: ", global_position)
+		queue_free()
+		return
+
+	# DEBUG: Log return movement
+	if total_flight_time < 5.0:
+		print("[RETURN_DEBUG] Returning to player. Distance: ", distance, " | Speed: ", current_speed)
+		print("[RETURN_DEBUG] ToPlayer vector: ", to_player, " | Current pos: ", global_position)
 
 	# Clamp movement to remaining distance
 	var move_distance = min(current_speed * delta, distance)
@@ -678,3 +745,23 @@ func _return_to_player():
 		if thrower.has_method("_on_bat_returned"):
 			thrower._on_bat_returned()
 	queue_free()
+
+func _get_current_state() -> String:
+	if is_returning:
+		return "RETURNING"
+	elif is_dropping:
+		return "DROPPING"
+	elif is_pickable:
+		return "PICKABLE"
+	else:
+		return "FLYING"
+
+# DEBUG: Helper functions to detect invalid bat states
+func _is_position_invalid(pos: Vector2 = global_position) -> bool:
+	return is_nan(pos.x) or is_nan(pos.y) or is_inf(pos.x) or is_inf(pos.y)
+
+func _is_direction_invalid() -> bool:
+	return is_nan(direction.x) or is_nan(direction.y) or is_inf(direction.x) or is_inf(direction.y)
+
+func _is_speed_invalid() -> bool:
+	return is_nan(current_speed) or is_inf(current_speed) or current_speed < 0.0
