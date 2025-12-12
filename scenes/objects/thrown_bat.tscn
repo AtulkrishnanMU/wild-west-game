@@ -3,8 +3,8 @@
 [ext_resource type="Script" uid="uid://gqshyfda5hvj" path="res://scripts/objects/thrown_bat.gd" id="2_bat_script"]
 [ext_resource type="Texture2D" uid="uid://cbp8cpb6qjygt" path="res://assets/objects/bat.png" id="2_dsmm7"]
 
-[sub_resource type="RectangleShape2D" id="1_shape"]
-size = Vector2(64, 16)
+[sub_resource type="CircleShape2D" id="CircleShape2D_dsmm7"]
+radius = 33.326416
 
 [node name="ThrownBat" type="Area2D"]
 scale = Vector2(0.45109254, 0.45109254)
@@ -19,4 +19,4 @@ texture = ExtResource("2_dsmm7")
 offset = Vector2(0, -4)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
-shape = SubResource("1_shape")
+shape = SubResource("CircleShape2D_dsmm7")

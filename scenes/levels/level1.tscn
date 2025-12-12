@@ -359,6 +359,7 @@ position = Vector2(365, 429)
 
 [node name="BloodDecal" parent="BloodEffects" instance=ExtResource("13_jprdt")]
 position = Vector2(369, 428)
+scale = Vector2(0.5, 0.5)
 
 [node name="BloodDroplet2" parent="BloodEffects" instance=ExtResource("12_lgguw")]
 position = Vector2(360, 430)
@@ -392,6 +393,7 @@ position = Vector2(391, 429)
 
 [node name="BloodDecal2" parent="BloodEffects" instance=ExtResource("13_jprdt")]
 position = Vector2(395, 429)
+scale = Vector2(0.5, 0.5)
 
 [node name="BloodDroplet12" parent="BloodEffects" instance=ExtResource("12_lgguw")]
 position = Vector2(347, 430)
@@ -569,6 +571,7 @@ position = Vector2(398, 427)
 
 [node name="BloodDecalCopy2" parent="BloodEffects" instance=ExtResource("13_jprdt")]
 position = Vector2(361, 430)
+scale = Vector2(0.5, 0.5)
 
 [node name="BloodDroplet2Copy2" parent="BloodEffects" instance=ExtResource("12_lgguw")]
 position = Vector2(378, 418)
