@@ -9,9 +9,9 @@ const HEALTH_HIGH_THRESHOLD := 0.6  # Above this = green
 const HEALTH_LOW_THRESHOLD := 0.3   # Above this = yellow, below = red
 
 # Health color definitions - SINGLE SOURCE OF TRUTH
-const HEALTH_HIGH_COLOR := Color(0.2, 0.6, 0.2)    # Green (less bright)
-const HEALTH_MEDIUM_COLOR := Color(0.95, 0.8, 0.2)  # Yellow
-const HEALTH_LOW_COLOR := Color(0.95, 0.2, 0.2)    # Red
+const HEALTH_HIGH_COLOR := Color(0.043, 0.502, 0.432, 1)    # #0b806e
+const HEALTH_MEDIUM_COLOR := Color(0.7, 0.6, 0.2)  # Darker yellow-green
+const HEALTH_LOW_COLOR := Color(0.7, 0.3, 0.2)    # Darker red-green
 
 # Tutorial configuration class
 class TutorialConfig:

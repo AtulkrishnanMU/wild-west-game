@@ -131,6 +131,8 @@ var _air_attack_ending := false  # Prevent multiple calls to _end_air_attack
 # Bat throw system
 var _bat_thrown: bool = false
 var _thrown_bat: Node2D = null
+var _bat_throw_cooldown: float = 0.0
+const BAT_THROW_COOLDOWN_TIME: float = 10.0  # 10 seconds between throws
 
 # Backup weapon system
 var backup_gun_data: Dictionary = {}
@@ -138,6 +140,9 @@ var has_backup_gun: bool = false
 
 # Current equipped weapon tracking
 var current_equipped_weapon: String = "bat"  # "bat" or "gun"
+
+# UI reference
+var _ui: Node = null
 
 # Jump variables for variable height jumping
 var is_jumping: bool = false
@@ -199,6 +204,11 @@ func _ready() -> void:
 	_reload_sound_cache = PLAYER_RELOAD_SOUND
 	_bat_throw_sound_cache = PLAYER_BAT_THROW_SOUND
 	
+	# Get UI reference for cooldown display
+	var weapon_menu_nodes = get_tree().get_nodes_in_group("weapon_menu")
+	if weapon_menu_nodes.size() > 0:
+		_ui = weapon_menu_nodes[0]
+	
 	
 	# Load gun cursor texture
 	gun_cursor_texture = load("res://assets/objects/gun_aim.png")
@@ -228,6 +238,16 @@ func _handle_physics(delta: float) -> void:
 	# Apply gravity
 	if not is_on_floor():
 		velocity += get_gravity() * delta
+	
+	# Update bat throw cooldown
+	if _bat_throw_cooldown > 0:
+		_bat_throw_cooldown -= delta
+	else:
+		_bat_throw_cooldown = 0.0
+	
+	# Update UI cooldown display
+	if _ui and _ui.has_method("update_bat_cooldown"):
+		_ui.update_bat_cooldown(_bat_throw_cooldown)
 	
 	# Handle jump mechanics
 	_handle_jump_mechanics(delta)
@@ -402,13 +422,11 @@ func _handle_combat_input() -> void:
 
 func _handle_bat_throw_inputs(attack_pressed: bool, bat_throw_pressed: bool) -> void:
 	# Keyboard bat throw
-	if bat_throw_pressed and current_equipped_weapon == "bat" and has_bat and not is_dead and not is_attacking and not is_air_attacking and not _bat_thrown:
-		print("Keyboard bat throw triggered!")
+	if bat_throw_pressed and current_equipped_weapon == "bat" and has_bat and not is_dead and not is_attacking and not is_air_attacking and not _bat_thrown and _bat_throw_cooldown <= 0:
 		_start_bat_throw()
 	
 	# Shift + Click bat throw
-	if attack_pressed and Input.is_key_pressed(KEY_SHIFT) and current_equipped_weapon == "bat" and has_bat and not is_dead and not is_attacking and not is_air_attacking and not _bat_thrown:
-		print("Shift+Click bat throw triggered!")
+	if attack_pressed and Input.is_key_pressed(KEY_SHIFT) and current_equipped_weapon == "bat" and has_bat and not is_dead and not is_attacking and not is_air_attacking and not _bat_thrown and _bat_throw_cooldown <= 0:
 		_start_bat_throw()
 
 func _handle_normal_attacks(attack_pressed: bool, gun_attack_pressed: bool) -> void:
@@ -1455,11 +1473,16 @@ func _play_blood_splat_sound() -> void:
 
 # ——— BAT THROW ———
 func _start_bat_throw() -> void:
-	if _bat_thrown or not has_bat or current_equipped_weapon == "gun":
+	if _bat_thrown or not has_bat or current_equipped_weapon == "gun" or _bat_throw_cooldown > 0:
 		return
 	
 	_bat_thrown = true
 	is_attacking = true  # Prevent other attacks during throw
+	_bat_throw_cooldown = BAT_THROW_COOLDOWN_TIME  # Set cooldown
+	
+	# Trigger quick animation in UI
+	if _ui and _ui.has_method("update_bat_cooldown"):
+		_ui.update_bat_cooldown(_bat_throw_cooldown, true)
 	
 	# Hide the bat sprite
 	if bat_sprite:

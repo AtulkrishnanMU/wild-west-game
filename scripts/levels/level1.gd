@@ -30,7 +30,7 @@ func _ready() -> void:
 	reload_label = $UI/ReloadLabel
 	combo_text_label = $UI/ComboTextLabel
 	combo_total_label = $UI/ComboTotalLabel
-	combo_timer_bar = $UI/ComboTimerBar
+	combo_timer_bar = null  # ComboTimerBar removed from UI
 	ui_layer = $UI
 	
 	# Use common UI setup (now with player available)

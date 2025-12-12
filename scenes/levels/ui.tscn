@@ -1,7 +1,8 @@
-[gd_scene load_steps=6 format=3 uid="uid://vi8yy0g5xqwb"]
+[gd_scene load_steps=7 format=3 uid="uid://vi8yy0g5xqwb"]
 
 [ext_resource type="Shader" uid="uid://by14fga7fti8x" path="res://scenes/levels/vignette.gdshader" id="1_jsomr"]
 [ext_resource type="Script" uid="uid://xycvprjdjari" path="res://scripts/ui/weapon_menu.gd" id="2_weapon_menu"]
+[ext_resource type="Script" uid="uid://v2pdcxxkgae1" path="res://scripts/ui/circular_progress_bar.gd" id="3_circular_progress"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_s4fn1"]
 shader = ExtResource("1_jsomr")
@@ -11,16 +12,16 @@ shader_parameter/vignette_strength = 1.0
 shader_parameter/dither_strength = 0.03
 shader_parameter/vignette_color = Color(0, 0, 0, 1)
 
+[sub_resource type="LabelSettings" id="LabelSettings_jsomr"]
+outline_size = 4
+outline_color = Color(0, 0, 0, 1)
+
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_bkgnd"]
 bg_color = Color(0, 0, 0, 1)
 corner_radius_top_left = 3
 corner_radius_top_right = 3
 corner_radius_bottom_right = 3
 corner_radius_bottom_left = 3
-
-[sub_resource type="LabelSettings" id="LabelSettings_jsomr"]
-outline_size = 4
-outline_color = Color(0, 0, 0, 1)
 
 [node name="UI" type="CanvasLayer"]
 script = ExtResource("2_weapon_menu")
@@ -32,13 +33,6 @@ offset_top = -6.0
 offset_right = 1197.0
 offset_bottom = 673.0
 color = Color(0, 0, 0, 1)
-
-[node name="BulletBackground" type="Panel" parent="."]
-offset_left = 16.0
-offset_top = 590.0
-offset_right = 260.0
-offset_bottom = 651.0
-theme_override_styles/panel = SubResource("StyleBoxFlat_bkgnd")
 
 [node name="HealthBar" type="ProgressBar" parent="."]
 offset_left = 52.0
@@ -63,10 +57,10 @@ offset_right = 226.0
 offset_bottom = 619.0
 
 [node name="ReloadLabel" type="Label" parent="."]
-offset_left = 26.0
-offset_top = 624.0
-offset_right = 226.0
-offset_bottom = 647.0
+offset_left = 45.0
+offset_top = 569.0
+offset_right = 245.0
+offset_bottom = 592.0
 text = "RELOADS 0/5"
 
 [node name="HealthPercentLabel" type="Label" parent="."]
@@ -76,22 +70,30 @@ offset_right = 131.11108
 offset_bottom = 64.0
 text = "100%"
 
-[node name="ComboTimerBar" type="ProgressBar" parent="."]
-visible = false
-offset_left = 567.0001
-offset_top = 424.0
-offset_right = 716.9237
-offset_bottom = 435.24426
-scale = Vector2(0.43158525, 0.88934225)
-max_value = 3.0
-show_percentage = false
+[node name="BatCooldownBar" type="Control" parent="."]
+layout_mode = 3
+anchors_preset = 0
+offset_left = 50.0
+offset_top = 540.0
+offset_right = 130.0
+offset_bottom = 620.0
+script = ExtResource("3_circular_progress")
+radius = 30.0
+
+[node name="YeetLabel" type="Label" parent="."]
+offset_left = 56.0
+offset_top = 521.0
+offset_right = 126.0
+offset_bottom = 544.0
+text = "YEET"
+horizontal_alignment = 1
 
 [node name="ComboTextLabel" type="Label" parent="."]
 visible = false
-offset_left = 477.0
-offset_top = 443.0
+offset_left = 477.00003
+offset_top = 417.00003
 offset_right = 678.5226
-offset_bottom = 466.39536
+offset_bottom = 440.3954
 scale = Vector2(1.2107829, 1.2107829)
 text = "K I L L S"
 label_settings = SubResource("LabelSettings_jsomr")
@@ -100,9 +102,9 @@ horizontal_alignment = 1
 [node name="ComboTotalLabel" type="Label" parent="."]
 visible = false
 offset_left = 516.9999
-offset_top = 466.0
+offset_top = 440.00003
 offset_right = 718.5225
-offset_bottom = 489.0
+offset_bottom = 463.00003
 scale = Vector2(0.8, 0.8)
 text = "TOTAL: 0"
 label_settings = SubResource("LabelSettings_jsomr")

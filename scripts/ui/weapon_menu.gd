@@ -11,6 +11,14 @@ var bat_button: Button = null
 var gun_button: Button = null
 var close_button: Button = null
 
+# Bat cooldown UI
+var bat_cooldown_bar: Control = null
+var yeet_label: Label = null
+
+# Menu sounds
+var menu_hover_sound: AudioStream = null
+var menu_select_sound: AudioStream = null
+
 func _ready() -> void:
 	# Add to weapon_menu group so player can find this
 	add_to_group("weapon_menu")
@@ -20,6 +28,18 @@ func _ready() -> void:
 	bat_button = get_node_or_null("WeaponPanel/VBoxContainer/BatButton")
 	gun_button = get_node_or_null("WeaponPanel/VBoxContainer/GunButton")
 	close_button = get_node_or_null("WeaponPanel/VBoxContainer/CloseButton")
+	
+	# Get bat cooldown UI nodes
+	bat_cooldown_bar = get_node_or_null("BatCooldownBar")
+	yeet_label = get_node_or_null("YeetLabel")
+	
+	# Apply default font to YEET label
+	if yeet_label:
+		FontConfig.apply_ui_font(yeet_label)
+	
+	# Load menu sounds
+	menu_hover_sound = load("res://sounds/menu-hover.mp3")
+	menu_select_sound = load("res://sounds/menu-select.mp3")
 	
 	print("Weapon menu nodes found:")
 	print("  WeaponPanel: ", weapon_panel != null)
@@ -34,18 +54,21 @@ func _ready() -> void:
 	# Connect button signals safely
 	if bat_button:
 		bat_button.pressed.connect(_on_bat_selected)
+		bat_button.mouse_entered.connect(_play_hover_sound)
 		print("BatButton connected successfully")
 	else:
 		print("Warning: BatButton not found")
 		
 	if gun_button:
 		gun_button.pressed.connect(_on_gun_selected)
+		gun_button.mouse_entered.connect(_play_hover_sound)
 		print("GunButton connected successfully")
 	else:
 		print("Warning: GunButton not found")
 		
 	if close_button:
 		close_button.pressed.connect(_close_menu)
+		close_button.mouse_entered.connect(_play_hover_sound)
 		print("CloseButton connected successfully")
 	else:
 		print("Warning: CloseButton not found")
@@ -56,6 +79,8 @@ func set_player(p: Player) -> void:
 	if player:
 		if player.current_equipped_weapon:
 			current_weapon = player.current_equipped_weapon
+		# Update initial cooldown visibility
+		update_bat_cooldown(player._bat_throw_cooldown)
 	_update_weapon_buttons()
 
 func _update_weapon_buttons() -> void:
@@ -108,11 +133,30 @@ func _close_menu() -> void:
 	weapon_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	print("Weapon menu closed")
 
+func _play_hover_sound() -> void:
+	if menu_hover_sound:
+		var audio_player = AudioStreamPlayer.new()
+		audio_player.stream = menu_hover_sound
+		add_child(audio_player)
+		audio_player.play()
+		audio_player.finished.connect(audio_player.queue_free)
+
+func _play_select_sound() -> void:
+	if menu_select_sound:
+		var audio_player = AudioStreamPlayer.new()
+		audio_player.stream = menu_select_sound
+		add_child(audio_player)
+		audio_player.play()
+		audio_player.finished.connect(audio_player.queue_free)
+
 func _on_bat_selected() -> void:
 	print("Bat button clicked!")
 	if not player:
 		print("No player reference")
 		return
+	
+	# Play select sound
+	_play_select_sound()
 	
 	# Use player's weapon switching method
 	player.switch_to_weapon("bat")
@@ -121,6 +165,10 @@ func _on_bat_selected() -> void:
 	# Update UI
 	_update_weapon_buttons()
 	_close_menu()
+	
+	# Update cooldown visibility
+	if player:
+		update_bat_cooldown(player._bat_throw_cooldown)
 	
 	# Emit signal
 	weapon_changed.emit("bat")
@@ -132,6 +180,9 @@ func _on_gun_selected() -> void:
 		print("No player reference or player doesn't have gun")
 		return
 	
+	# Play select sound
+	_play_select_sound()
+	
 	# Use player's weapon switching method
 	player.switch_to_weapon("gun")
 	current_weapon = "gun"
@@ -139,6 +190,10 @@ func _on_gun_selected() -> void:
 	# Update UI
 	_update_weapon_buttons()
 	_close_menu()
+	
+	# Update cooldown visibility
+	if player:
+		update_bat_cooldown(player._bat_throw_cooldown)
 	
 	# Emit signal
 	weapon_changed.emit("gun")
@@ -149,6 +204,24 @@ func _gui_input(event: InputEvent) -> void:
 	if is_menu_open and event is InputEventMouseButton and event.pressed:
 		get_viewport().set_input_as_handled()
 		print("Mouse click blocked in GUI while menu is open")
+
+func update_bat_cooldown(cooldown_time: float, bat_thrown: bool = false) -> void:
+	if bat_cooldown_bar:
+		# Always visible when bat is equipped, invisible for other weapons
+		if player and current_weapon == "bat":
+			bat_cooldown_bar.visible = true
+			if yeet_label:
+				yeet_label.visible = true
+			if bat_thrown:
+				# Quick animation to 0 when bat is thrown
+				bat_cooldown_bar.quick_reset_to_zero()
+			else:
+				# Normal cooldown update
+				bat_cooldown_bar.set_progress_from_cooldown(cooldown_time, 10.0)
+		else:
+			bat_cooldown_bar.visible = false
+			if yeet_label:
+				yeet_label.visible = false
 
 func _unhandled_input(event: InputEvent) -> void:
 	# Block all attack inputs when menu is open
