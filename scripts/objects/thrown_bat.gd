@@ -17,7 +17,6 @@ const BAT_TRAVEL_DISTANCE = 300.0
 const SPIN_SPEED = 20.0  # Rotations per second
 
 @onready var sprite: Sprite2D = $Sprite2D
-@onready var collision_shape: CollisionShape2D = $CollisionShape2D
 
 var direction: Vector2 = Vector2.RIGHT
 var start_position: Vector2
@@ -35,20 +34,11 @@ var _prev_position: Vector2 = Vector2.ZERO
 var _ground_check_timer: float = 0.0
 var _wall_check_timer: float = 0.0
 const RAYCAST_CHECK_INTERVAL: float = 0.05  # Check every 50ms instead of every frame
-var _cached_ground_y: float = INF
-var _cached_wall_left: float = -INF
-var _cached_wall_right: float = INF
-var _ground_detected: bool = false
-var _walls_detected: bool = false
 
 
 # New state variables
 var can_return: bool = true  # Only return if no bounces occurred
-var is_dropping: bool = false
-var is_pickable: bool = false
 var is_returning: bool = false  # Track if bat is in auto-return mode
-var vertical_velocity: float = 0.0
-var drop_gravity: float = 200.0
 var return_timeout: float = 3.0  # 3 seconds timeout for clean return
 
 # Fallback auto-return variables
@@ -77,6 +67,9 @@ func _ready() -> void:
 	body_entered.connect(_on_body_entered)
 	area_entered.connect(_on_area_entered)
 	
+	# Add to projectiles group for chain detection
+	add_to_group("projectiles")
+	
 	# Set up spin sound
 	_setup_spin_sound()
 	_play_spin_sound()
@@ -85,26 +78,15 @@ func _physics_process(delta: float) -> void:
 	total_flight_time += delta
 	time_since_bounce += delta
 	
-	# DEBUG: Log state every 60 frames (1 second at 60fps)
-	if Engine.get_frames_drawn() % 60 == 0:
-		print("[BAT DEBUG] State: ", _get_current_state(), " | Pos: ", global_position, " | Bounces: ", bounce_count, " | Can Bounce: ", can_bounce)
-	
-	# DEBUG: Check for invalid/disappeared bat state
-	if _is_position_invalid():
-		# Position invalid - force cleanup
-		print("[BAT DEBUG] Invalid position detected - forcing cleanup")
-		queue_free()
-		return
-	
 	_update_spin_speed(delta)
 	_update_flight_speed()  # Update speed based on distance
 	
 	rotation_angle += SPIN_SPEED * current_spin_speed * 2 * PI * delta
 	sprite.rotation = rotation_angle
 	
-	if spin_sound_player and not spin_sound_player.playing and not is_dropping and not is_pickable:
+	if spin_sound_player and not spin_sound_player.playing and not is_returning:
 		spin_sound_player.play()
-	if spin_sound_player and not is_dropping and not is_pickable:
+	if spin_sound_player and not is_returning:
 		_update_sound_volume()
 	
 	_prev_position = global_position
@@ -117,33 +99,18 @@ func _physics_process(delta: float) -> void:
 		_handle_auto_return(delta)
 		return
 	
-	# STATE 1: DROPPING - After 3 bounces
-	if is_dropping:
-		_handle_dropping(delta)
-		return
-	
-	# STATE 2: PICKABLE - Wait for player pickup
-	if is_pickable:
-		_handle_pickable()
-		return
-	
-	# STATE 3: AUTO-RETURN TRIGGER - Only if no bounces occurred
-	if bounce_count == 0 and total_flight_time >= return_timeout:
+	# STATE 1: AUTO-RETURN TRIGGER - Always return after timeout
+	if total_flight_time >= return_timeout:
 		is_returning = true
 		_handle_auto_return(delta)
 		return
 	
-	# STATE 4: NORMAL FLIGHT - Movement with bouncing
 	# Check max distance before moving
 	var current_distance = global_position.distance_to(start_position)
 	if current_distance >= BAT_TRAVEL_DISTANCE:
-		# Max distance reached
-		if bounce_count == 0:
-			is_returning = true  # start returning immediately
-			# Starting return (no bounces)
-		else:
-			_enter_drop_state()
-			# Entering drop state (bounces occurred)
+		# Max distance reached - always return
+		is_returning = true
+		_handle_auto_return(delta)
 		return
 	
 	_move_and_bounce(delta)
@@ -306,17 +273,11 @@ func _update_spin_speed(delta: float) -> void:
 		target_spin_speed = 1.0
 	
 	# 2. MID-FLIGHT - Maintain fast spin with slight decay
-	elif not is_dropping and not is_pickable:
+	elif not is_returning:
 		# Maintain high spin with very slow decay due to air resistance
 		var air_resistance_factor = 0.98  # Very slight decay
 		current_spin_speed = current_spin_speed * air_resistance_factor
 		current_spin_speed = max(current_spin_speed, 0.8)  # Don't go below 80% in mid-flight
-	
-	# 3. DROPPING - Spin decays faster
-	elif is_dropping:
-		var drop_decay_factor = 0.9
-		current_spin_speed = current_spin_speed * drop_decay_factor
-		current_spin_speed = max(current_spin_speed, 0.3)  # Minimum 30% while dropping
 
 func _apply_bounce_spin_loss() -> void:
 	# Bounce impact reduces spin speed by 20-30%
@@ -345,7 +306,7 @@ func _update_flight_speed() -> void:
 
 # Shared movement + bounce detection
 func _move_and_bounce(delta: float):
-	# DEBUG: Validate inputs before movement
+	# Validate inputs before movement
 	if _is_position_invalid() or _is_direction_invalid():
 		# Invalid state detected in _move_and_bounce
 		_force_fallback_return()
@@ -353,16 +314,6 @@ func _move_and_bounce(delta: float):
 	
 	var move_vec = direction.normalized() * current_speed * delta
 	var intended_pos = global_position + move_vec
-	
-	# DEBUG: Log movement info only every 10 frames to reduce spam
-	if Engine.get_frames_drawn() % 10 == 0:
-		print("[BAT DEBUG] Pos: ", global_position, " | Intended: ", intended_pos)
-	
-	# DEBUG: Check if intended position is valid
-	if _is_position_invalid(intended_pos):
-		# Invalid intended position
-		_force_fallback_return()
-		return
 	
 	var space := get_world_2d().direct_space_state
 	var query := PhysicsRayQueryParameters2D.create(global_position, intended_pos)
@@ -373,50 +324,16 @@ func _move_and_bounce(delta: float):
 	
 	var ray_result := space.intersect_ray(query)
 	
-	# DEBUG: Log raycast info only when there's a miss
-	if not ray_result:
-		print("[BAT DEBUG] Raycast MISS from ", global_position, " to ", intended_pos)
-	
-	# DEBUG: Alternative raycast with different parameters to test (only on misses)
-	if not ray_result:
-		var alt_query := PhysicsRayQueryParameters2D.create(global_position, intended_pos)
-		alt_query.exclude = [self]
-		alt_query.collide_with_areas = true  # Include areas
-		alt_query.collide_with_bodies = true
-		alt_query.collision_mask = 0xFFFFFFFF
-		
-		var alt_result := space.intersect_ray(alt_query)
-		if alt_result:
-			print("[BAT DEBUG] ALT_RAYCAST HIT! (with areas) Collider: ", alt_result.collider)
-		
-		# DEBUG: Test with specific collision layers
-		var tilemap_query := PhysicsRayQueryParameters2D.create(global_position, intended_pos)
-		tilemap_query.exclude = [self]
-		tilemap_query.collide_with_areas = true
-		tilemap_query.collide_with_bodies = true
-		tilemap_query.collision_mask = 1  # Usually layer 1 for world/tilemaps
-		
-		var tilemap_result := space.intersect_ray(tilemap_query)
-		if tilemap_result:
-			print("[BAT DEBUG] TILEMAP_RAYCAST HIT! (layer 1) Collider: ", tilemap_result.collider)
-	
 	if ray_result:
-		print("[BAT DEBUG] Raycast HIT! Collider: ", ray_result.collider, " | Position: ", ray_result.position, " | Normal: ", ray_result.normal)
 		
 		if ray_result.collider and (ray_result.collider is TileMap or ray_result.collider.is_in_group("colliders")):
-			print("[BAT DEBUG] Hit collider! Type: ", ray_result.collider.get_class(), " | Name: ", ray_result.collider.name)
-			
 			if can_bounce:
-				# Bounce detected - creating sparks
 				var normal = ray_result.normal
 				if normal == Vector2.ZERO:
 					normal = Vector2.UP
-				
 				var incoming = move_vec.normalized()
 				var reflected = incoming.bounce(normal).normalized()
 				direction = reflected
-				
-				print("[BAT DEBUG] Bouncing! Normal: ", normal, " | New Direction: ", direction)
 				
 				global_position = ray_result.position + normal * 2.0
 				
@@ -426,15 +343,14 @@ func _move_and_bounce(delta: float):
 				bounce_count += 1
 				time_since_bounce = 0.0
 				
-				print("[BAT DEBUG] Bounce count: ", bounce_count)
-				
 				# First bounce disables return capability
 				if bounce_count == 1:
 					can_return = false
 				
-				# After 3 bounces, enter drop state
+				# After 3 bounces, always return
 				if bounce_count >= 3:
-					_enter_drop_state()
+					is_returning = true
+					_handle_auto_return(delta)
 					return
 				
 				_apply_bounce_spin_loss()
@@ -448,186 +364,21 @@ func _move_and_bounce(delta: float):
 				await get_tree().create_timer(bounce_cooldown).timeout
 				can_bounce = true
 			return
-	else:
-		# DEBUG: Try to find nearby colliders manually (only on raycast misses)
-		print("[BAT DEBUG] Checking for colliders...")
-		var all_colliders = get_tree().get_nodes_in_group("colliders")
-		if all_colliders.is_empty():
-			print("[BAT DEBUG] No colliders found in scene")
-		else:
-			print("[BAT DEBUG] Found ", all_colliders.size(), " colliders")
-			
-		for collider in all_colliders:
-			if collider and is_instance_valid(collider):
-				var collider_local_pos = collider.to_local(global_position)
-				print("[BAT DEBUG] ", collider.name, " | Bat Global: ", global_position, " -> Collider Local: ", collider_local_pos)
-				print("[BAT DEBUG]    Collider Transform - Pos: ", collider.position, " | Size: ", collider.get_size() if collider.has_method("get_size") else "Unknown")
-				
-				# Simple distance check to see if bat is near this collider
-				var distance = global_position.distance_to(collider.global_position)
-				print("[BAT DEBUG]    Distance to collider: ", distance)
 	
 	# No bounce → normal movement
 	global_position = intended_pos
 	
-	# DEBUG: Check if bat is going out of bounds
+	# Check if bat is going out of bounds
 	var screen_size = get_viewport().get_visible_rect().size
 	var camera_pos = get_viewport().get_camera_2d().global_position if get_viewport().get_camera_2d() else Vector2.ZERO
 	var screen_bounds = Rect2(camera_pos - screen_size/2, screen_size)
 	
 	if not screen_bounds.has_point(global_position):
 		# Bat left screen - trigger return logic
-		if not is_returning and not is_dropping and not is_pickable:
+		if not is_returning:
 			_force_fallback_return()
 
 # STATE HANDLERS
-
-func _enter_drop_state():
-	is_dropping = true
-	vertical_velocity = 0.0
-	_stop_spin_sound()  # Stop spinning audio when dropping
-	# Bat entering drop state after 3 bounces
-
-func _handle_dropping(delta: float):
-	# Apply gravity
-	vertical_velocity += drop_gravity * delta
-	global_position.y += vertical_velocity * delta
-
-	# Optimized ground and wall detection with caching
-	_update_ground_detection(delta)
-	_update_wall_detection(delta)
-	
-	# Apply horizontal positioning if walls detected
-	if _walls_detected:
-		# If too close to left wall, push right
-		if _cached_wall_left != -INF and global_position.x <= _cached_wall_left:
-			global_position.x = _cached_wall_left
-		
-		# If too close to right wall, push left
-		if _cached_wall_right != INF and global_position.x >= _cached_wall_right:
-			global_position.x = _cached_wall_right
-
-	# If ground detected, stop dropping
-	if _ground_detected and _cached_ground_y != INF:
-		# Only stop if bat is at or below the target position
-		if global_position.y >= _cached_ground_y:
-			global_position.y = _cached_ground_y
-			vertical_velocity = 0.0
-			is_pickable = true
-			is_dropping = false
-
-func _update_ground_detection(delta: float):
-	_ground_check_timer += delta
-	if _ground_check_timer < RAYCAST_CHECK_INTERVAL:
-		return  # Skip ground check this frame
-	
-	_ground_check_timer = 0.0
-	
-	var space := get_world_2d().direct_space_state
-	var ground_found := false
-	var closest_ground_y := INF
-	var float_height = 15.0
-	
-	# Restore original 5 points for better ground detection
-	var check_distances := [20.0, 35.0, 50.0, 75.0, 100.0]
-	for distance in check_distances:
-		var query := PhysicsRayQueryParameters2D.create(global_position, global_position + Vector2(0, distance))
-		query.exclude = [self]
-		query.collide_with_bodies = true
-		query.collision_mask = 0xFFFFFFFF
-		
-		var ground_result := space.intersect_ray(query)
-		if ground_result and ground_result.collider and (ground_result.collider is TileMap or ground_result.collider.is_in_group("colliders")):
-			ground_found = true
-			var target_y = ground_result.position.y - float_height
-			if target_y < closest_ground_y:
-				closest_ground_y = target_y
-	
-	# Update cached results
-	_ground_detected = ground_found
-	_cached_ground_y = closest_ground_y
-
-func _update_wall_detection(delta: float):
-	_wall_check_timer += delta
-	if _wall_check_timer < RAYCAST_CHECK_INTERVAL:
-		return  # Skip wall check this frame
-	
-	_wall_check_timer = 0.0
-	
-	var space := get_world_2d().direct_space_state
-	var wall_found := false
-	var closest_wall_x_left := -INF
-	var closest_wall_x_right := INF
-	var wall_float_distance := 20.0
-	
-	# Restore original 5 points per side for better wall detection
-	var check_distances := [20.0, 35.0, 50.0, 75.0, 100.0]
-	
-	# Check left side
-	for distance in check_distances:
-		var left_query := PhysicsRayQueryParameters2D.create(global_position, global_position + Vector2(-distance, 0))
-		left_query.exclude = [self]
-		left_query.collide_with_bodies = true
-		left_query.collision_mask = 0xFFFFFFFF
-		
-		var left_result := space.intersect_ray(left_query)
-		if left_result and left_result.collider and (left_result.collider is TileMap or left_result.collider.is_in_group("colliders")):
-			wall_found = true
-			var target_x = left_result.position.x + wall_float_distance
-			if target_x > closest_wall_x_left:
-				closest_wall_x_left = target_x
-	
-	# Check right side
-	for distance in check_distances:
-		var right_query := PhysicsRayQueryParameters2D.create(global_position, global_position + Vector2(distance, 0))
-		right_query.exclude = [self]
-		right_query.collide_with_bodies = true
-		right_query.collision_mask = 0xFFFFFFFF
-		
-		var right_result := space.intersect_ray(right_query)
-		if right_result and right_result.collider and (right_result.collider is TileMap or right_result.collider.is_in_group("colliders")):
-			wall_found = true
-			var target_x = right_result.position.x - wall_float_distance
-			if target_x < closest_wall_x_right:
-				closest_wall_x_right = target_x
-	
-	# Update cached results
-	_walls_detected = wall_found
-	_cached_wall_left = closest_wall_x_left
-	_cached_wall_right = closest_wall_x_right
-
-func _handle_pickable():
-	# EASE-IN-OUT ROTATION while attracting
-	if thrower and is_instance_valid(thrower):
-		var to_player: Vector2 = thrower.global_position - global_position
-		var dist := to_player.length()
-		var attraction_radius := 120.0
-		
-		if dist <= attraction_radius:
-			# Calculate rotation based on distance (ease-in-out effect)
-			var distance_ratio: float = 1.0 - (dist / attraction_radius)
-			# Ease-in-out curve: slow start, fast middle, slow end
-			var ease_factor: float = distance_ratio * distance_ratio * (3.0 - 2.0 * distance_ratio)
-			
-			# Target rotation speed based on attraction strength
-			var target_rotation_speed: float = ease_factor * 3.0  # Max 3.0 rotations/sec
-			current_spin_speed = lerp(current_spin_speed, target_rotation_speed, 0.1)
-			
-			# Attraction speed increases as player gets closer
-			var speed: float = lerp(4.0, 8.0, 1.0 - (dist / attraction_radius))
-			global_position = global_position.lerp(thrower.global_position, speed * 0.016)  # 60fps normalized
-		else:
-			# Normal rotation decay when not in attraction radius
-			current_spin_speed = lerp(current_spin_speed, 0.0, 0.05)
-	else:
-		# Fallback rotation decay if no thrower
-		current_spin_speed = lerp(current_spin_speed, 0.0, 0.05)
-	
-	# Check for player pickup
-	if thrower and is_instance_valid(thrower):
-		var distance_to_player = global_position.distance_to(thrower.global_position)
-		if distance_to_player < 40.0:
-			_pickup_bat()
 
 func _handle_auto_return(delta: float):
 	if not thrower or not is_instance_valid(thrower):
@@ -635,7 +386,7 @@ func _handle_auto_return(delta: float):
 		queue_free()
 		return
 
-	# DEBUG: Check for invalid states before return movement
+	# Check for invalid states before return movement
 	if _is_position_invalid():
 		# Invalid position during return, forcing cleanup
 		queue_free()
@@ -647,7 +398,7 @@ func _handle_auto_return(delta: float):
 		_pickup_bat()
 		return
 	
-	# DEBUG: Check for infinite distance
+	# Check for infinite distance
 	if is_inf(distance) or is_nan(distance):
 		# Infinite/NaN distance to player
 		queue_free()
@@ -670,8 +421,8 @@ func _pickup_bat():
 	queue_free()
 
 func _check_fallback_conditions():
-	# Skip if already in special states
-	if is_returning or is_dropping or is_pickable:
+	# Skip if already returning
+	if is_returning:
 		return
 	
 	# CONDITION 1: Total timeout exceeded
@@ -724,10 +475,6 @@ func _return_to_player():
 func _get_current_state() -> String:
 	if is_returning:
 		return "RETURNING"
-	elif is_dropping:
-		return "DROPPING"
-	elif is_pickable:
-		return "PICKABLE"
 	else:
 		return "FLYING"
 

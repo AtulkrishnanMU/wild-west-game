@@ -239,13 +239,9 @@ func _check_collision_with_body(body):
 	if not body:
 		return
 	
-	# Skip collision detection during cooldown ONLY for characters (player/enemies) and dropped bats
-	var is_dropped_bat = false
-	if body.get_script() and body.get_script().get_global_name() == "ThrownBat":
-		# Check if bat is dropped/pickable (not thrown)
-		is_dropped_bat = body.get("is_pickable") or body.get("is_dropping")
-	
-	if collision_cooldown > 0 and ((body is CharacterBody2D or body.is_in_group("enemies")) or is_dropped_bat):
+	# Skip collision detection during cooldown ONLY for characters (player/enemies)
+	# Thrown bats and bullets should always collide with chain
+	if collision_cooldown > 0 and (body is CharacterBody2D or body.is_in_group("enemies")):
 		return
 		
 	var body_pos = body.global_position
@@ -276,7 +272,7 @@ func _check_collision_with_body(body):
 			AudioUtils.play_positioned_sound(CHAIN_SOUND, global_position, 0.8, 1.2)
 			
 			# Allow chain to settle after a short time
-			_settle_chain_timer(is_character or is_dropped_bat)
+			_settle_chain_timer(is_character)
 			break
 
 func _get_collision_force(colliding_body):
@@ -289,7 +285,7 @@ func _get_collision_force(colliding_body):
 	
 	# Check if it's a bullet (Area2D with bullet name or script)
 	elif "bullet" in colliding_body.name.to_lower() or colliding_body.name == "bullet":
-		force = 300.0  # Medium-high force for bullets
+		force = 400.0  # Same force as thrown bat for consistent chain swing
 	
 	# Check if it's an enemy
 	elif colliding_body.is_in_group("enemies"):

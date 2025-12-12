@@ -17,6 +17,9 @@ func _ready() -> void:
 	area_entered.connect(_on_area_entered)
 	body_entered.connect(_on_body_entered)
 	
+	# Add to projectiles group for chain detection
+	add_to_group("projectiles")
+	
 	# Cache spark texture
 	
 	# Ensure bullet can hit both alive and dead enemies by adding their layers
