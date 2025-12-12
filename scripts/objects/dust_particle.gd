@@ -32,7 +32,7 @@ func _setup_particle_appearance() -> void:
 
 func _should_collide_with(body: Node) -> bool:
 	# Dust only collides with basic surfaces
-	return body is TileMap or body.is_in_group("walls") or body.is_in_group("ground")
+	return body is TileMap or body.is_in_group("walls") or body.is_in_group("ground") or body.is_in_group("colliders")
 
 func _on_collision(body: Node) -> void:
 	# Dust just disappears - no decal

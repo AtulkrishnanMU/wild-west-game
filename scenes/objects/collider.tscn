@@ -1,0 +1,21 @@
+[gd_scene load_steps=3 format=3 uid="uid://bpp56g7uetkk8"]
+
+[ext_resource type="Script" uid="uid://vv2xo2pgbhv1" path="res://scripts/objects/collider.gd" id="1_0abc123"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_abc123"]
+size = Vector2(100, 100)
+
+[node name="Collider" type="StaticBody2D" groups=["colliders"]]
+scale = Vector2(3.9184992, 3.9184992)
+script = ExtResource("1_0abc123")
+
+[node name="ColorRect" type="ColorRect" parent="."]
+offset_left = -50.0
+offset_top = -50.0
+offset_right = 50.0
+offset_bottom = 50.0
+color = Color(0, 0, 0, 1)
+metadata/_edit_use_anchors_ = true
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("RectangleShape2D_abc123")

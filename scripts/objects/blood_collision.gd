@@ -9,7 +9,7 @@ func _ready() -> void:
 
 func _on_body_entered(body: Node) -> void:
 	# When blood particles hit a solid body (walls, ground), create a blood decal
-	if body.is_in_group("walls") or body.is_in_group("ground") or body is TileMap:
+	if body.is_in_group("walls") or body.is_in_group("ground") or body.is_in_group("colliders") or body is TileMap:
 		_create_blood_at_collision()
 
 func _on_area_entered(area: Area2D) -> void:

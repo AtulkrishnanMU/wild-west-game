@@ -3,14 +3,13 @@ extends Area2D
 
 const CharacterUtils = preload("res://scripts/utils/character_utils.gd")
 const AudioUtils = preload("res://scripts/utils/audio_utils.gd")
+const MetalSparkUtils = preload("res://scripts/utils/metal_spark_utils.gd")
 const SPIN_SOUND_PATH := "res://sounds/spin.mp3"
 const METAL_BOUNCE_SOUND_PATH := "res://sounds/metal.mp3"
-const SPARK_SOUND_PATH := "res://sounds/spark.mp3"
 
 # Performance optimization: preload audio
 const SPIN_SOUND := preload("res://sounds/spin.mp3")
 const METAL_BOUNCE_SOUND := preload("res://sounds/metal.mp3")
-const SPARK_SOUND := preload("res://sounds/spark.mp3")
 
 const BAT_SPEED = 600.0
 const BAT_RETURN_SPEED = 800.0
@@ -42,9 +41,6 @@ var _cached_wall_right: float = INF
 var _ground_detected: bool = false
 var _walls_detected: bool = false
 
-# Performance optimization: audio pooling
-var _spark_audio_pool: Array[AudioStreamPlayer2D] = []
-const MAX_AUDIO_POOL_SIZE: int = 3
 
 # New state variables
 var can_return: bool = true  # Only return if no bounces occurred
@@ -81,9 +77,6 @@ func _ready() -> void:
 	body_entered.connect(_on_body_entered)
 	area_entered.connect(_on_area_entered)
 	
-	# Initialize audio pool for spark sounds
-	_setup_audio_pool()
-	
 	# Set up spin sound
 	_setup_spin_sound()
 	_play_spin_sound()
@@ -92,9 +85,14 @@ func _physics_process(delta: float) -> void:
 	total_flight_time += delta
 	time_since_bounce += delta
 	
+	# DEBUG: Log state every 60 frames (1 second at 60fps)
+	if Engine.get_frames_drawn() % 60 == 0:
+		print("[BAT DEBUG] State: ", _get_current_state(), " | Pos: ", global_position, " | Bounces: ", bounce_count, " | Can Bounce: ", can_bounce)
+	
 	# DEBUG: Check for invalid/disappeared bat state
 	if _is_position_invalid():
 		# Position invalid - force cleanup
+		print("[BAT DEBUG] Invalid position detected - forcing cleanup")
 		queue_free()
 		return
 	
@@ -241,12 +239,6 @@ func _create_impact_effect(pos: Vector2) -> void:
 			else:
 				scene.add_child(blood)
 
-func _setup_audio_pool():
-	for i in range(MAX_AUDIO_POOL_SIZE):
-		var audio_player = AudioStreamPlayer2D.new()
-		audio_player.stream = SPARK_SOUND
-		add_child(audio_player)
-		_spark_audio_pool.append(audio_player)
 
 func _setup_spin_sound():
 	spin_sound_player = AudioStreamPlayer2D.new()
@@ -262,109 +254,12 @@ func _stop_spin_sound() -> void:
 	if spin_sound_player:
 		spin_sound_player.stop()
 
-func _create_spark_node() -> Node2D:
-	var spark_root := Node2D.new()
-	
-	var spark_count = 8
-	for i in range(spark_count):
-		var spark := Sprite2D.new()
-		spark.texture = _create_spark_texture()
-		
-		var angle = randf_range(0, 2 * PI)
-		var distance = randf_range(5, 15)
-		spark.position = Vector2(cos(angle), sin(angle)) * distance
-		
-		var velocity_angle = angle + randf_range(-PI/4, PI/4)
-		var velocity = randf_range(100, 200)
-		
-		spark.scale = Vector2(randf_range(0.2, 0.4), randf_range(0.2, 0.4))
-		spark.rotation = randf_range(0, 2 * PI)
-		
-		spark_root.add_child(spark)
-		
-		var tween := spark.create_tween()
-		tween.set_parallel(true)
-		
-		var duration = 0.8
-		var end_pos = spark.position + Vector2(cos(velocity_angle), sin(velocity_angle)) * velocity * duration
-		end_pos.y += 80
-		
-		tween.tween_property(spark, "position", end_pos, duration)
-		tween.tween_property(spark, "modulate:a", 0.0, duration)
-		tween.tween_property(spark, "scale", Vector2.ZERO, duration)
-	
-	var cleanup := spark_root.create_tween()
-	cleanup.tween_callback(spark_root.queue_free).set_delay(1.0)
-	
-	return spark_root
-
-func _create_spark_texture() -> ImageTexture:
-	# Create a larger 16x16 spark texture for maximum visibility
-	var image := Image.create(16, 16, false, Image.FORMAT_RGBA8)  # Use RGBA for transparency
-	image.fill(Color.TRANSPARENT)  # Transparent background
-	
-	# Create a very bright spark pattern
-	for x in range(16):
-		for y in range(16):
-			var dist = Vector2(x - 8, y - 8).length()
-			if dist <= 6:  # Within larger radius
-				if dist <= 2:
-					image.set_pixel(x, y, Color.WHITE)  # Bright white center
-				elif dist <= 4:
-					image.set_pixel(x, y, Color.YELLOW)  # Yellow middle
-				else:
-					image.set_pixel(x, y, Color.ORANGE)  # Orange edge
-	
-	var texture := ImageTexture.new()
-	texture.set_image(image)
-	return texture
-
-func _play_spark_sound_segment(spark_sound: AudioStream, position: Vector2, duration: float) -> void:
-	# Use audio pool to avoid creating new instances
-	var audio_player = _get_pooled_audio_player()
-	if not audio_player:
-		return  # Pool exhausted, skip sound
-	
-	audio_player.position = position
-	
-	# Set random pitch
-	audio_player.pitch_scale = randf_range(0.7, 1.3)
-	
-	# Calculate random start time within the audio file
-	var audio_length = spark_sound.get_length() if spark_sound.has_method("get_length") else 5.0  # Fallback to 5s
-	var max_start_time = max(0.0, audio_length - duration)
-	var random_start = randf_range(0.0, max_start_time)
-	
-	# Set playback to start at random position
-	audio_player.play(random_start)
-
-func _get_pooled_audio_player() -> AudioStreamPlayer2D:
-	# Find an available audio player from the pool
-	for audio_player in _spark_audio_pool:
-		if not audio_player.playing:
-			return audio_player
-	
-	# If all are playing, return the first one (overwrite)
-	if _spark_audio_pool.size() > 0:
-		return _spark_audio_pool[0]
-	
-	return null
 
 func _play_metal_bounce_sound() -> void:
 	AudioUtils.play_positioned_sound(METAL_BOUNCE_SOUND, global_position, 0.8, 1.2)
 
 func _create_metal_sparks(pos: Vector2, normal: Vector2) -> void:
-	# Creating metal sparks
-	
-	# Play spark sound with random segment (using preloaded sound)
-	_play_spark_sound_segment(SPARK_SOUND, pos, 0.8)  # 0.8s duration for bat sparks
-	
-	var sparks = _create_spark_node()
-	get_tree().current_scene.add_child(sparks)
-	sparks.global_position = pos
-	sparks.rotation = normal.angle()
-	
-	# Sparks created and positioned
+	MetalSparkUtils.create_metal_sparks(pos, normal, "bat")
 
 func _update_sound_volume() -> void:
 	if not spin_sound_player or not thrower or not is_instance_valid(thrower):
@@ -459,6 +354,10 @@ func _move_and_bounce(delta: float):
 	var move_vec = direction.normalized() * current_speed * delta
 	var intended_pos = global_position + move_vec
 	
+	# DEBUG: Log movement info only every 10 frames to reduce spam
+	if Engine.get_frames_drawn() % 10 == 0:
+		print("[BAT DEBUG] Pos: ", global_position, " | Intended: ", intended_pos)
+	
 	# DEBUG: Check if intended position is valid
 	if _is_position_invalid(intended_pos):
 		# Invalid intended position
@@ -474,45 +373,99 @@ func _move_and_bounce(delta: float):
 	
 	var ray_result := space.intersect_ray(query)
 	
-	if ray_result and ray_result.collider and ray_result.collider is TileMap:
-		if can_bounce:
-			# Bounce detected - creating sparks
-			var normal = ray_result.normal
-			if normal == Vector2.ZERO:
-				normal = Vector2.UP
+	# DEBUG: Log raycast info only when there's a miss
+	if not ray_result:
+		print("[BAT DEBUG] Raycast MISS from ", global_position, " to ", intended_pos)
+	
+	# DEBUG: Alternative raycast with different parameters to test (only on misses)
+	if not ray_result:
+		var alt_query := PhysicsRayQueryParameters2D.create(global_position, intended_pos)
+		alt_query.exclude = [self]
+		alt_query.collide_with_areas = true  # Include areas
+		alt_query.collide_with_bodies = true
+		alt_query.collision_mask = 0xFFFFFFFF
+		
+		var alt_result := space.intersect_ray(alt_query)
+		if alt_result:
+			print("[BAT DEBUG] ALT_RAYCAST HIT! (with areas) Collider: ", alt_result.collider)
+		
+		# DEBUG: Test with specific collision layers
+		var tilemap_query := PhysicsRayQueryParameters2D.create(global_position, intended_pos)
+		tilemap_query.exclude = [self]
+		tilemap_query.collide_with_areas = true
+		tilemap_query.collide_with_bodies = true
+		tilemap_query.collision_mask = 1  # Usually layer 1 for world/tilemaps
+		
+		var tilemap_result := space.intersect_ray(tilemap_query)
+		if tilemap_result:
+			print("[BAT DEBUG] TILEMAP_RAYCAST HIT! (layer 1) Collider: ", tilemap_result.collider)
+	
+	if ray_result:
+		print("[BAT DEBUG] Raycast HIT! Collider: ", ray_result.collider, " | Position: ", ray_result.position, " | Normal: ", ray_result.normal)
+		
+		if ray_result.collider and (ray_result.collider is TileMap or ray_result.collider.is_in_group("colliders")):
+			print("[BAT DEBUG] Hit collider! Type: ", ray_result.collider.get_class(), " | Name: ", ray_result.collider.name)
 			
-			var incoming = move_vec.normalized()
-			var reflected = incoming.bounce(normal).normalized()
-			direction = reflected
+			if can_bounce:
+				# Bounce detected - creating sparks
+				var normal = ray_result.normal
+				if normal == Vector2.ZERO:
+					normal = Vector2.UP
+				
+				var incoming = move_vec.normalized()
+				var reflected = incoming.bounce(normal).normalized()
+				direction = reflected
+				
+				print("[BAT DEBUG] Bouncing! Normal: ", normal, " | New Direction: ", direction)
+				
+				global_position = ray_result.position + normal * 2.0
+				
+				# Create metal sparks at collision point
+				_create_metal_sparks(ray_result.position, normal)
+				
+				bounce_count += 1
+				time_since_bounce = 0.0
+				
+				print("[BAT DEBUG] Bounce count: ", bounce_count)
+				
+				# First bounce disables return capability
+				if bounce_count == 1:
+					can_return = false
+				
+				# After 3 bounces, enter drop state
+				if bounce_count >= 3:
+					_enter_drop_state()
+					return
+				
+				_apply_bounce_spin_loss()
+				
+				# Play metal bounce sound with random pitch
+				var metal_sound = load(METAL_BOUNCE_SOUND_PATH)
+				if metal_sound:
+					AudioUtils.play_positioned_sound(metal_sound, global_position, 0.8, 1.2)
+				
+				can_bounce = false
+				await get_tree().create_timer(bounce_cooldown).timeout
+				can_bounce = true
+			return
+	else:
+		# DEBUG: Try to find nearby colliders manually (only on raycast misses)
+		print("[BAT DEBUG] Checking for colliders...")
+		var all_colliders = get_tree().get_nodes_in_group("colliders")
+		if all_colliders.is_empty():
+			print("[BAT DEBUG] No colliders found in scene")
+		else:
+			print("[BAT DEBUG] Found ", all_colliders.size(), " colliders")
 			
-			global_position = ray_result.position + normal * 2.0
-			
-			# Create metal sparks at collision point
-			_create_metal_sparks(ray_result.position, normal)
-			
-			bounce_count += 1
-			time_since_bounce = 0.0
-			
-			# First bounce disables return capability
-			if bounce_count == 1:
-				can_return = false
-			
-			# After 3 bounces, enter drop state
-			if bounce_count >= 3:
-				_enter_drop_state()
-				return
-			
-			_apply_bounce_spin_loss()
-			
-			# Play metal bounce sound with random pitch
-			var metal_sound = load(METAL_BOUNCE_SOUND_PATH)
-			if metal_sound:
-				AudioUtils.play_positioned_sound(metal_sound, global_position, 0.8, 1.2)
-			
-			can_bounce = false
-			await get_tree().create_timer(bounce_cooldown).timeout
-			can_bounce = true
-		return
+		for collider in all_colliders:
+			if collider and is_instance_valid(collider):
+				var collider_local_pos = collider.to_local(global_position)
+				print("[BAT DEBUG] ", collider.name, " | Bat Global: ", global_position, " -> Collider Local: ", collider_local_pos)
+				print("[BAT DEBUG]    Collider Transform - Pos: ", collider.position, " | Size: ", collider.get_size() if collider.has_method("get_size") else "Unknown")
+				
+				# Simple distance check to see if bat is near this collider
+				var distance = global_position.distance_to(collider.global_position)
+				print("[BAT DEBUG]    Distance to collider: ", distance)
 	
 	# No bounce → normal movement
 	global_position = intended_pos
@@ -580,12 +533,11 @@ func _update_ground_detection(delta: float):
 	for distance in check_distances:
 		var query := PhysicsRayQueryParameters2D.create(global_position, global_position + Vector2(0, distance))
 		query.exclude = [self]
-		query.collide_with_areas = false
 		query.collide_with_bodies = true
 		query.collision_mask = 0xFFFFFFFF
 		
 		var ground_result := space.intersect_ray(query)
-		if ground_result and ground_result.collider and ground_result.collider is TileMap:
+		if ground_result and ground_result.collider and (ground_result.collider is TileMap or ground_result.collider.is_in_group("colliders")):
 			ground_found = true
 			var target_y = ground_result.position.y - float_height
 			if target_y < closest_ground_y:
@@ -615,12 +567,11 @@ func _update_wall_detection(delta: float):
 	for distance in check_distances:
 		var left_query := PhysicsRayQueryParameters2D.create(global_position, global_position + Vector2(-distance, 0))
 		left_query.exclude = [self]
-		left_query.collide_with_areas = false
 		left_query.collide_with_bodies = true
 		left_query.collision_mask = 0xFFFFFFFF
 		
 		var left_result := space.intersect_ray(left_query)
-		if left_result and left_result.collider and left_result.collider is TileMap:
+		if left_result and left_result.collider and (left_result.collider is TileMap or left_result.collider.is_in_group("colliders")):
 			wall_found = true
 			var target_x = left_result.position.x + wall_float_distance
 			if target_x > closest_wall_x_left:
@@ -630,12 +581,11 @@ func _update_wall_detection(delta: float):
 	for distance in check_distances:
 		var right_query := PhysicsRayQueryParameters2D.create(global_position, global_position + Vector2(distance, 0))
 		right_query.exclude = [self]
-		right_query.collide_with_areas = false
 		right_query.collide_with_bodies = true
 		right_query.collision_mask = 0xFFFFFFFF
 		
 		var right_result := space.intersect_ray(right_query)
-		if right_result and right_result.collider and right_result.collider is TileMap:
+		if right_result and right_result.collider and (right_result.collider is TileMap or right_result.collider.is_in_group("colliders")):
 			wall_found = true
 			var target_x = right_result.position.x - wall_float_distance
 			if target_x < closest_wall_x_right:

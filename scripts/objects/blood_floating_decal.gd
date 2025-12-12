@@ -93,7 +93,7 @@ func _should_collide_with(body: Node) -> bool:
 	# Floating blood decals only collide if they haven't stuck in air yet
 	if has_stuck_in_air:
 		return false
-	return body is TileMap or body.is_in_group("walls") or body.is_in_group("ground") or body.is_in_group("enemies") or body.is_in_group("player")
+	return body is TileMap or body.is_in_group("walls") or body.is_in_group("ground") or body.is_in_group("colliders") or body.is_in_group("enemies") or body.is_in_group("player")
 
 func _on_collision(body: Node) -> void:
 	# Floating decals don't create additional decals on collision

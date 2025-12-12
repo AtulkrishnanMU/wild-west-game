@@ -1,6 +1,5 @@
 extends Node2D
 
-const MetalSparkUtils = preload("res://scripts/utils/metal_spark_utils.gd")
 const AudioUtils = preload("res://scripts/utils/audio_utils.gd")
 const CHAIN_SOUND_PATH := "res://sounds/chain.mp3"
 const CHAIN_SOUND := preload("res://sounds/chain.mp3")  # Preloaded for performance
@@ -232,12 +231,6 @@ func _check_player_bat_collision(player: CharacterBody2D):
 			# Play chain swing sound
 			AudioUtils.play_positioned_sound(CHAIN_SOUND, global_position, 0.8, 1.2)
 			
-			# Create metal sparks at collision point
-			var collision_normal = (segment_pos - bat_pos).normalized()
-			if collision_normal == Vector2.ZERO:
-				collision_normal = Vector2.UP
-			MetalSparkUtils.create_metal_sparks(segment_pos, collision_normal, 3, 0.4, 0.3)
-			
 			# Apply cooldown for player bat attacks so chain can settle
 			_settle_chain_timer(true)
 			break
@@ -281,14 +274,6 @@ func _check_collision_with_body(body):
 			
 			# Play chain swing sound with random pitch (using preloaded audio)
 			AudioUtils.play_positioned_sound(CHAIN_SOUND, global_position, 0.8, 1.2)
-			
-			# Create metal sparks at collision point for bat and bullet impacts
-			if body.get_script() and body.get_script().get_global_name() == "ThrownBat" or "bullet" in body.name.to_lower():
-				var collision_normal = (segment_pos - body_pos).normalized()
-				if collision_normal == Vector2.ZERO:
-					collision_normal = Vector2.UP
-				# Reduced spark count for chain (3 sparks instead of 6-8)
-				MetalSparkUtils.create_metal_sparks(segment_pos, collision_normal, 3, 0.4, 0.3)
 			
 			# Allow chain to settle after a short time
 			_settle_chain_timer(is_character or is_dropped_bat)

@@ -1524,8 +1524,8 @@ func _get_wall_direction() -> float:
 		var collision = get_slide_collision(i)
 		var collider = collision.get_collider()
 		
-		# Check if collision is with a wall (vertical surface)
-		if collider and (collider.is_in_group("walls") or collider is TileMap):
+		# Check if collision is with a wall (vertical surface) - now supports both TileMap and colliders
+		if collider and (collider.is_in_group("walls") or collider.is_in_group("colliders") or collider is TileMap):
 			var normal = collision.get_normal()
 			# Check if this is a vertical wall (normal.x is significant)
 			if abs(normal.x) > 0.5:  # Mostly horizontal normal means vertical wall

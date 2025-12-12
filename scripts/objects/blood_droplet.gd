@@ -36,14 +36,14 @@ func _setup_particle_appearance() -> void:
 
 func _should_collide_with(body: Node) -> bool:
 	# Blood collides with more surfaces including characters
-	return body is TileMap or body.is_in_group("walls") or body.is_in_group("ground") or body.is_in_group("enemies") or body.is_in_group("player")
+	return body is TileMap or body.is_in_group("walls") or body.is_in_group("ground") or body.is_in_group("colliders") or body.is_in_group("enemies") or body.is_in_group("player")
 
 func _on_collision(body: Node) -> void:
 	# Create blood decal on collision
 	_create_blood_decal()
 	
 	# Start disappearance timer after hitting floor
-	if body is TileMap or body.is_in_group("ground"):
+	if body is TileMap or body.is_in_group("ground") or body.is_in_group("colliders"):
 		# Set a short timer to disappear after 0.5 seconds
 		var timer = get_tree().create_timer(0.5)
 		timer.timeout.connect(queue_free)
