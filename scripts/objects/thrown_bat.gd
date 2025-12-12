@@ -7,6 +7,11 @@ const SPIN_SOUND_PATH := "res://sounds/spin.mp3"
 const METAL_BOUNCE_SOUND_PATH := "res://sounds/metal.mp3"
 const SPARK_SOUND_PATH := "res://sounds/spark.mp3"
 
+# Performance optimization: preload audio
+const SPIN_SOUND := preload("res://sounds/spin.mp3")
+const METAL_BOUNCE_SOUND := preload("res://sounds/metal.mp3")
+const SPARK_SOUND := preload("res://sounds/spark.mp3")
+
 const BAT_SPEED = 600.0
 const BAT_RETURN_SPEED = 800.0
 const BAT_TRAVEL_DISTANCE = 300.0
@@ -26,6 +31,20 @@ var max_bounces: int = 3  # After 3 bounces, bat drops
 var can_bounce: bool = true
 var bounce_cooldown: float = 0.2
 var _prev_position: Vector2 = Vector2.ZERO
+
+# Performance optimization: raycast caching
+var _ground_check_timer: float = 0.0
+var _wall_check_timer: float = 0.0
+const RAYCAST_CHECK_INTERVAL: float = 0.05  # Check every 50ms instead of every frame
+var _cached_ground_y: float = INF
+var _cached_wall_left: float = -INF
+var _cached_wall_right: float = INF
+var _ground_detected: bool = false
+var _walls_detected: bool = false
+
+# Performance optimization: audio pooling
+var _spark_audio_pool: Array[AudioStreamPlayer2D] = []
+const MAX_AUDIO_POOL_SIZE: int = 3
 
 # New state variables
 var can_return: bool = true  # Only return if no bounces occurred
@@ -62,6 +81,9 @@ func _ready() -> void:
 	body_entered.connect(_on_body_entered)
 	area_entered.connect(_on_area_entered)
 	
+	# Initialize audio pool for spark sounds
+	_setup_audio_pool()
+	
 	# Set up spin sound
 	_setup_spin_sound()
 	_play_spin_sound()
@@ -72,14 +94,9 @@ func _physics_process(delta: float) -> void:
 	
 	# DEBUG: Check for invalid/disappeared bat state
 	if _is_position_invalid():
-		print("[DISAPPEARANCE_DEBUG] BAT POSITION INVALID! Pos: ", global_position, " | Dir: ", direction, " | Speed: ", current_speed)
-		print("[DISAPPEARANCE_DEBUG] NaN/Inf detected - forcing cleanup")
+		# Position invalid - force cleanup
 		queue_free()
 		return
-	
-	# DEBUG: Log frame-by-frame state
-	if total_flight_time < 5.0:  # Log for first 5 seconds to avoid spam
-		print("[DEBUG] Frame: ", total_flight_time, " | Pos: ", global_position, " | Dir: ", direction, " | Speed: ", current_speed, " | State: ", _get_current_state())
 	
 	_update_spin_speed(delta)
 	_update_flight_speed()  # Update speed based on distance
@@ -122,14 +139,13 @@ func _physics_process(delta: float) -> void:
 	# Check max distance before moving
 	var current_distance = global_position.distance_to(start_position)
 	if current_distance >= BAT_TRAVEL_DISTANCE:
-		print("[DISTANCE_CHECK] Max distance reached: ", current_distance, "/", BAT_TRAVEL_DISTANCE)
-		print("[DISTANCE_CHECK] Bounces: ", bounce_count, " | Can return: ", can_return)
+		# Max distance reached
 		if bounce_count == 0:
 			is_returning = true  # start returning immediately
-			print("[DISTANCE_CHECK] Starting return (no bounces)")
+			# Starting return (no bounces)
 		else:
 			_enter_drop_state()
-			print("[DISTANCE_CHECK] Entering drop state (bounces occurred)")
+			# Entering drop state (bounces occurred)
 		return
 	
 	_move_and_bounce(delta)
@@ -225,13 +241,18 @@ func _create_impact_effect(pos: Vector2) -> void:
 			else:
 				scene.add_child(blood)
 
-func _setup_spin_sound() -> void:
-	var spin_sound = load(SPIN_SOUND_PATH)
-	if spin_sound:
-		spin_sound_player = AudioStreamPlayer2D.new()
-		spin_sound_player.stream = spin_sound
-		spin_sound_player.pitch_scale = 1.2  # Slightly higher pitch for spinning effect
-		add_child(spin_sound_player)
+func _setup_audio_pool():
+	for i in range(MAX_AUDIO_POOL_SIZE):
+		var audio_player = AudioStreamPlayer2D.new()
+		audio_player.stream = SPARK_SOUND
+		add_child(audio_player)
+		_spark_audio_pool.append(audio_player)
+
+func _setup_spin_sound():
+	spin_sound_player = AudioStreamPlayer2D.new()
+	spin_sound_player.stream = SPIN_SOUND  # Use preloaded sound
+	spin_sound_player.pitch_scale = 1.2  # Slightly higher pitch for spinning effect
+	add_child(spin_sound_player)
 
 func _play_spin_sound() -> void:
 	if spin_sound_player:
@@ -299,52 +320,51 @@ func _create_spark_texture() -> ImageTexture:
 	return texture
 
 func _play_spark_sound_segment(spark_sound: AudioStream, position: Vector2, duration: float) -> void:
-	var audio := AudioStreamPlayer2D.new()
-	audio.stream = spark_sound
-	audio.position = position
+	# Use audio pool to avoid creating new instances
+	var audio_player = _get_pooled_audio_player()
+	if not audio_player:
+		return  # Pool exhausted, skip sound
+	
+	audio_player.position = position
 	
 	# Set random pitch
-	audio.pitch_scale = randf_range(0.7, 1.3)
+	audio_player.pitch_scale = randf_range(0.7, 1.3)
 	
 	# Calculate random start time within the audio file
 	var audio_length = spark_sound.get_length() if spark_sound.has_method("get_length") else 5.0  # Fallback to 5s
 	var max_start_time = max(0.0, audio_length - duration)
 	var random_start = randf_range(0.0, max_start_time)
 	
-	# Add to scene FIRST, then play
-	get_tree().current_scene.add_child(audio)
-	
 	# Set playback to start at random position
-	audio.play(random_start)
+	audio_player.play(random_start)
+
+func _get_pooled_audio_player() -> AudioStreamPlayer2D:
+	# Find an available audio player from the pool
+	for audio_player in _spark_audio_pool:
+		if not audio_player.playing:
+			return audio_player
 	
-	# Create timer to stop audio after duration and cleanup
-	var timer := Timer.new()
-	timer.wait_time = duration
-	timer.one_shot = true
-	timer.timeout.connect(func(): 
-		if audio and is_instance_valid(audio):
-			audio.stop()
-			audio.queue_free()
-		if timer and is_instance_valid(timer):
-			timer.queue_free()
-	)
-	get_tree().current_scene.add_child(timer)
-	timer.start()
+	# If all are playing, return the first one (overwrite)
+	if _spark_audio_pool.size() > 0:
+		return _spark_audio_pool[0]
+	
+	return null
+
+func _play_metal_bounce_sound() -> void:
+	AudioUtils.play_positioned_sound(METAL_BOUNCE_SOUND, global_position, 0.8, 1.2)
 
 func _create_metal_sparks(pos: Vector2, normal: Vector2) -> void:
-	print("Creating metal sparks at: ", pos, " with normal: ", normal)
+	# Creating metal sparks
 	
-	# Play spark sound with random segment
-	var spark_sound = load(SPARK_SOUND_PATH)
-	if spark_sound:
-		_play_spark_sound_segment(spark_sound, pos, 0.8)  # 0.8s duration for bat sparks
+	# Play spark sound with random segment (using preloaded sound)
+	_play_spark_sound_segment(SPARK_SOUND, pos, 0.8)  # 0.8s duration for bat sparks
 	
 	var sparks = _create_spark_node()
 	get_tree().current_scene.add_child(sparks)
 	sparks.global_position = pos
 	sparks.rotation = normal.angle()
 	
-	print("Sparks created and positioned!")
+	# Sparks created and positioned
 
 func _update_sound_volume() -> void:
 	if not spin_sound_player or not thrower or not is_instance_valid(thrower):
@@ -432,8 +452,7 @@ func _update_flight_speed() -> void:
 func _move_and_bounce(delta: float):
 	# DEBUG: Validate inputs before movement
 	if _is_position_invalid() or _is_direction_invalid():
-		print("[DISAPPEARANCE_DEBUG] Invalid state detected in _move_and_bounce")
-		print("[DISAPPEARANCE_DEBUG] Pos: ", global_position, " | Dir: ", direction, " | Speed: ", current_speed)
+		# Invalid state detected in _move_and_bounce
 		_force_fallback_return()
 		return
 	
@@ -442,15 +461,9 @@ func _move_and_bounce(delta: float):
 	
 	# DEBUG: Check if intended position is valid
 	if _is_position_invalid(intended_pos):
-		print("[DISAPPEARANCE_DEBUG] Invalid intended position: ", intended_pos)
-		print("[DISAPPEARANCE_DEBUG] MoveVec: ", move_vec, " | From: ", global_position)
+		# Invalid intended position
 		_force_fallback_return()
 		return
-	
-	# DEBUG: Log movement details for horizontal throws
-	if abs(direction.x) > 0.7 and total_flight_time < 3.0:  # Horizontal throw detection
-		print("[HORIZONTAL_DEBUG] MoveVec: ", move_vec, " | IntendedPos: ", intended_pos, " | From: ", global_position)
-		print("[HORIZONTAL_DEBUG] Distance from start: ", global_position.distance_to(start_position), "/", BAT_TRAVEL_DISTANCE)
 	
 	var space := get_world_2d().direct_space_state
 	var query := PhysicsRayQueryParameters2D.create(global_position, intended_pos)
@@ -463,7 +476,7 @@ func _move_and_bounce(delta: float):
 	
 	if ray_result and ray_result.collider and ray_result.collider is TileMap:
 		if can_bounce:
-			print("BOUNCE DETECTED! Creating sparks...")
+			# Bounce detected - creating sparks
 			var normal = ray_result.normal
 			if normal == Vector2.ZERO:
 				normal = Vector2.UP
@@ -510,9 +523,9 @@ func _move_and_bounce(delta: float):
 	var screen_bounds = Rect2(camera_pos - screen_size/2, screen_size)
 	
 	if not screen_bounds.has_point(global_position):
-		print("[OUT_OF_FRAME] Bat left screen! Pos: ", global_position, " | Screen bounds: ", screen_bounds)
-		print("[OUT_OF_FRAME] Distance to player: ", global_position.distance_to(thrower.global_position) if thrower else "N/A")
-		print("[OUT_OF_FRAME] Should return: ", can_return, " | Bounces: ", bounce_count)
+		# Bat left screen - trigger return logic
+		if not is_returning and not is_dropping and not is_pickable:
+			_force_fallback_return()
 
 # STATE HANDLERS
 
@@ -520,21 +533,50 @@ func _enter_drop_state():
 	is_dropping = true
 	vertical_velocity = 0.0
 	_stop_spin_sound()  # Stop spinning audio when dropping
-	print("Bat entering drop state after 3 bounces")
+	# Bat entering drop state after 3 bounces
 
 func _handle_dropping(delta: float):
 	# Apply gravity
 	vertical_velocity += drop_gravity * delta
 	global_position.y += vertical_velocity * delta
 
-	# Enhanced ground detection with multiple raycasts
+	# Optimized ground and wall detection with caching
+	_update_ground_detection(delta)
+	_update_wall_detection(delta)
+	
+	# Apply horizontal positioning if walls detected
+	if _walls_detected:
+		# If too close to left wall, push right
+		if _cached_wall_left != -INF and global_position.x <= _cached_wall_left:
+			global_position.x = _cached_wall_left
+		
+		# If too close to right wall, push left
+		if _cached_wall_right != INF and global_position.x >= _cached_wall_right:
+			global_position.x = _cached_wall_right
+
+	# If ground detected, stop dropping
+	if _ground_detected and _cached_ground_y != INF:
+		# Only stop if bat is at or below the target position
+		if global_position.y >= _cached_ground_y:
+			global_position.y = _cached_ground_y
+			vertical_velocity = 0.0
+			is_pickable = true
+			is_dropping = false
+
+func _update_ground_detection(delta: float):
+	_ground_check_timer += delta
+	if _ground_check_timer < RAYCAST_CHECK_INTERVAL:
+		return  # Skip ground check this frame
+	
+	_ground_check_timer = 0.0
+	
 	var space := get_world_2d().direct_space_state
 	var ground_found := false
 	var closest_ground_y := INF
 	var float_height = 15.0
 	
-	# Check multiple points for better ground detection
-	var check_distances := [20.0, 35.0, 50.0, 75.0, 100.0]  # Multiple distances for redundancy
+	# Restore original 5 points for better ground detection
+	var check_distances := [20.0, 35.0, 50.0, 75.0, 100.0]
 	for distance in check_distances:
 		var query := PhysicsRayQueryParameters2D.create(global_position, global_position + Vector2(0, distance))
 		query.exclude = [self]
@@ -548,16 +590,29 @@ func _handle_dropping(delta: float):
 			var target_y = ground_result.position.y - float_height
 			if target_y < closest_ground_y:
 				closest_ground_y = target_y
+	
+	# Update cached results
+	_ground_detected = ground_found
+	_cached_ground_y = closest_ground_y
 
-	# HORIZONTAL WALL DETECTION - Check for walls on left and right
+func _update_wall_detection(delta: float):
+	_wall_check_timer += delta
+	if _wall_check_timer < RAYCAST_CHECK_INTERVAL:
+		return  # Skip wall check this frame
+	
+	_wall_check_timer = 0.0
+	
+	var space := get_world_2d().direct_space_state
 	var wall_found := false
 	var closest_wall_x_left := -INF
 	var closest_wall_x_right := INF
-	var wall_float_distance := 20.0  # Distance to maintain from walls
+	var wall_float_distance := 20.0
+	
+	# Restore original 5 points per side for better wall detection
+	var check_distances := [20.0, 35.0, 50.0, 75.0, 100.0]
 	
 	# Check left side
-	var left_check_distances := [20.0, 35.0, 50.0, 75.0, 100.0]
-	for distance in left_check_distances:
+	for distance in check_distances:
 		var left_query := PhysicsRayQueryParameters2D.create(global_position, global_position + Vector2(-distance, 0))
 		left_query.exclude = [self]
 		left_query.collide_with_areas = false
@@ -572,8 +627,7 @@ func _handle_dropping(delta: float):
 				closest_wall_x_left = target_x
 	
 	# Check right side
-	var right_check_distances := [20.0, 35.0, 50.0, 75.0, 100.0]
-	for distance in right_check_distances:
+	for distance in check_distances:
 		var right_query := PhysicsRayQueryParameters2D.create(global_position, global_position + Vector2(distance, 0))
 		right_query.exclude = [self]
 		right_query.collide_with_areas = false
@@ -586,34 +640,11 @@ func _handle_dropping(delta: float):
 			var target_x = right_result.position.x - wall_float_distance
 			if target_x < closest_wall_x_right:
 				closest_wall_x_right = target_x
-
-	# Apply horizontal positioning if walls detected
-	if wall_found:
-		# If too close to left wall, push right
-		if closest_wall_x_left != -INF and global_position.x <= closest_wall_x_left:
-			global_position.x = closest_wall_x_left
-		
-		# If too close to right wall, push left
-		if closest_wall_x_right != INF and global_position.x >= closest_wall_x_right:
-			global_position.x = closest_wall_x_right
-
-	# If ground detected, stop dropping
-	if ground_found and closest_ground_y != INF:
-		# Only stop if bat is at or below the target position
-		if global_position.y >= closest_ground_y:
-			global_position.y = closest_ground_y
-			vertical_velocity = 0.0
-			is_dropping = false
-			is_pickable = true
-			print("Bat is now pickable - ground detected")
 	
-	# Additional safety check: if bat falls too far, force it to stop
-	var max_fall_distance := 500.0  # Maximum pixels below starting position
-	if global_position.y - start_position.y > max_fall_distance:
-		print("Bat fell too far, forcing pickable state")
-		vertical_velocity = 0.0
-		is_dropping = false
-		is_pickable = true
+	# Update cached results
+	_walls_detected = wall_found
+	_cached_wall_left = closest_wall_x_left
+	_cached_wall_right = closest_wall_x_right
 
 func _handle_pickable():
 	# EASE-IN-OUT ROTATION while attracting
@@ -650,13 +681,13 @@ func _handle_pickable():
 
 func _handle_auto_return(delta: float):
 	if not thrower or not is_instance_valid(thrower):
-		print("[DISAPPEARANCE_DEBUG] Thrower invalid during return")
+		# Thrower invalid during return
 		queue_free()
 		return
 
 	# DEBUG: Check for invalid states before return movement
 	if _is_position_invalid():
-		print("[DISAPPEARANCE_DEBUG] Invalid position during return, forcing cleanup")
+		# Invalid position during return, forcing cleanup
 		queue_free()
 		return
 
@@ -668,15 +699,9 @@ func _handle_auto_return(delta: float):
 	
 	# DEBUG: Check for infinite distance
 	if is_inf(distance) or is_nan(distance):
-		print("[DISAPPEARANCE_DEBUG] Infinite/NaN distance to player: ", distance)
-		print("[DISAPPEARANCE_DEBUG] Player pos: ", thrower.global_position, " | Bat pos: ", global_position)
+		# Infinite/NaN distance to player
 		queue_free()
 		return
-
-	# DEBUG: Log return movement
-	if total_flight_time < 5.0:
-		print("[RETURN_DEBUG] Returning to player. Distance: ", distance, " | Speed: ", current_speed)
-		print("[RETURN_DEBUG] ToPlayer vector: ", to_player, " | Current pos: ", global_position)
 
 	# Clamp movement to remaining distance
 	var move_distance = min(current_speed * delta, distance)
@@ -687,7 +712,7 @@ func _handle_auto_return(delta: float):
 		_pickup_bat()
 
 func _pickup_bat():
-	print("Bat picked up by player")
+	# Bat picked up by player
 	is_returning = false  # Reset return state
 	if thrower and is_instance_valid(thrower):
 		if thrower.has_method("_on_bat_returned"):
@@ -701,7 +726,7 @@ func _check_fallback_conditions():
 	
 	# CONDITION 1: Total timeout exceeded
 	if total_flight_time >= fallback_timeout:
-		print("FALLBACK: Bat timeout exceeded, forcing return")
+		# Fallback: Bat timeout exceeded, forcing return
 		_force_fallback_return()
 		return
 	
@@ -711,7 +736,7 @@ func _check_fallback_conditions():
 		if movement_distance < 1.0:  # Barely moved
 			stuck_timer += get_physics_process_delta_time()
 			if stuck_timer >= stuck_detection_time:
-				print("FALLBACK: Bat appears stuck, forcing return")
+				# Fallback: Bat appears stuck, forcing return
 				_force_fallback_return()
 				return
 		else:
@@ -737,10 +762,10 @@ func _force_fallback_return():
 	if return_sound:
 		AudioUtils.play_positioned_sound(return_sound, global_position, 1.2, 1.5)
 	
-	print("FALLBACK ACTIVATED: Bat returning to player (ignoring collisions)")
+	# Fallback activated: Bat returning to player (ignoring collisions)
 
 func _return_to_player():
-	print("Bat returning to player (no bounces)")
+	# Bat returning to player (no bounces)
 	if thrower and is_instance_valid(thrower):
 		if thrower.has_method("_on_bat_returned"):
 			thrower._on_bat_returned()

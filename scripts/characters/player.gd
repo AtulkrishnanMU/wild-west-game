@@ -41,9 +41,13 @@ var _original_health_bar_color: Color = Color.WHITE
 const BLOOD_SCENE := preload("res://scenes/objects/blood_splash.tscn")
 const PLAYER_BULLET_SCENE := preload("res://scenes/objects/bullet.tscn")
 const PLAYER_GUN_SHOT_SOUND := preload("res://sounds/gun-shot.mp3")
-const PLAYER_RELOAD_SOUND_PATH := "res://sounds/reload.mp3"
-const PLAYER_AIR_ATTACK_SOUND_PATH := "res://sounds/air-attack.mp3"
-const PLAYER_BAT_THROW_SOUND_PATH := "res://sounds/slash.mp3"
+const PLAYER_RELOAD_SOUND := preload("res://sounds/reload.mp3")
+const PLAYER_AIR_ATTACK_SOUND := preload("res://sounds/air-attack.mp3")
+const PLAYER_BAT_THROW_SOUND := preload("res://sounds/slash.mp3")
+const PLAYER_DEATH_SOUND := preload("res://sounds/player-death.mp3")
+const HURT_SOUND := preload("res://sounds/hurt.mp3")
+const BLOOD_SPLAT_SOUND := preload("res://sounds/blood-splat.mp3")
+const RUNNING_SOUND := preload("res://sounds/running.mp3")
 const PLAYER_BAT_SCENE := preload("res://scenes/objects/thrown_bat.tscn")
 const PLAYER_MAG_SIZE: int = 10
 const PLAYER_MAX_RELOADS: int = 5
@@ -62,11 +66,8 @@ var _combo_active: bool = false
 var _combo_timer: Timer = null
 var _combo_duration: float = 5.0  # Seconds before combo expires
 
-var PLAYER_DEATH_SOUND: AudioStream = null
-var HURT_SOUND: AudioStream = null
-var BLOOD_SPLAT_SOUND: AudioStream = null
-var RUNNING_SOUND: AudioStream = null
 # Performance optimization: cached audio streams to avoid repeated loading
+var running_sound_player: AudioStreamPlayer2D = null
 var _air_attack_sound_cache: AudioStream = null
 var _reload_sound_cache: AudioStream = null
 var _bat_throw_sound_cache: AudioStream = null
@@ -173,6 +174,8 @@ const ENEMY_CACHE_UPDATE_INTERVAL: float = 0.1  # Update cache every 100ms
 var _connected_enemies: Array[Node] = []
 # Performance optimization: air attack state tracking
 var _air_attack_collision_threshold_sq: float = 40.0 * 40.0  # Pre-calculated threshold
+var _air_attack_check_timer: float = 0.0  # Timer to reduce check frequency
+const AIR_ATTACK_CHECK_INTERVAL: float = 0.02  # Check every 20ms instead of every frame
 
 func _ready() -> void:
 	randomize()
@@ -187,41 +190,64 @@ func _ready() -> void:
 		_gun_base_position = gun_sprite.position
 	if bat_sprite:
 		_bat_base_position = bat_sprite.position
-	PLAYER_DEATH_SOUND = load("res://sounds/player-death.mp3")
-	HURT_SOUND = load("res://sounds/hurt.mp3")
-	BLOOD_SPLAT_SOUND = load("res://sounds/blood-splat.mp3")
-	RUNNING_SOUND = load("res://sounds/running.mp3")
 	
 	# Setup combo timer
 	_setup_combo_timer()
 	
-	# Cache audio streams for performance
-	_air_attack_sound_cache = load(PLAYER_AIR_ATTACK_SOUND_PATH)
-	_reload_sound_cache = load(PLAYER_RELOAD_SOUND_PATH)
-	_bat_throw_sound_cache = load(PLAYER_BAT_THROW_SOUND_PATH)
+	# Cache audio streams for performance (now using preloaded constants)
+	_air_attack_sound_cache = PLAYER_AIR_ATTACK_SOUND
+	_reload_sound_cache = PLAYER_RELOAD_SOUND
+	_bat_throw_sound_cache = PLAYER_BAT_THROW_SOUND
 	
 	
 	# Load gun cursor texture
 	gun_cursor_texture = load("res://assets/objects/gun_aim.png")
 
 func _physics_process(delta: float) -> void:
-	# Update enemy cache periodically
+	# Update enemy cache periodically (optimized)
 	_update_enemy_cache(delta)
+	
+	# Handle core physics and states
+	_handle_physics(delta)
+	
+	# Early returns for special states
+	if _should_skip_normal_movement():
+		_handle_special_movement(delta)
+		return
+	
+	# Handle normal player input and movement
+	_handle_movement_input(delta)
+	_handle_combat_input()
+	_handle_weapon_systems()
+	_handle_animation_and_effects()
+	
+	# Final physics update
+	move_and_slide()
+
+func _handle_physics(delta: float) -> void:
+	# Apply gravity
+	if not is_on_floor():
+		velocity += get_gravity() * delta
+	
+	# Handle jump mechanics
+	_handle_jump_mechanics(delta)
+	
+	# Handle landing and dust effects
+	_handle_landing_effects()
+
+func _handle_jump_mechanics(delta: float) -> void:
 	# Limit jump height to max
 	if is_jumping:
 		var current_jump_height = jump_start_y - global_position.y
 		if current_jump_height >= MAX_JUMP_HEIGHT:
-			# Reached max height, force fall
 			velocity.y = max(velocity.y, 200.0)
 			is_jumping = false
 	
 	# Check if landed
 	if is_jumping and is_on_floor():
 		is_jumping = false
-	
-	if not is_on_floor():
-		velocity += get_gravity() * delta
 
+func _handle_landing_effects() -> void:
 	# Check for landing - create dust effect
 	if CharacterUtils.check_dust_landing(self, was_on_floor, velocity):
 		print("Creating dust effect - landing velocity: ", velocity.y)
@@ -230,42 +256,36 @@ func _physics_process(delta: float) -> void:
 	# Reset jump state when landing
 	if is_on_floor() and not was_on_floor:
 		is_jumping = false
-		is_wall_jumping = false  # Reset wall jump state
-		consecutive_wall_jumps = 0  # Reset consecutive wall jump counter
-		_air_attack_just_ended = false     # Clear air attack flags immediately when landing
+		is_wall_jumping = false
+		consecutive_wall_jumps = 0
+		_air_attack_just_ended = false
 		_force_idle_after_air_attack = false
-		_air_attack_finished_mid_air = false  # Clear air attack finished flag when landing
+		_air_attack_finished_mid_air = false
 	
 	# Create dust while running on ground
 	if CharacterUtils.check_running_dust(self, velocity):
 		CharacterUtils.create_running_dust(self)
 	
-	was_on_floor = is_on_floor()  # Update floor tracking
+	was_on_floor = is_on_floor()
 
-	# ——— DEAD ———
+func _should_skip_normal_movement() -> bool:
+	return is_dead or knockback_timer > 0.0 or not controls_enabled
+
+func _handle_special_movement(delta: float) -> void:
 	if is_dead:
 		velocity.x = move_toward(velocity.x, 0, SPEED)
-		move_and_slide()
-		return
-
-
-	# ——— KNOCKBACK OVERR — normal movement is blocked while knockback_timer > 0 ———
-	if knockback_timer > 0.0:
+	elif knockback_timer > 0.0:
 		knockback_timer -= delta
-		velocity.x = knockback_velocity.x   # keep applying knockback
-		velocity.y += knockback_velocity.y  # optional small upward kick
-		move_and_slide()
+		velocity.x = knockback_velocity.x
+		velocity.y += knockback_velocity.y
 		if knockback_timer <= 0.0:
 			knockback_velocity = Vector2.ZERO
-		return  # skip normal input while being knocked back
-
-	# ——— DISABLED CONTROLS (e.g. during intro) ———
-	if not controls_enabled:
+	elif not controls_enabled:
 		velocity.x = move_toward(velocity.x, 0, SPEED)
-		move_and_slide()
-		return
+	
+	move_and_slide()
 
-	# ——— INPUT (only runs when not in knockback) ———
+func _handle_movement_input(delta: float) -> void:
 	# Variable height jumping with buffer system
 	var jump_pressed = Input.is_action_pressed("ui_accept")
 	var jump_just_pressed = Input.is_action_just_pressed("ui_accept")
@@ -282,69 +302,67 @@ func _physics_process(delta: float) -> void:
 	if last_wall_jump_time > 0.0:
 		last_wall_jump_time -= delta
 	
-	# Start jump (either immediate press or buffered)
+	# Handle jumping
+	_handle_jumping(jump_just_pressed)
+	
+	# Handle wall jumping
+	_handle_wall_jumping(jump_just_pressed)
+	
+	# Handle horizontal movement
+	_handle_horizontal_movement()
+
+func _handle_jumping(jump_just_pressed: bool) -> void:
 	if (jump_just_pressed or jump_buffer_time > 0.0) and is_on_floor() and not is_attacking and not is_jumping:
-		# Clear force idle flag when player wants to jump
 		_force_idle_after_air_attack = false
-		# Also clear air attack finished flag when player jumps
 		_air_attack_finished_mid_air = false
-		# Also clear the air attack cooldown flag to allow jumping immediately
 		_air_attack_just_ended = false
 		is_jumping = true
 		jump_hold_time = 0.0
 		jump_start_y = global_position.y
 		velocity.y = JUMP_VELOCITY
-		jump_buffer_time = 0.0  # Consume the buffer
+		jump_buffer_time = 0.0
 	
-	# Wall jump logic
-	elif jump_just_pressed and not is_on_floor() and not is_attacking and last_wall_jump_time <= 0.0 and Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT):
+	# Continue jumping while holding space
+	if is_jumping and Input.is_action_pressed("ui_accept") and jump_hold_time < MAX_JUMP_HOLD_TIME:
+		jump_hold_time += get_physics_process_delta_time()
+		var height_reached = jump_start_y - global_position.y
+		if height_reached < MAX_JUMP_HEIGHT:
+			velocity.y = JUMP_VELOCITY * (1.0 - (jump_hold_time / MAX_JUMP_HOLD_TIME) * 0.5)
+		else:
+			is_jumping = false
+	
+	# Early release - cut jump short
+	if is_jumping and not Input.is_action_pressed("ui_accept"):
+		is_jumping = false
+		if velocity.y < 0:
+			velocity.y *= 0.5
+
+func _handle_wall_jumping(jump_just_pressed: bool) -> void:
+	if jump_just_pressed and not is_on_floor() and not is_attacking and last_wall_jump_time <= 0.0 and Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT):
 		var wall_dir = _get_wall_direction()
 		if wall_dir != 0.0 and consecutive_wall_jumps < MAX_CONSECUTIVE_WALL_JUMPS:
-			# Perform wall jump
 			is_wall_jumping = true
 			wall_jump_direction = wall_dir
 			velocity.x = wall_jump_direction * WALL_JUMP_HORIZONTAL_VELOCITY
 			velocity.y = WALL_JUMP_VERTICAL_VELOCITY
 			last_wall_jump_time = WALL_JUMP_COOLDOWN
-			jump_buffer_time = 0.0  # Consume the buffer
-			consecutive_wall_jumps += 1  # Increment consecutive wall jump counter
-			# Face away from wall
+			jump_buffer_time = 0.0
+			consecutive_wall_jumps += 1
 			animated_sprite.flip_h = wall_jump_direction < 0
-	
-	# Continue jumping while holding space (with max height limit)
-	if is_jumping and jump_pressed and jump_hold_time < MAX_JUMP_HOLD_TIME:
-		jump_hold_time += delta
-		var height_reached = jump_start_y - global_position.y
-		if height_reached < MAX_JUMP_HEIGHT:
-			# Apply upward force to continue jump
-			velocity.y = JUMP_VELOCITY * (1.0 - (jump_hold_time / MAX_JUMP_HOLD_TIME) * 0.5)
-		else:
-			# Max height reached, stop jumping
-			is_jumping = false
-	
-	# Early release - cut jump short
-	if is_jumping and not jump_pressed:
-		is_jumping = false
-		# Reduce upward velocity when releasing early
-		if velocity.y < 0:
-			velocity.y *= 0.5
-	
-	# Stop jumping when landing or hitting max height
-	if is_jumping and (not is_on_floor() and (jump_start_y - global_position.y) >= MAX_JUMP_HEIGHT):
-		is_jumping = false
-	
-	# Mouse-facing logic (always active, but not during air attacks)
+
+func _handle_horizontal_movement() -> void:
 	var mouse_pos: Vector2 = get_global_mouse_position()
 	var dx: float = mouse_pos.x - global_position.x
 	var dead_zone: float = 4.0
+	
+	# Mouse-facing logic
 	if abs(dx) > dead_zone and not is_air_attacking:
 		animated_sprite.flip_h = dx < 0
-
+	
 	# Horizontal movement: only while right mouse button is held
 	var direction: float = 0.0
 	var target_speed: float = 0.0
 	if Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT):
-		# Immediately clear force idle flag when player wants to move
 		_force_idle_after_air_attack = false
 		if abs(dx) > dead_zone:
 			direction = sign(dx)
@@ -354,97 +372,73 @@ func _physics_process(delta: float) -> void:
 	else:
 		target_speed = 0.0
 	
-	# Apply smooth acceleration/deceleration using CharacterUtils
-	# During wall jump, allow some control but with reduced acceleration
+	# Apply smooth acceleration/deceleration
 	if is_wall_jumping:
-		# Allow limited horizontal control during wall jump
-		var wall_jump_acceleration = AIR_ACCELERATION * 0.7  # Reduced control during wall jump
-		velocity.x = CharacterUtils.apply_smooth_movement(self, target_speed, SPEED, delta, wall_jump_acceleration, DECELERATION, AIR_ACCELERATION)
+		var wall_jump_acceleration = AIR_ACCELERATION * 0.7
+		velocity.x = CharacterUtils.apply_smooth_movement(self, target_speed, SPEED, get_physics_process_delta_time(), wall_jump_acceleration, DECELERATION, AIR_ACCELERATION)
 	else:
-		velocity.x = CharacterUtils.apply_smooth_movement(self, target_speed, SPEED, delta, ACCELERATION, DECELERATION, AIR_ACCELERATION)
-	
-	# Attack input (left mouse / attack action)
+		velocity.x = CharacterUtils.apply_smooth_movement(self, target_speed, SPEED, get_physics_process_delta_time(), ACCELERATION, DECELERATION, AIR_ACCELERATION)
+
+func _handle_combat_input() -> void:
 	var attack_pressed: bool = Input.is_action_just_pressed("attack")
 	
 	# Don't process attacks if weapon menu is open
 	var weapon_menu = get_tree().get_first_node_in_group("weapon_menu")
 	if weapon_menu and weapon_menu.is_menu_open:
-		return  # Skip all attack processing when menu is open
+		return
 	
 	var gun_attack_pressed: bool = current_equipped_weapon == "gun" and has_gun and attack_pressed
-	var bat_throw_pressed: bool = false  # Keyboard shortcut for bat throw
+	var bat_throw_pressed: bool = false
 	
 	# Only check for bat_throw action if it exists in InputMap
 	if InputMap.has_action("bat_throw"):
 		bat_throw_pressed = Input.is_action_just_pressed("bat_throw")
 	
-	# Check for keyboard bat throw (alternative to double-click)
+	# Handle bat throw inputs
+	_handle_bat_throw_inputs(attack_pressed, bat_throw_pressed)
+	
+	# Handle normal attacks
+	_handle_normal_attacks(attack_pressed, gun_attack_pressed)
+
+func _handle_bat_throw_inputs(attack_pressed: bool, bat_throw_pressed: bool) -> void:
+	# Keyboard bat throw
 	if bat_throw_pressed and current_equipped_weapon == "bat" and has_bat and not is_dead and not is_attacking and not is_air_attacking and not _bat_thrown:
 		print("Keyboard bat throw triggered!")
 		_start_bat_throw()
 	
-	# Alternative: Shift + Click for bat throw (easier than double-click)
+	# Shift + Click bat throw
 	if attack_pressed and Input.is_key_pressed(KEY_SHIFT) and current_equipped_weapon == "bat" and has_bat and not is_dead and not is_attacking and not is_air_attacking and not _bat_thrown:
 		print("Shift+Click bat throw triggered!")
 		_start_bat_throw()
-		return  # Skip normal attack processing
-	
-	# Check for normal bat attack when holding bat
+
+func _handle_normal_attacks(attack_pressed: bool, gun_attack_pressed: bool) -> void:
+	# Normal bat attack
 	if current_equipped_weapon == "bat" and has_bat and attack_pressed and not is_dead and not is_attacking and not is_air_attacking and not _bat_thrown:
-		# Single click - normal attack
+		var direction = 0.0
+		if Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT):
+			var mouse_pos = get_global_mouse_position()
+			var dx = mouse_pos.x - global_position.x
+			if abs(dx) > 4.0:
+				direction = sign(dx)
+		
 		if direction != 0 or velocity.x != 0:
 			_start_attack_moving()
 		else:
 			_start_attack_idle()
 	
-	# Check for air attack (in air + left click)
+	# Air attack
 	if attack_pressed and not is_on_floor() and not is_dead and not is_air_attacking and current_equipped_weapon == "bat" and has_bat and not _bat_thrown:
 		_start_air_attack()
+	
+	# Gun attack
 	elif current_equipped_weapon == "gun" and has_gun:
-		# With gun: left-click shoots instead of melee; allow rapid fire on every click
-		# Block shooting while the player gun is reloading or on cooldown
 		if gun_attack_pressed and not is_dead and not _player_is_reloading and _gun_fire_cooldown <= 0.0:
 			_start_gun_attack()
-	elif not has_bat or _bat_thrown:
-		# Without bat or bat is thrown: can't attack
-		pass
-	else:
-		# Normal attack handling already done in double-click section above
-		pass
-	
-	# Gun aiming: rotate held gun toward mouse cursor (but not during air attacks)
+
+func _handle_weapon_systems() -> void:
+	# Gun aiming
 	if current_equipped_weapon == "gun" and has_gun and gun_sprite and not is_air_attacking:
-		var to_mouse: Vector2 = get_global_mouse_position() - gun_sprite.global_position
-		if to_mouse.length() > 0.0:
-			var angle: float = to_mouse.angle()
-			var target_angle: float = angle
-			var facing_right: bool = to_mouse.x >= 0.0
-			if facing_right:
-				# Aim within [-90°, 90°] while facing right
-				target_angle = clamp(angle, -PI / 2.0, PI / 2.0)
-				gun_sprite.scale.x = 1.0
-				animated_sprite.flip_h = false
-				# Reset gun position to base when facing right
-				gun_sprite.position = _gun_base_position
-			else:
-				# Mirror horizontally when aiming left
-				gun_sprite.scale.x = -1.0
-				animated_sprite.flip_h = true
-				# Position gun more to the left when facing left
-				gun_sprite.position = _gun_base_position + Vector2(-8.0, 0.0)
-				
-				# Better angle calculation for left-facing
-				# Convert angle to local space (mirrored)
-				if angle >= 0:
-					# Top-left quadrant (0 to 90°) - should point up
-					target_angle = -(PI - angle)
-				else:
-					# Bottom-left quadrant (-90° to 0°) - should point down
-					target_angle = -(-PI - angle)
-				
-				# Clamp to reasonable aiming range
-				target_angle = clamp(target_angle, -PI / 2.0, PI / 2.0)
-			gun_sprite.rotation = target_angle
+		_handle_gun_aiming()
 	
 	# Update bat aiming
 	_update_bat_aim()
@@ -455,41 +449,102 @@ func _physics_process(delta: float) -> void:
 	# Update weapon visibility based on current weapon
 	_update_weapon_visibility()
 
-	# ——— ANIMATION CHOICE ———
+func _handle_gun_aiming() -> void:
+	var to_mouse: Vector2 = get_global_mouse_position() - gun_sprite.global_position
+	if to_mouse.length() <= 0.0:
+		return
+	
+	var angle: float = to_mouse.angle()
+	var target_angle: float = angle
+	var facing_right: bool = to_mouse.x >= 0.0
+	
+	if facing_right:
+		target_angle = clamp(angle, -PI / 2.0, PI / 2.0)
+		gun_sprite.scale.x = 1.0
+		animated_sprite.flip_h = false
+		gun_sprite.position = _gun_base_position
+	else:
+		gun_sprite.scale.x = -1.0
+		animated_sprite.flip_h = true
+		gun_sprite.position = _gun_base_position + Vector2(-8.0, 0.0)
+		
+		# Better angle calculation for left-facing
+		if angle >= 0:
+			target_angle = -(PI - angle)
+		else:
+			target_angle = -(-PI - angle)
+		
+		target_angle = clamp(target_angle, -PI / 2.0, PI / 2.0)
+	
+	gun_sprite.rotation = target_angle
+
+func _handle_animation_and_effects() -> void:
+	# Update air attack
+	_update_air_attack()
+	
+	# Update air attack cooldown
+	if _air_attack_cooldown > 0.0:
+		_air_attack_cooldown -= get_physics_process_delta_time()
+		if _air_attack_cooldown <= 0.0:
+			_air_attack_just_ended = false
+			_force_idle_after_air_attack = false
+
+	# Update gun fire cooldown
+	if _gun_fire_cooldown > 0.0:
+		_gun_fire_cooldown -= get_physics_process_delta_time()
+	
+	# Camera shake
+	_handle_camera_shake()
+	
+	# Sword hitbox positioning
+	_update_sword_hitbox()
+	
+	# Animation selection
+	_update_animation()
+
+func _handle_camera_shake() -> void:
+	if _camera_shake_timer > 0.0:
+		_camera_shake_timer -= get_physics_process_delta_time()
+		if camera:
+			var offset_x = randf_range(-camera_shake_amount, camera_shake_amount)
+			var offset_y = randf_range(-camera_shake_amount, camera_shake_amount)
+			camera.offset = _camera_original_offset + Vector2(offset_x, offset_y)
+	else:
+		if camera:
+			camera.offset = _camera_original_offset
+
+func _update_sword_hitbox() -> void:
+	if sword_hitbox:
+		var sign_x := -1.0 if animated_sprite.flip_h else 1.0
+		sword_hitbox.position = Vector2(_sword_hitbox_base_position.x * sign_x, _sword_hitbox_base_position.y)
+
+func _update_animation() -> void:
 	if is_air_attacking:
-		animated_sprite.play("AIR_ATTACK")  # Use air attack animation during air attack
+		animated_sprite.play("AIR_ATTACK")
 	elif is_attacking:
-		# attack animations handled by animation_finished
-		pass
+		pass  # handled by animation_finished
 	elif _air_attack_finished_mid_air:
-		# Stay on the last frame of air attack animation if it finished mid-air
-		# Don't change animation until player lands or moves
-		pass
+		pass  # stay on last frame
 	elif _force_idle_after_air_attack:
-		# Force idle animation after air attack until player moves
 		if current_equipped_weapon == "gun" and has_gun:
 			animated_sprite.play("GUN_IDLE")
 		else:
 			animated_sprite.play("IDLE")
 		_stop_running_sound()
 	elif is_wall_jumping:
-		# Use jump animation for wall jump as well
 		if current_equipped_weapon == "gun" and has_gun:
 			animated_sprite.play("GUN_JUMP")
 		else:
 			animated_sprite.play("JUMP")
 		_stop_running_sound()
 	elif not is_on_floor() and not _air_attack_just_ended:
-		# Only play jump animation if not in cooldown from air attack
 		if current_equipped_weapon == "gun" and has_gun:
 			animated_sprite.play("GUN_JUMP")
 		else:
 			animated_sprite.play("JUMP")
 		_stop_running_sound()
 	elif velocity.x != 0:
-		# Clear force idle flag when player starts moving
 		_force_idle_after_air_attack = false
-		# Also clear air attack finished flag when player starts moving
 		_air_attack_finished_mid_air = false
 		if current_equipped_weapon == "gun" and has_gun:
 			animated_sprite.play("GUN_RUN")
@@ -502,37 +557,6 @@ func _physics_process(delta: float) -> void:
 		else:
 			animated_sprite.play("IDLE")
 		_stop_running_sound()
-
-	if _camera_shake_timer > 0.0:
-		_camera_shake_timer -= delta
-		if camera:
-			var offset_x = randf_range(-camera_shake_amount, camera_shake_amount)
-			var offset_y = randf_range(-camera_shake_amount, camera_shake_amount)
-			camera.offset = _camera_original_offset + Vector2(offset_x, offset_y)
-	else:
-		if camera:
-			camera.offset = _camera_original_offset
-	# Keep sword hitbox in front of the player based on facing direction
-	if sword_hitbox:
-		var sign_x := -1.0 if animated_sprite.flip_h else 1.0
-		sword_hitbox.position = Vector2(_sword_hitbox_base_position.x * sign_x, _sword_hitbox_base_position.y)
-
-	# Update air attack if active
-	_update_air_attack()
-
-	# Update air attack cooldown
-	if _air_attack_cooldown > 0.0:
-		_air_attack_cooldown -= delta
-		if _air_attack_cooldown <= 0.0:
-			_air_attack_just_ended = false
-			# Also clear force idle flag when cooldown expires
-			_force_idle_after_air_attack = false
-
-	# Update gun fire cooldown
-	if _gun_fire_cooldown > 0.0:
-		_gun_fire_cooldown -= delta
-
-	move_and_slide()
 
 func _update_weapon_visibility() -> void:
 	# Hide both weapons by default (but only if not currently swinging/attacking)
@@ -769,12 +793,35 @@ func _update_air_attack() -> void:
 		_end_air_attack()
 		return
 	
-	# Check enemy collisions only if still in air
+	# Optimize: Only check enemy collisions at intervals instead of every frame
+	_air_attack_check_timer += get_physics_process_delta_time()
+	if _air_attack_check_timer < AIR_ATTACK_CHECK_INTERVAL:
+		return  # Skip collision check this frame
+	
+	_air_attack_check_timer = 0.0  # Reset timer
+	
+	# Check enemy collisions only if still in air (optimized)
+	_check_air_attack_enemy_collisions()
+
+func _check_air_attack_enemy_collisions() -> void:
 	var player_pos_sq := global_position  # Cache position for all distance checks
+	var nearby_enemies: Array[Node] = []
+	
+	# First pass: find nearby enemies quickly
 	for enemy in _cached_enemies:
-		if enemy.is_dead or not enemy.is_active:
+		if not is_instance_valid(enemy) or enemy.is_dead or not enemy.is_active:
 			continue
-		if player_pos_sq.distance_squared_to(enemy.global_position) < _air_attack_collision_threshold_sq:
+		
+		# Quick distance check using squared distance (faster than sqrt)
+		var distance_sq = player_pos_sq.distance_squared_to(enemy.global_position)
+		if distance_sq < _air_attack_collision_threshold_sq:
+			nearby_enemies.append(enemy)
+	
+	# Second pass: precise collision check only for nearby enemies
+	for enemy in nearby_enemies:
+		# More precise collision check with small buffer
+		var distance_sq = player_pos_sq.distance_squared_to(enemy.global_position)
+		if distance_sq < _air_attack_collision_threshold_sq:
 			air_attack_target = enemy
 			_apply_air_attack_damage()
 			_end_air_attack()
@@ -1297,13 +1344,39 @@ func _update_enemy_cache(delta: float) -> void:
 	_enemy_cache_update_timer += delta
 	if _enemy_cache_update_timer >= ENEMY_CACHE_UPDATE_INTERVAL:
 		_enemy_cache_update_timer = 0.0
-		# Always update cache to get fresh enemy references
-		var current_enemies := get_tree().get_nodes_in_group("enemies")
-		_cached_enemies = current_enemies.duplicate()
-		# Clean up disconnected enemies from tracking
-		_cleanup_disconnected_enemies()
-		# Always try to connect new enemies when cache updates
-		_connect_new_enemy_signals()
+		
+		# Only update cache if we're in combat or recently in combat
+		# This prevents unnecessary updates when player is idle
+		if _should_update_enemy_cache():
+			var current_enemies := get_tree().get_nodes_in_group("enemies")
+			_cached_enemies = current_enemies.duplicate()
+			# Clean up disconnected enemies from tracking
+			_cleanup_disconnected_enemies()
+			# Always try to connect new enemies when cache updates
+			_connect_new_enemy_signals()
+
+func _should_update_enemy_cache() -> bool:
+	# Only update cache if player is in combat or recently active
+	# This prevents expensive group queries when idle
+	if is_air_attacking or is_attacking:
+		return true  # Always update during combat
+	
+	# Check if any enemies are nearby (within screen bounds + margin)
+	var screen_size = get_viewport().get_visible_rect().size
+	var camera_pos = get_viewport().get_camera_2d().global_position if get_viewport().get_camera_2d() else Vector2.ZERO
+	var check_bounds = Rect2(camera_pos - screen_size, screen_size * 2)  # 2x screen area
+	
+	for enemy in _cached_enemies:
+		if is_instance_valid(enemy) and check_bounds.has_point(enemy.global_position):
+			return true  # Update if enemies are nearby
+	
+	# Check if we need to find new enemies (cache is empty or mostly invalid)
+	var valid_count = 0
+	for enemy in _cached_enemies:
+		if is_instance_valid(enemy) and not enemy.is_dead:
+			valid_count += 1
+	
+	return valid_count < 3  # Update if we have very few valid enemies cached
 
 func _connect_new_enemy_signals() -> void:
 	# Only connect to enemies we haven't connected to yet

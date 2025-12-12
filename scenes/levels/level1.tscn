@@ -1,4 +1,4 @@
-[gd_scene load_steps=21 format=3 uid="uid://8frbpgqpdtbu"]
+[gd_scene load_steps=22 format=3 uid="uid://8frbpgqpdtbu"]
 
 [ext_resource type="Script" uid="uid://bosqb4cvfji5k" path="res://scripts/objects/alarm_trigger.gd" id="1_alarm_trigger_script"]
 [ext_resource type="Script" uid="uid://bon2tqed1f4g0" path="res://scripts/levels/level1.gd" id="1_level_script"]
@@ -14,6 +14,7 @@
 [ext_resource type="PackedScene" path="res://scenes/objects/blood_floating_decal.tscn" id="11_nkeig"]
 [ext_resource type="PackedScene" path="res://scenes/objects/blood_droplet.tscn" id="12_lgguw"]
 [ext_resource type="PackedScene" path="res://scenes/objects/blood_decal.tscn" id="13_jprdt"]
+[ext_resource type="PackedScene" uid="uid://bmu7ykjtjjcgi" path="res://scenes/objects/chain.tscn" id="18_g7tkf"]
 [ext_resource type="Script" uid="uid://4ccwbri40ij0" path="res://scripts/characters/dead_axe_man.gd" id="dead_axe_man_script"]
 [ext_resource type="Script" uid="uid://bccg4dohsb380" path="res://scripts/levels/intro_sequence.gd" id="intro_sequence_script"]
 [ext_resource type="PackedScene" path="res://scenes/levels/post_death_dialogue.tscn" id="post_death_dialogue"]
@@ -743,3 +744,12 @@ position = Vector2(450, 405)
 
 [node name="Axe_enemy12" parent="." instance=ExtResource("7_2r1tl")]
 position = Vector2(1527, 551)
+
+[node name="chain" parent="." instance=ExtResource("18_g7tkf")]
+position = Vector2(441.99997, 339)
+
+[node name="chain2" parent="." instance=ExtResource("18_g7tkf")]
+position = Vector2(2944, 626)
+
+[node name="chain3" parent="." instance=ExtResource("18_g7tkf")]
+position = Vector2(2966, 627)

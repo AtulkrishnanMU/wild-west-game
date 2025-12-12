@@ -1,0 +1,101 @@
+[gd_scene load_steps=5 format=3 uid="uid://bmu7ykjtjjcgi"]
+
+[ext_resource type="Texture2D" uid="uid://dawx7fiqglawk" path="res://assets/objects/chain_segment.png" id="1_i41ho"]
+[ext_resource type="Script" uid="uid://2e0rc23dlte8" path="res://scripts/objects/chain.gd" id="2_chain_script"]
+
+[sub_resource type="CapsuleShape2D" id="CapsuleShape2D_p560o"]
+
+[sub_resource type="CapsuleShape2D" id="CapsuleShape2D_mm814"]
+radius = 5.0
+height = 20.0
+
+[node name="chain" type="Node2D"]
+rotation = 0.5497787
+script = ExtResource("2_chain_script")
+
+[node name="Chain_anchor" type="StaticBody2D" parent="."]
+position = Vector2(-1, 20)
+scale = Vector2(0.48012415, 0.48012415)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Chain_anchor"]
+shape = SubResource("CapsuleShape2D_p560o")
+
+[node name="PinJoint2D" type="PinJoint2D" parent="."]
+position = Vector2(-1.0000001, 27.000002)
+scale = Vector2(0.44827855, 0.44827855)
+node_a = NodePath("../Chain_anchor")
+node_b = NodePath("../segment")
+softness = 1.03
+
+[node name="segment" type="RigidBody2D" parent="."]
+position = Vector2(-1, 2)
+
+[node name="Sprite2D" type="Sprite2D" parent="segment"]
+position = Vector2(-2.3841858e-07, 31)
+scale = Vector2(0.06332414, 0.06368956)
+texture = ExtResource("1_i41ho")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="segment"]
+position = Vector2(0, 31)
+scale = Vector2(0.49358827, 0.49358827)
+shape = SubResource("CapsuleShape2D_mm814")
+
+[node name="PinJoint2D2" type="PinJoint2D" parent="."]
+position = Vector2(-0.69658667, 39)
+scale = Vector2(0.43758383, 0.43758383)
+node_a = NodePath("../segment")
+node_b = NodePath("../segment2")
+softness = 1.0
+
+[node name="segment2" type="RigidBody2D" parent="."]
+position = Vector2(-0.69658756, 14.821054)
+
+[node name="Sprite2D" type="Sprite2D" parent="segment2"]
+position = Vector2(-2.3841858e-07, 31)
+scale = Vector2(0.06332414, 0.06368956)
+texture = ExtResource("1_i41ho")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="segment2"]
+position = Vector2(0, 31)
+scale = Vector2(0.5182436, 0.5182436)
+shape = SubResource("CapsuleShape2D_mm814")
+
+[node name="PinJoint2D3" type="PinJoint2D" parent="."]
+position = Vector2(-1.1302795, 52.370014)
+scale = Vector2(0.3813702, 0.3813702)
+node_a = NodePath("../segment2")
+node_b = NodePath("../segment3")
+softness = 1.0
+
+[node name="segment3" type="RigidBody2D" parent="."]
+position = Vector2(-1.1302776, 27.369999)
+
+[node name="Sprite2D" type="Sprite2D" parent="segment3"]
+position = Vector2(-2.3841858e-07, 31)
+scale = Vector2(0.06332414, 0.06368956)
+texture = ExtResource("1_i41ho")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="segment3"]
+position = Vector2(0, 31)
+scale = Vector2(0.47682145, 0.47682145)
+shape = SubResource("CapsuleShape2D_mm814")
+
+[node name="PinJoint2D4" type="PinJoint2D" parent="."]
+position = Vector2(-1, 64.000015)
+scale = Vector2(0.3813702, 0.3813702)
+node_a = NodePath("../segment3")
+node_b = NodePath("../segment4")
+softness = 1.0
+
+[node name="segment4" type="RigidBody2D" parent="."]
+position = Vector2(-0.9999981, 39)
+
+[node name="Sprite2D" type="Sprite2D" parent="segment4"]
+position = Vector2(-2.3841858e-07, 31)
+scale = Vector2(0.06332414, 0.06368956)
+texture = ExtResource("1_i41ho")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="segment4"]
+position = Vector2(0, 31)
+scale = Vector2(0.47682145, 0.47682145)
+shape = SubResource("CapsuleShape2D_mm814")
