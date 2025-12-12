@@ -770,13 +770,13 @@ func _update_air_attack_position(progress: float, start_pos: Vector2, target_pos
 
 func _find_nearest_enemy() -> Node:
 	var nearest: Node = null
-	var nearest_distance_sq: float = INF
+	var nearest_distance_sq: float = 10000.0  # Reasonable search radius squared
 	
-	# Use cached enemies instead of group query
 	for enemy in _cached_enemies:
-		if enemy.is_dead or not enemy.is_active:
+		if not is_instance_valid(enemy) or enemy.is_dead or not enemy.is_active:
 			continue
-		var distance_sq: float = global_position.distance_squared_to(enemy.global_position)
+		
+		var distance_sq = global_position.distance_squared_to(enemy.global_position)
 		if distance_sq < nearest_distance_sq:
 			nearest_distance_sq = distance_sq
 			nearest = enemy
@@ -805,21 +805,13 @@ func _update_air_attack() -> void:
 
 func _check_air_attack_enemy_collisions() -> void:
 	var player_pos_sq := global_position  # Cache position for all distance checks
-	var nearby_enemies: Array[Node] = []
 	
-	# First pass: find nearby enemies quickly
+	# Single pass: find nearby enemies and apply damage immediately
 	for enemy in _cached_enemies:
 		if not is_instance_valid(enemy) or enemy.is_dead or not enemy.is_active:
 			continue
 		
 		# Quick distance check using squared distance (faster than sqrt)
-		var distance_sq = player_pos_sq.distance_squared_to(enemy.global_position)
-		if distance_sq < _air_attack_collision_threshold_sq:
-			nearby_enemies.append(enemy)
-	
-	# Second pass: precise collision check only for nearby enemies
-	for enemy in nearby_enemies:
-		# More precise collision check with small buffer
 		var distance_sq = player_pos_sq.distance_squared_to(enemy.global_position)
 		if distance_sq < _air_attack_collision_threshold_sq:
 			air_attack_target = enemy
@@ -1345,58 +1337,10 @@ func _update_enemy_cache(delta: float) -> void:
 	if _enemy_cache_update_timer >= ENEMY_CACHE_UPDATE_INTERVAL:
 		_enemy_cache_update_timer = 0.0
 		
-		# Only update cache if we're in combat or recently in combat
-		# This prevents unnecessary updates when player is idle
-		if _should_update_enemy_cache():
-			var current_enemies := get_tree().get_nodes_in_group("enemies")
-			_cached_enemies = current_enemies.duplicate()
-			# Clean up disconnected enemies from tracking
-			_cleanup_disconnected_enemies()
-			# Always try to connect new enemies when cache updates
-			_connect_new_enemy_signals()
+		# Only update if player is in combat or recently damaged
+		if _combo_active or _last_damage_time > Time.get_time_dict_from_system().second - 5.0:
+			_cached_enemies = get_tree().get_nodes_in_group("enemies")
 
-func _should_update_enemy_cache() -> bool:
-	# Only update cache if player is in combat or recently active
-	# This prevents expensive group queries when idle
-	if is_air_attacking or is_attacking:
-		return true  # Always update during combat
-	
-	# Check if any enemies are nearby (within screen bounds + margin)
-	var screen_size = get_viewport().get_visible_rect().size
-	var camera_pos = get_viewport().get_camera_2d().global_position if get_viewport().get_camera_2d() else Vector2.ZERO
-	var check_bounds = Rect2(camera_pos - screen_size, screen_size * 2)  # 2x screen area
-	
-	for enemy in _cached_enemies:
-		if is_instance_valid(enemy) and check_bounds.has_point(enemy.global_position):
-			return true  # Update if enemies are nearby
-	
-	# Check if we need to find new enemies (cache is empty or mostly invalid)
-	var valid_count = 0
-	for enemy in _cached_enemies:
-		if is_instance_valid(enemy) and not enemy.is_dead:
-			valid_count += 1
-	
-	return valid_count < 3  # Update if we have very few valid enemies cached
-
-func _connect_new_enemy_signals() -> void:
-	# Only connect to enemies we haven't connected to yet
-	for enemy in _cached_enemies:
-		if enemy in _connected_enemies:
-			continue  # Already connected
-		
-		if enemy.has_signal("enemy_killed"):
-			# Old health gain connection removed - now using combo streak system
-			_connected_enemies.append(enemy)
-
-func _cleanup_disconnected_enemies() -> void:
-	# Remove enemies from tracking that are no longer in cache
-	var enemies_to_remove: Array[Node] = []
-	for connected_enemy in _connected_enemies:
-		if connected_enemy not in _cached_enemies:
-			enemies_to_remove.append(connected_enemy)
-	
-	for enemy in enemies_to_remove:
-		_connected_enemies.erase(enemy)
 
 
 func pickup_gun() -> bool:

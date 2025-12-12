@@ -99,8 +99,12 @@ func _update_cache(delta: float):
 	if not _cached_player or not is_instance_valid(_cached_player):
 		_cached_player = _find_player()
 	
-	# Update enemies cache
-	_cached_enemies = get_tree().get_nodes_in_group("enemies")
+	# Only update enemies within range
+	var all_enemies = get_tree().get_nodes_in_group("enemies")
+	_cached_enemies.clear()
+	for enemy in all_enemies:
+		if enemy.global_position.distance_squared_to(global_position) < 250000:  # 500px range squared
+			_cached_enemies.append(enemy)
 	
 	# Update areas cache (only bat and bullet objects)
 	_cached_areas = _find_projectile_areas()

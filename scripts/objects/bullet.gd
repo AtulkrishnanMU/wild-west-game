@@ -1,6 +1,7 @@
 extends Area2D
 
 const AudioUtils = preload("res://scripts/utils/audio_utils.gd")
+const SPARK_SOUND = preload("res://sounds/spark.mp3")
 
 @export var speed: float = 520.0
 @export var damage: int = 20
@@ -8,14 +9,17 @@ const AudioUtils = preload("res://scripts/utils/audio_utils.gd")
 @export var safe_enemy_shooter_distance: float = 100.0
 var direction: Vector2 = Vector2.RIGHT
 var shooter: Node = null
+var _spark_texture: ImageTexture = null
 
 const DUST_PARTICLE_SCENE := preload("res://scenes/objects/dust_particle.tscn")
-const SPARK_SOUND_PATH := "res://sounds/spark.mp3"
 
 func _ready() -> void:
 	direction = direction.normalized()
 	area_entered.connect(_on_area_entered)
 	body_entered.connect(_on_body_entered)
+	
+	# Cache spark texture
+	_spark_texture = create_spark_texture()
 	
 	# Ensure bullet can hit both alive and dead enemies by adding their layers
 	collision_mask |= 2  # Add alive enemy layer (bitwise OR)
@@ -119,10 +123,9 @@ func _get_player() -> Node:
 	return scene.get_node_or_null("Player")
 
 func _create_metal_sparks(pos: Vector2, normal: Vector2) -> void:
-	# Play spark sound with random segment
-	var spark_sound = load(SPARK_SOUND_PATH)
-	if spark_sound:
-		_play_spark_sound_segment(spark_sound, pos, 0.5)  # 0.5s duration for bullet sparks
+	# Use preloaded sound
+	if SPARK_SOUND:
+		_play_spark_sound_segment(SPARK_SOUND, pos, 0.5)  # 0.5s duration for bullet sparks
 	
 	var sparks = _create_spark_node()
 	get_tree().current_scene.add_child(sparks)
@@ -135,7 +138,7 @@ func _create_spark_node() -> Node2D:
 	var spark_count = 6  # Fewer sparks for bullets
 	for i in range(spark_count):
 		var spark := Sprite2D.new()
-		spark.texture = create_spark_texture()
+		spark.texture = _spark_texture  # Use cached texture
 		
 		var angle = randf_range(0, 2 * PI)
 		var distance = randf_range(3, 10)  # Smaller spread for bullets

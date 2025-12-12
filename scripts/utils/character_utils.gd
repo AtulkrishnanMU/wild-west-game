@@ -5,6 +5,9 @@ extends RefCounted
 const DUST_SCENE := preload("res://scenes/objects/dust_splash.tscn")
 const BLOOD_SCENE := preload("res://scenes/objects/blood_splash.tscn")
 
+# Performance optimization: cached player reference
+static var _cached_player_ref: WeakRef = weakref(null)
+
 # Dust creation functions
 static func create_dust_effect(character: Node2D, offset_y: float = 12.0, spread_x: float = 8.0) -> void:
 	# Spawn dust splash at character landing position (near feet)
@@ -149,7 +152,10 @@ static func apply_damage_with_effects(character: Node2D, amount: int, blood_scen
 		var blood := blood_scene.instantiate()
 		var scene := character.get_tree().current_scene
 		if blood and scene:
-			var spawn_position := hit_position if hit_position != Vector2.ZERO else character.global_position
+			# Use existing position to avoid creating new Vector2
+			var spawn_position := hit_position
+			if spawn_position == Vector2.ZERO:
+				spawn_position = character.global_position
 			
 			# For alive enemies, offset blood position backwards from bullet impact
 			var is_dead: bool = "is_dead" in character and character.is_dead
@@ -158,8 +164,10 @@ static func apply_damage_with_effects(character: Node2D, amount: int, blood_scen
 				var backward_offset := bullet_direction.normalized() * 12.0  # 12 pixels behind impact
 				spawn_position += backward_offset
 			
-			var offset := Vector2(randf_range(-4.0, 4.0), randf_range(-4.0, 4.0))
-			blood.global_position = spawn_position + offset
+			# Reuse offset calculation
+			var offset_x := randf_range(-4.0, 4.0)
+			var offset_y := randf_range(-4.0, 4.0)
+			blood.global_position = spawn_position + Vector2(offset_x, offset_y)
 			
 			# Set dead enemy flag to reduce blood amount
 			blood.set_dead_enemy(is_dead)
@@ -167,21 +175,18 @@ static func apply_damage_with_effects(character: Node2D, amount: int, blood_scen
 			# Set blood direction based on bullet direction or character state
 			if bullet_direction != Vector2.ZERO:
 				# Check if bullet direction is mostly vertical (gun angled up/down relative to body)
-				var vertical_threshold := 0.94  # ~70-degree angle threshold
-				print("Bullet direction: ", bullet_direction, ", Y component: ", bullet_direction.y, ", threshold: ", vertical_threshold)
-				if abs(bullet_direction.y) > vertical_threshold:
+				const VERTICAL_THRESHOLD := 0.94  # ~70-degree angle threshold
+				if abs(bullet_direction.y) > VERTICAL_THRESHOLD:
 					# Gun is mostly vertical - make blood splash upwards
-					print("Making blood splash upwards (vertical shot)")
-					blood.set_direction(Vector2(0.0, -1.0))
+					blood.set_direction(Vector2.UP)
 				else:
 					# Normal horizontal bullet direction - use bullet direction for realistic blood spray
-					print("Using bullet direction for blood spray")
 					blood.set_direction(bullet_direction)
 			else:
 				# Fallback to character-based direction for non-bullet damage
 				if "is_dead" in character and character.is_dead:
 					# Dead characters: fountain effect (upward)
-					blood.set_direction(Vector2(0.0, -1.0))  # Straight up with slight random spread
+					blood.set_direction(Vector2.UP)
 				else:
 					# Alive characters: normal sideways blood based on facing direction
 					var facing_dir := Vector2.LEFT
@@ -190,18 +195,18 @@ static func apply_damage_with_effects(character: Node2D, amount: int, blood_scen
 						facing_dir = Vector2.LEFT if sprite.flip_h else Vector2.RIGHT
 					blood.set_direction(facing_dir)
 			
-			# Add blood to scene tree at correct position (after Wall, before background)
-			var wall_node = scene.get_node_or_null("Wall")
-			var background_node = scene.get_node_or_null("background")
+			# Cache scene nodes to avoid repeated lookups
+			var wall_node := scene.get_node_or_null("Wall")
+			var background_node := scene.get_node_or_null("background")
 			
 			if wall_node and background_node:
 				# Insert blood after Wall node but before background
-				var blood_index = wall_node.get_index() + 1
+				var blood_index := wall_node.get_index() + 1
 				scene.add_child(blood)
 				scene.move_child(blood, blood_index)
 			elif wall_node:
 				# Fallback: insert after Wall
-				var blood_index = wall_node.get_index() + 1
+				var blood_index := wall_node.get_index() + 1
 				scene.add_child(blood)
 				scene.move_child(blood, blood_index)
 			else:
@@ -221,12 +226,12 @@ static func apply_damage_with_effects(character: Node2D, amount: int, blood_scen
 
 # Centralized camera shake system
 static func _trigger_camera_shake(damaged_character: Node2D) -> void:
-	# Find the player to trigger camera shake
-	var scene := damaged_character.get_tree().current_scene
-	if scene == null:
-		return
+	# Use cached player reference to avoid expensive lookups
+	var player = _cached_player_ref.get_ref()
+	if not player:
+		player = damaged_character.get_tree().current_scene.get_node_or_null("Player")
+		_cached_player_ref = weakref(player)
 	
-	var player := scene.get_node_or_null("Player")
 	if player == null:
 		return
 	

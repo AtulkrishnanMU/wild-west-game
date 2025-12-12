@@ -21,11 +21,11 @@ const CORPSE_DECAY_COLOR: Color = Color(0.62, 0.82, 0.68, 1.0)
 const CASH_SCENE := preload("res://scenes/objects/cash.tscn")
 const BLOOD_SCENE := preload("res://scenes/objects/blood_splash.tscn")
 const AudioUtils = preload("res://scripts/utils/audio_utils.gd")
-var ENEMY_DEATH_SOUND_1: AudioStream = null
-var ENEMY_DEATH_SOUND_2: AudioStream = null
-var ENEMY_HURT_SOUND: AudioStream = null
-var BLOOD_SPLAT_SOUND: AudioStream = null
-var RUNNING_SOUND: AudioStream = null
+const ENEMY_DEATH_SOUND_1 = preload("res://sounds/enemy-death.mp3")
+const ENEMY_DEATH_SOUND_2 = preload("res://sounds/enemy-death2.mp3")
+const ENEMY_HURT_SOUND = preload("res://sounds/hurt.mp3")
+const BLOOD_SPLAT_SOUND = preload("res://sounds/blood-splat.mp3")
+const RUNNING_SOUND = preload("res://sounds/running.mp3")
 var health: int = MAX_HEALTH
 var FAR_JUMP_DISTANCE: float = 140.0
 var ATTACK_RANGE_DISTANCE: float = ATTACK_RANGE
@@ -33,6 +33,8 @@ var is_dead: bool = false
 var has_been_visible_with_player := false
 var is_active := false
 var was_on_floor: bool = false  # Track if enemy was on floor in previous frame
+var _visibility_check_timer: float = 0.0
+const VISIBILITY_CHECK_INTERVAL: float = 0.1
 @onready var animated_sprite: AnimatedSprite2D = $AnimatedSprite2D
 @onready var slash_player: AudioStreamPlayer2D = $SlashEnemyPlayer
 @onready var hit_player: AudioStreamPlayer2D = $HitEnemyPlayer
@@ -75,11 +77,6 @@ func _ready() -> void:
 		# Ensure decay tint starts as neutral white so alive enemies are unmodified
 		sprite_material.set_shader_parameter("decay_tint", Color(1, 1, 1, 1))
 	animated_sprite.animation_finished.connect(_on_animation_finished)
-	ENEMY_DEATH_SOUND_1 = load("res://sounds/enemy-death.mp3")
-	ENEMY_DEATH_SOUND_2 = load("res://sounds/enemy-death2.mp3")
-	ENEMY_HURT_SOUND = load("res://sounds/hurt.mp3")
-	BLOOD_SPLAT_SOUND = load("res://sounds/blood-splat.mp3")
-	RUNNING_SOUND = load("res://sounds/running.mp3")
 	if attack_hitbox:
 		_attack_hitbox_base_position = attack_hitbox.position
 		attack_hitbox.body_entered.connect(_on_attack_hitbox_body_entered)
@@ -470,6 +467,11 @@ func _play_enemy_hurt_sound() -> void:
 	AudioUtils.play_hurt_sound(ENEMY_HURT_SOUND, global_position)
 	
 func _check_visibility_activation():
+	_visibility_check_timer += get_physics_process_delta_time()
+	if _visibility_check_timer < VISIBILITY_CHECK_INTERVAL:
+		return
+	_visibility_check_timer = 0.0
+	
 	if has_been_visible_with_player:
 		return  # Already activated once
 	
