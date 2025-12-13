@@ -6,7 +6,7 @@ const GUN_SCENE := preload("res://scenes/objects/gun.tscn")
 const GUN_SHOT_SOUND := preload("res://sounds/gun-shot.mp3")
 const RELOAD_SOUND_PATH := "res://sounds/reload.mp3"
 const GunUtils = preload("res://scripts/utils/gun_utils.gd")
-const ATTACK_COOLDOWN: float = 1.2  # Cooldown between gun enemy attacks
+const ATTACK_COOLDOWN: float = 0.2  # Cooldown between gun enemy attacks (matches player's gun cooldown)
 
 @onready var gun_sprite: Sprite2D = $Gun
 var _aim_tween: Tween = null
@@ -51,23 +51,15 @@ func _physics_process(delta: float) -> void:
 func _update_gun_aim() -> void:
 	if player == null or gun_sprite == null:
 		return
-	var to_player: Vector2 = player.global_position - gun_sprite.global_position
-	if to_player.length() == 0.0:
-		return
-	var angle: float = to_player.angle()
-	var target_angle: float = angle
-	var facing_right: bool = to_player.x >= 0.0
-	if facing_right:
-		# Aim within [-90°, 90°] while facing right
-		target_angle = clamp(angle, -PI / 2.0, PI / 2.0)
-		animated_sprite.flip_h = false
-		gun_sprite.scale.x = 1.0
-	else:
-		# Mirror horizontally when aiming left, still keep rotation in [-90°, 90°]
-		var local_angle: float = angle + PI
-		target_angle = clamp(local_angle, -PI / 2.0, PI / 2.0)
-		animated_sprite.flip_h = true
-		gun_sprite.scale.x = -1.0
+	
+	# Use shared aiming logic from CharacterUtils
+	var target_angle = CharacterUtils.calculate_gun_aim_direction(
+		gun_sprite, 
+		player.global_position, 
+		animated_sprite, 
+		_gun_base_position,
+		Vector2.ZERO  # Gun enemy doesn't need left offset like player
+	)
 
 	# Smoothly tween gun rotation toward the desired angle
 	if _aim_tween and _aim_tween.is_valid():
@@ -95,8 +87,7 @@ func _on_animation_finished() -> void:
 		damage_cooldown_timer = DAMAGE_COOLDOWN
 		is_attacking = false
 		attack_cooldown_timer = ATTACK_COOLDOWN  # Set cooldown after attack
-		if is_on_floor() and abs(velocity.x) < 10.0 and not is_dead:
-			animated_sprite.play("IDLE")
+		# Don't force IDLE animation - let the main movement logic handle animation state
 	elif anim == "DEATH":
 		animated_sprite.stop()
 		animated_sprite.frame = animated_sprite.sprite_frames.get_frame_count("DEATH") - 1

@@ -106,8 +106,8 @@ func setup_ui() -> void:
 		health_bar.add_theme_stylebox_override("background", create_health_bar_background())
 		health_bar.add_theme_stylebox_override("foreground", create_health_bar_foreground())
 		
-		# Initialize health bar with proper color using unified function
-		set_health_bar_color_unified(HEALTH_HIGH_COLOR)
+		# Initialize health bar with red color
+		set_health_bar_color_unified(HEALTH_LOW_COLOR)
 	
 	# Hide conditional UI elements by default (they'll be shown when needed)
 	_set_conditional_ui_visibility(false)
@@ -285,22 +285,13 @@ func update_health_bar_unified(current: int, max_value: int, duration: float = 0
 	if health_bar == null:
 		return
 	
-	# Update max_value immediately
+	# Always use the red color #a6111c
+	var red_color = HEALTH_LOW_COLOR
+	set_health_bar_color_unified(red_color, duration)
+	
+	# Update health bar values
 	health_bar.max_value = max_value
-	
-	# Animate health bar value with smooth easing
-	var health_tween := create_tween()
-	health_tween.set_ease(Tween.EASE_IN_OUT)
-	health_tween.set_trans(Tween.TRANS_CUBIC)
-	health_tween.tween_property(health_bar, "value", current, duration)
-	
-	# Calculate and apply color
-	var ratio: float = 0.0
-	if max_value > 0:
-		ratio = float(current) / float(max_value)
-	
-	var health_color = get_health_color(ratio)
-	set_health_bar_color_unified(health_color, duration)
+	health_bar.value = current
 
 # SINGLE UNIFIED COLOR SETTER - ALWAYS SETS BOTH MODULATE AND FILL TOGETHER
 func set_health_bar_color_unified(color: Color, duration: float = 0.0) -> void:
@@ -361,15 +352,7 @@ func set_health_bar_color(color: Color, duration: float = 0.0) -> void:
 	print("WARNING: set_health_bar_color() is deprecated, use set_health_bar_color_unified instead")
 	set_health_bar_color_unified(color, duration)
 
-# Restore health bar to appropriate color based on current health level
-func restore_health_bar_color(duration: float = 0.3) -> void:
-	if health_bar == null or player == null:
-		return
-	
-	var ratio = float(player.health) / float(player.MAX_HEALTH)
-	var appropriate_color = get_health_color(ratio)
-	
-	set_health_bar_color_unified(appropriate_color, duration)
+# Restore health bar color function removed - health bar is always red
 
 func _on_player_health_changed(current: int, max_value: int) -> void:
 	var ratio: float = 0.0
@@ -490,9 +473,13 @@ func _pulse_health_bar() -> void:
 	health_bar_pulse_tween.tween_property(health_bar, "scale", original_health_bar_scale, pulse_duration * 0.5).set_delay(pulse_duration * 0.5)
 
 
-func _on_player_cash_changed(current: int) -> void:
+func _on_player_cash_changed(current: float) -> void:
 	if cash_label != null:
-		cash_label.text = "CASH: " + str(current) + "$"
+		# Format to show decimals only if not a whole number
+		if current == floor(current):
+			cash_label.text = "CASH: %.0f$" % current
+		else:
+			cash_label.text = "CASH: %.1f$" % current
 
 
 func _on_player_bullets_changed(current: int, max_value: int) -> void:

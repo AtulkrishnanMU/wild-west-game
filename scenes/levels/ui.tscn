@@ -1,8 +1,10 @@
-[gd_scene load_steps=7 format=3 uid="uid://vi8yy0g5xqwb"]
+[gd_scene load_steps=8 format=3 uid="uid://vi8yy0g5xqwb"]
 
 [ext_resource type="Shader" uid="uid://by14fga7fti8x" path="res://scenes/levels/vignette.gdshader" id="1_jsomr"]
 [ext_resource type="Script" uid="uid://xycvprjdjari" path="res://scripts/ui/weapon_menu.gd" id="2_weapon_menu"]
 [ext_resource type="Script" uid="uid://v2pdcxxkgae1" path="res://scripts/ui/circular_progress_bar.gd" id="3_circular_progress"]
+[ext_resource type="Texture2D" uid="uid://cbp8cpb6qjygt" path="res://assets/objects/bat.png" id="4_bat_icon"]
+[ext_resource type="Texture2D" uid="uid://dkceem2jn78gn" path="res://assets/objects/gun.png" id="5_gun_icon"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_s4fn1"]
 shader = ExtResource("1_jsomr")
@@ -15,13 +17,6 @@ shader_parameter/vignette_color = Color(0, 0, 0, 1)
 [sub_resource type="LabelSettings" id="LabelSettings_jsomr"]
 outline_size = 4
 outline_color = Color(0, 0, 0, 1)
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_bkgnd"]
-bg_color = Color(0, 0, 0, 1)
-corner_radius_top_left = 3
-corner_radius_top_right = 3
-corner_radius_bottom_right = 3
-corner_radius_bottom_left = 3
 
 [node name="UI" type="CanvasLayer"]
 script = ExtResource("2_weapon_menu")
@@ -81,6 +76,7 @@ script = ExtResource("3_circular_progress")
 radius = 30.0
 
 [node name="YeetLabel" type="Label" parent="."]
+visible = false
 offset_left = 56.0
 offset_top = 521.0
 offset_right = 126.0
@@ -110,34 +106,131 @@ text = "TOTAL: 0"
 label_settings = SubResource("LabelSettings_jsomr")
 horizontal_alignment = 1
 
-[node name="WeaponPanel" type="Panel" parent="."]
+[node name="WeaponMenu" type="Panel" parent="."]
 visible = false
-offset_left = 500.0
-offset_top = 200.0
-offset_right = 700.0
-offset_bottom = 350.0
-theme_override_styles/panel = SubResource("StyleBoxFlat_bkgnd")
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
 
-[node name="VBoxContainer" type="VBoxContainer" parent="WeaponPanel"]
-layout_mode = 0
-offset_left = 10.0
-offset_top = 10.0
-offset_right = 190.0
-offset_bottom = 130.0
-
-[node name="TitleLabel" type="Label" parent="WeaponPanel/VBoxContainer"]
-layout_mode = 2
+[node name="TitleLabel" type="Label" parent="WeaponMenu"]
+layout_mode = 1
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -150.0
+offset_top = 30.0
+offset_right = 150.0
+offset_bottom = 70.0
+grow_horizontal = 2
 text = "SELECT WEAPON"
 horizontal_alignment = 1
 
-[node name="BatButton" type="Button" parent="WeaponPanel/VBoxContainer"]
+[node name="GridContainer" type="GridContainer" parent="WeaponMenu"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 100.0
+offset_top = 120.0
+offset_right = -100.0
+offset_bottom = -100.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/h_separation = 80
+theme_override_constants/v_separation = 80
+columns = 4
+
+[node name="BatWeapon" type="Button" parent="WeaponMenu/GridContainer"]
+custom_minimum_size = Vector2(120, 140)
 layout_mode = 2
+
+[node name="BatIcon" type="TextureRect" parent="WeaponMenu/GridContainer/BatWeapon"]
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 0.5
+anchor_top = 0.35
+anchor_right = 0.5
+anchor_bottom = 0.35
+offset_left = -25.0
+offset_top = -25.0
+offset_right = 25.0
+offset_bottom = 25.0
+grow_horizontal = 2
+grow_vertical = 2
+texture = ExtResource("4_bat_icon")
+expand_mode = 3
+stretch_mode = 6
+
+[node name="BatLabel" type="Label" parent="WeaponMenu/GridContainer/BatWeapon"]
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 0.5
+anchor_top = 0.75
+anchor_right = 0.5
+anchor_bottom = 0.75
+offset_left = -30.0
+offset_top = -15.0
+offset_right = 30.0
+offset_bottom = 15.0
+grow_horizontal = 2
+grow_vertical = 2
 text = "BAT"
+horizontal_alignment = 1
+vertical_alignment = 1
 
-[node name="GunButton" type="Button" parent="WeaponPanel/VBoxContainer"]
+[node name="GunWeapon" type="Button" parent="WeaponMenu/GridContainer"]
+custom_minimum_size = Vector2(120, 140)
 layout_mode = 2
+
+[node name="GunIcon" type="TextureRect" parent="WeaponMenu/GridContainer/GunWeapon"]
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 0.5
+anchor_top = 0.35
+anchor_right = 0.5
+anchor_bottom = 0.35
+offset_left = -31.0
+offset_top = -1.0
+offset_right = 154.7143
+offset_bottom = 49.0
+grow_horizontal = 2
+grow_vertical = 2
+rotation = -0.015999705
+scale = Vector2(0.3440623, 0.3440623)
+texture = ExtResource("5_gun_icon")
+expand_mode = 3
+stretch_mode = 6
+
+[node name="GunLabel" type="Label" parent="WeaponMenu/GridContainer/GunWeapon"]
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 0.5
+anchor_top = 0.75
+anchor_right = 0.5
+anchor_bottom = 0.75
+offset_left = -30.0
+offset_top = -15.0
+offset_right = 30.0
+offset_bottom = 15.0
+grow_horizontal = 2
+grow_vertical = 2
 text = "GUN"
+horizontal_alignment = 1
+vertical_alignment = 1
 
-[node name="CloseButton" type="Button" parent="WeaponPanel/VBoxContainer"]
-layout_mode = 2
+[node name="CloseButton" type="Button" parent="WeaponMenu"]
+layout_mode = 1
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -60.0
+offset_top = -60.0
+offset_right = 60.0
+offset_bottom = -30.0
+grow_horizontal = 2
+grow_vertical = 0
 text = "CLOSE"

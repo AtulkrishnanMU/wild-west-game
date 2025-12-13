@@ -1,15 +1,23 @@
 extends Area2D
 
-const CASH_AMOUNT := 50
+# Random cash value range: 20.0 to 70.0 dollars
+const MIN_CASH_VALUE := 20.0
+const MAX_CASH_VALUE := 70.0
+
 const CASH_SOUND := preload("res://sounds/cash.mp3")
 
 var _player: Node2D = null
 var _attraction_timer: Timer = null
+var cash_value: float = 0.0  # Individual cash value for this instance
 
 func _on_ready() -> void:
 	# Make sure this Area2D actually detects the Player (which is on layer 2)
 	collision_layer = 1
 	collision_mask = 2
+	
+	# Generate random cash value for this instance
+	cash_value = randf_range(MIN_CASH_VALUE, MAX_CASH_VALUE)
+	
 	var scene := get_tree().current_scene
 	if scene:
 		_player = scene.get_node_or_null("Player")
@@ -38,20 +46,10 @@ func _physics_process(delta: float) -> void:
 
 
 func _on_body_entered(body: Node) -> void:
-	if body == null:
-		return
-	if not body.has_method("add_cash"):
-		return
-	body.add_cash(CASH_AMOUNT)
-	_play_cash_sound(body)
-	# Use CharacterUtils for popup (works for any Node2D)
-	if body.has_method("get") and body.get("POPUP_FONT_SIZE"):
-		# Use player's popup font size and cash height if available
-		CharacterUtils.spawn_floating_popup(body, "+%d $" % CASH_AMOUNT, Color.WHITE, Vector2(0, -20), body.POPUP_FONT_SIZE, body.CASH_POPUP_HEIGHT)
-	else:
-		# Fallback to default font size and height
-		CharacterUtils.spawn_floating_popup(body, "+%d $" % CASH_AMOUNT, Color.WHITE)
-	queue_free()
+	if body.is_in_group("player"):
+		_play_cash_sound(body)
+		body.add_cash(cash_value)
+		queue_free()
 
 
 func _on_attraction_timer_timeout() -> void:

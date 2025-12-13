@@ -34,6 +34,13 @@ const HEALTH_LOW_COLOR := Color(0.651, 0.067, 0.11, 1)    # #a6111c
 const HEALTH_HIGHLIGHT_COLOR := Color(1.0, 0.75, 0.8)  # Pink for healing highlights
 const HEALTH_GAIN_SOUND := preload("res://sounds/health-gain.mp3")  # Health gain sound effect
 
+# Cash popup accumulation system
+var current_cash_popup: Node2D = null
+var current_cash_popup_label: Label = null
+var current_cash_popup_tween: Tween = null
+var cash_popup_accumulator: float = 0.0
+var cash_popup_timer: Timer = null
+
 # Health bar highlight variables
 var _health_bar_highlight_tween: Tween = null
 var _original_health_bar_color: Color = Color.WHITE
@@ -54,7 +61,7 @@ const PLAYER_MAX_RELOADS: int = 5
 const PLAYER_GUN_FIRE_COOLDOWN: float = 0.2  # Cooldown between bullet fires
 const PLAYER_GUN_PICKUP_SCENE := preload("res://scenes/objects/gun.tscn")
 signal health_changed(current: int, max: int)
-signal cash_changed(current: int)
+signal cash_changed(current: float)
 signal bullets_changed(current: int, max: int)
 signal reloads_changed(current: int, max: int)
 signal combo_streak_changed(current: int)
@@ -74,7 +81,7 @@ var _bat_throw_sound_cache: AudioStream = null
 
 const MAX_HEALTH := 200
 var health: int = MAX_HEALTH
-var cash: int = 0
+var cash: float = 0.0
 var controls_enabled: bool = true
 var was_on_floor: bool = false  # Track if player was on floor in previous frame
 
@@ -184,6 +191,7 @@ const AIR_ATTACK_CHECK_INTERVAL: float = 0.02  # Check every 20ms instead of eve
 
 func _ready() -> void:
 	randomize()
+	add_to_group("player")  # Add player to "player" group for cash collection
 	animated_sprite.animation_finished.connect(_on_animation_finished)
 	emit_signal("health_changed", health, MAX_HEALTH)
 	emit_signal("cash_changed", cash)
@@ -198,6 +206,9 @@ func _ready() -> void:
 	
 	# Setup combo timer
 	_setup_combo_timer()
+	
+	# Setup cash popup timer
+	_setup_cash_popup_timer()
 	
 	# Cache audio streams for performance (now using preloaded constants)
 	_air_attack_sound_cache = PLAYER_AIR_ATTACK_SOUND
@@ -468,31 +479,17 @@ func _handle_weapon_systems() -> void:
 	_update_weapon_visibility()
 
 func _handle_gun_aiming() -> void:
-	var to_mouse: Vector2 = get_global_mouse_position() - gun_sprite.global_position
-	if to_mouse.length() <= 0.0:
+	if not gun_sprite:
 		return
 	
-	var angle: float = to_mouse.angle()
-	var target_angle: float = angle
-	var facing_right: bool = to_mouse.x >= 0.0
-	
-	if facing_right:
-		target_angle = clamp(angle, -PI / 2.0, PI / 2.0)
-		gun_sprite.scale.x = 1.0
-		animated_sprite.flip_h = false
-		gun_sprite.position = _gun_base_position
-	else:
-		gun_sprite.scale.x = -1.0
-		animated_sprite.flip_h = true
-		gun_sprite.position = _gun_base_position + Vector2(-8.0, 0.0)
-		
-		# Better angle calculation for left-facing
-		if angle >= 0:
-			target_angle = -(PI - angle)
-		else:
-			target_angle = -(-PI - angle)
-		
-		target_angle = clamp(target_angle, -PI / 2.0, PI / 2.0)
+	# Use shared aiming logic from CharacterUtils
+	var target_angle = CharacterUtils.calculate_gun_aim_direction(
+		gun_sprite, 
+		get_global_mouse_position(), 
+		animated_sprite, 
+		_gun_base_position,
+		Vector2(-8.0, 0.0)  # Player needs left offset for gun positioning
+	)
 	
 	gun_sprite.rotation = target_angle
 
@@ -1197,9 +1194,9 @@ func take_damage_with_direction(amount: int, bullet_direction: Vector2, bullet_p
 			# Use unified health bar color function for pink flash
 			current_scene.set_health_bar_color_unified(HEALTH_HIGHLIGHT_COLOR, 0.1)
 			
-			# Restore normal color after delay
+			# Restore to red color after delay
 			await get_tree().create_timer(0.3).timeout
-			current_scene.restore_health_bar_color(0.2)
+			current_scene.set_health_bar_color_unified(HEALTH_LOW_COLOR, 0.2)
 
 	health = max(health - amount, 0)
 	emit_signal("health_changed", health, MAX_HEALTH)
@@ -1222,11 +1219,14 @@ func take_damage_with_direction(amount: int, bullet_direction: Vector2, bullet_p
 			_play_hurt_sound()
 
 
-func add_cash(amount: int) -> void:
+func add_cash(amount: float) -> void:
 	if amount <= 0:
 		return
 	cash += amount
 	emit_signal("cash_changed", cash)
+	
+	# Update cash popup with accumulation
+	_update_cash_popup(amount)
 
 # Old health gain system removed - now using combo streak system
 
@@ -1305,6 +1305,87 @@ func reset_combo_streak() -> void:
 	if _combo_timer:
 		_combo_timer.stop()
 
+func _setup_cash_popup_timer() -> void:
+	cash_popup_timer = Timer.new()
+	cash_popup_timer.wait_time = 1.5  # Time to wait before popup disappears
+	cash_popup_timer.one_shot = true
+	cash_popup_timer.timeout.connect(_on_cash_popup_timeout)
+	add_child(cash_popup_timer)
+
+func _on_cash_popup_timeout() -> void:
+	# Clean up the cash popup when timer expires
+	if current_cash_popup:
+		if current_cash_popup_tween:
+			current_cash_popup_tween.kill()
+		
+		# Fade out animation
+		var fade_tween = get_tree().create_tween()
+		fade_tween.tween_property(current_cash_popup_label, "modulate:a", 0.0, 0.3)
+		fade_tween.tween_property(current_cash_popup, "position:y", current_cash_popup.position.y - 10.0, 0.3)
+		fade_tween.finished.connect(current_cash_popup.queue_free)
+		
+		# Reset variables
+		current_cash_popup = null
+		current_cash_popup_label = null
+		current_cash_popup_tween = null
+		cash_popup_accumulator = 0
+
+func _update_cash_popup(amount: float) -> void:
+	# If no existing popup, create one
+	if not current_cash_popup:
+		_create_cash_popup(amount)
+	else:
+		# Update existing popup
+		cash_popup_accumulator += amount
+		# Format to show decimals only if not a whole number
+		if cash_popup_accumulator == floor(cash_popup_accumulator):
+			current_cash_popup_label.text = "$%.0f" % cash_popup_accumulator
+		else:
+			current_cash_popup_label.text = "$%.1f" % cash_popup_accumulator
+		
+		# Reset the timer
+		cash_popup_timer.stop()
+		cash_popup_timer.start()
+		
+		# Add a small bounce effect for visual feedback
+		if current_cash_popup_tween:
+			current_cash_popup_tween.kill()
+		
+		current_cash_popup_tween = get_tree().create_tween()
+		current_cash_popup_tween.set_parallel(true)
+		current_cash_popup_tween.tween_property(current_cash_popup_label, "scale", Vector2(1.2, 1.2), 0.1)
+		current_cash_popup_tween.tween_property(current_cash_popup_label, "scale", Vector2(1.0, 1.0), 0.1)
+
+func _create_cash_popup(amount: float) -> void:
+	var scene := get_tree().current_scene
+	if scene == null:
+		return
+
+	cash_popup_accumulator = amount
+	
+	# Create popup root
+	current_cash_popup = Node2D.new()
+	current_cash_popup.position = (global_position + Vector2(0, -20)).round()
+	scene.add_child(current_cash_popup)
+
+	# Create label with formatted amount (show decimals if needed)
+	current_cash_popup_label = Label.new()
+	# Format to show decimals only if not a whole number
+	if amount == floor(amount):
+		current_cash_popup_label.text = "$%.0f" % amount
+	else:
+		current_cash_popup_label.text = "$%.1f" % amount
+	current_cash_popup_label.modulate = Color.WHITE
+	FontConfig.apply_popup_font(current_cash_popup_label)
+	current_cash_popup.add_child(current_cash_popup_label)
+
+	# Start floating animation
+	current_cash_popup_tween = get_tree().create_tween()
+	current_cash_popup_tween.tween_property(current_cash_popup, "position:y", current_cash_popup.position.y - 20.0, 1.0)
+	
+	# Start timer
+	cash_popup_timer.start()
+
 func apply_combo_healing() -> void:
 	print("DEBUG: apply_combo_healing called, current combo: ", combo_streak)
 	if combo_streak > 0:
@@ -1325,11 +1406,12 @@ func apply_combo_healing() -> void:
 			if current_scene and current_scene.has_method("update_health_bar_unified"):
 				current_scene.update_health_bar_unified(current_scene.player.health, current_scene.player.MAX_HEALTH)
 			# Add temporary pink flash effect
-			if current_scene and current_scene.has_method("set_health_bar_color_unified"):
-				current_scene.set_health_bar_color_unified(HEALTH_HIGHLIGHT_COLOR, 0.1)
-				# Reset to original color after 0.3 seconds
-				await get_tree().create_timer(0.3).timeout
-				current_scene.restore_health_bar_color(0.2)
+	var current_scene = get_tree().current_scene
+	if current_scene and current_scene.has_method("set_health_bar_color_unified"):
+		current_scene.set_health_bar_color_unified(HEALTH_HIGHLIGHT_COLOR, 0.1)
+		# Reset to red color after 0.3 seconds
+		await get_tree().create_timer(0.3).timeout
+		current_scene.set_health_bar_color_unified(HEALTH_LOW_COLOR, 0.2)
 		
 		reset_combo_streak()
 

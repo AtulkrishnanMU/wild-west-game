@@ -105,6 +105,36 @@ static func apply_smooth_movement(character: CharacterBody2D, target_speed: floa
 			return 0.0
 		return new_velocity
 
+# Shared gun aiming logic for both player and gun enemies
+static func calculate_gun_aim_direction(gun_sprite: Sprite2D, target_position: Vector2, animated_sprite: AnimatedSprite2D, gun_base_position: Vector2, left_offset: Vector2 = Vector2.ZERO) -> float:
+	var to_target: Vector2 = target_position - gun_sprite.global_position
+	if to_target.length() <= 0.0:
+		return 0.0
+	
+	var angle: float = to_target.angle()
+	var target_angle: float = angle
+	var facing_right: bool = to_target.x >= 0.0
+	
+	if facing_right:
+		target_angle = clamp(angle, -PI / 2.0, PI / 2.0)
+		gun_sprite.scale.x = 1.0
+		animated_sprite.flip_h = false
+		gun_sprite.position = gun_base_position
+	else:
+		gun_sprite.scale.x = -1.0
+		animated_sprite.flip_h = true
+		gun_sprite.position = gun_base_position + left_offset
+		
+		# Better angle calculation for left-facing
+		if angle >= 0:
+			target_angle = -(PI - angle)
+		else:
+			target_angle = -(-PI - angle)
+		
+		target_angle = clamp(target_angle, -PI / 2.0, PI / 2.0)
+	
+	return target_angle
+
 # Clean floating popup method (similar to cash popup)
 static func spawn_floating_popup(character: Node2D, text: String, color: Color, offset: Vector2 = Vector2(0, -20), font_size: int = FontConfig.DEFAULT_POPUP_FONT_SIZE, height: float = 0.0) -> void:
 	var scene := character.get_tree().current_scene
