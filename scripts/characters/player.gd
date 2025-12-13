@@ -48,7 +48,6 @@ const BLOOD_SCENE := preload("res://scenes/objects/blood_splash.tscn")
 const PLAYER_BULLET_SCENE := preload("res://scenes/objects/bullet.tscn")
 const PLAYER_GUN_SHOT_SOUND := preload("res://sounds/gun-shot.mp3")
 const PLAYER_RELOAD_SOUND := preload("res://sounds/reload.mp3")
-const PLAYER_AIR_ATTACK_SOUND := preload("res://sounds/air-attack.mp3")
 const PLAYER_BAT_THROW_SOUND := preload("res://sounds/slash.mp3")
 const PLAYER_DEATH_SOUND := preload("res://sounds/player-death.mp3")
 const PLAYER_KO_SOUND := preload("res://sounds/hit-KO.mp3")
@@ -75,7 +74,6 @@ var _combo_duration: float = 5.0  # Seconds before combo expires
 
 # Performance optimization: cached audio streams to avoid repeated loading
 var running_sound_player: AudioStreamPlayer2D = null
-var _air_attack_sound_cache: AudioStream = null
 var _reload_sound_cache: AudioStream = null
 var _bat_throw_sound_cache: AudioStream = null
 
@@ -95,8 +93,6 @@ var was_on_floor: bool = false  # Track if player was on floor in previous frame
 @onready var gun_sprite: Sprite2D = $GunSprite
 @onready var bat_sprite: Sprite2D = $BatSprite
 
-# Add this variable near the top with the others
-var _air_attack_finished_mid_air: bool = false
 var knockback_velocity: Vector2 = Vector2.ZERO
 var knockback_timer: float = 0.0
 const PLAYER_KNOCKBACK_DURATION: float = 0.05  # seconds of forced knockback
@@ -125,15 +121,6 @@ var is_attacking := false
 var is_dead := false
 var has_gun: bool = false
 var has_bat: bool = true  # Player always has bat for normal attacks
-var is_air_attacking := false
-var air_attack_target: Node = null
-var air_attack_speed: float = 1000.0
-var air_attack_horizontal_distance: float = 500.0  # Constant horizontal range
-var air_attack_tween: Tween = null
-var _air_attack_just_ended := false  # Prevent getting stuck in jump animation
-var _air_attack_cooldown := 0.0
-var _force_idle_after_air_attack := false  # Persistent flag to prevent override
-var _air_attack_ending := false  # Prevent multiple calls to _end_air_attack
 
 # Bat throw system
 var _bat_thrown: bool = false
@@ -184,10 +171,6 @@ var _enemy_cache_update_timer: float = 0.0
 const ENEMY_CACHE_UPDATE_INTERVAL: float = 0.1  # Update cache every 100ms
 # Performance optimization: track connected enemies to avoid redundant checks
 var _connected_enemies: Array[Node] = []
-# Performance optimization: air attack state tracking
-var _air_attack_collision_threshold_sq: float = 40.0 * 40.0  # Pre-calculated threshold
-var _air_attack_check_timer: float = 0.0  # Timer to reduce check frequency
-const AIR_ATTACK_CHECK_INTERVAL: float = 0.02  # Check every 20ms instead of every frame
 
 func _ready() -> void:
 	randomize()
@@ -211,7 +194,6 @@ func _ready() -> void:
 	_setup_cash_popup_timer()
 	
 	# Cache audio streams for performance (now using preloaded constants)
-	_air_attack_sound_cache = PLAYER_AIR_ATTACK_SOUND
 	_reload_sound_cache = PLAYER_RELOAD_SOUND
 	_bat_throw_sound_cache = PLAYER_BAT_THROW_SOUND
 	
@@ -289,9 +271,6 @@ func _handle_landing_effects() -> void:
 		is_jumping = false
 		is_wall_jumping = false
 		consecutive_wall_jumps = 0
-		_air_attack_just_ended = false
-		_force_idle_after_air_attack = false
-		_air_attack_finished_mid_air = false
 	
 	# Create dust while running on ground
 	if CharacterUtils.check_running_dust(self, velocity):
@@ -344,9 +323,6 @@ func _handle_movement_input(delta: float) -> void:
 
 func _handle_jumping(jump_just_pressed: bool) -> void:
 	if (jump_just_pressed or jump_buffer_time > 0.0) and is_on_floor() and not is_attacking and not is_jumping:
-		_force_idle_after_air_attack = false
-		_air_attack_finished_mid_air = false
-		_air_attack_just_ended = false
 		is_jumping = true
 		jump_hold_time = 0.0
 		jump_start_y = global_position.y
@@ -387,14 +363,13 @@ func _handle_horizontal_movement() -> void:
 	var dead_zone: float = 4.0
 	
 	# Mouse-facing logic
-	if abs(dx) > dead_zone and not is_air_attacking:
+	if abs(dx) > dead_zone:
 		animated_sprite.flip_h = dx < 0
 	
 	# Horizontal movement: only while right mouse button is held
 	var direction: float = 0.0
 	var target_speed: float = 0.0
 	if Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT):
-		_force_idle_after_air_attack = false
 		if abs(dx) > dead_zone:
 			direction = sign(dx)
 			target_speed = direction * SPEED
@@ -433,16 +408,16 @@ func _handle_combat_input() -> void:
 
 func _handle_bat_throw_inputs(attack_pressed: bool, bat_throw_pressed: bool) -> void:
 	# Keyboard bat throw
-	if bat_throw_pressed and current_equipped_weapon == "bat" and has_bat and not is_dead and not is_attacking and not is_air_attacking and not _bat_thrown and _bat_throw_cooldown <= 0:
+	if bat_throw_pressed and current_equipped_weapon == "bat" and has_bat and not is_dead and not is_attacking and not _bat_thrown and _bat_throw_cooldown <= 0:
 		_start_bat_throw()
 	
 	# Shift + Click bat throw
-	if attack_pressed and Input.is_key_pressed(KEY_SHIFT) and current_equipped_weapon == "bat" and has_bat and not is_dead and not is_attacking and not is_air_attacking and not _bat_thrown and _bat_throw_cooldown <= 0:
+	if attack_pressed and Input.is_key_pressed(KEY_SHIFT) and current_equipped_weapon == "bat" and has_bat and not is_dead and not is_attacking and not _bat_thrown and _bat_throw_cooldown <= 0:
 		_start_bat_throw()
 
 func _handle_normal_attacks(attack_pressed: bool, gun_attack_pressed: bool) -> void:
 	# Normal bat attack
-	if current_equipped_weapon == "bat" and has_bat and attack_pressed and not is_dead and not is_attacking and not is_air_attacking and not _bat_thrown:
+	if current_equipped_weapon == "bat" and has_bat and attack_pressed and not is_dead and not is_attacking and not _bat_thrown:
 		var direction = 0.0
 		if Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT):
 			var mouse_pos = get_global_mouse_position()
@@ -455,9 +430,6 @@ func _handle_normal_attacks(attack_pressed: bool, gun_attack_pressed: bool) -> v
 		else:
 			_start_attack_idle()
 	
-	# Air attack
-	if attack_pressed and not is_on_floor() and not is_dead and not is_air_attacking and current_equipped_weapon == "bat" and has_bat and not _bat_thrown:
-		_start_air_attack()
 	
 	# Gun attack
 	elif current_equipped_weapon == "gun" and has_gun:
@@ -466,7 +438,7 @@ func _handle_normal_attacks(attack_pressed: bool, gun_attack_pressed: bool) -> v
 
 func _handle_weapon_systems() -> void:
 	# Gun aiming
-	if current_equipped_weapon == "gun" and has_gun and gun_sprite and not is_air_attacking:
+	if current_equipped_weapon == "gun" and has_gun and gun_sprite:
 		_handle_gun_aiming()
 	
 	# Update bat aiming
@@ -494,16 +466,6 @@ func _handle_gun_aiming() -> void:
 	gun_sprite.rotation = target_angle
 
 func _handle_animation_and_effects() -> void:
-	# Update air attack
-	_update_air_attack()
-	
-	# Update air attack cooldown
-	if _air_attack_cooldown > 0.0:
-		_air_attack_cooldown -= get_physics_process_delta_time()
-		if _air_attack_cooldown <= 0.0:
-			_air_attack_just_ended = false
-			_force_idle_after_air_attack = false
-
 	# Update gun fire cooldown
 	if _gun_fire_cooldown > 0.0:
 		_gun_fire_cooldown -= get_physics_process_delta_time()
@@ -534,33 +496,21 @@ func _update_sword_hitbox() -> void:
 		sword_hitbox.position = Vector2(_sword_hitbox_base_position.x * sign_x, _sword_hitbox_base_position.y)
 
 func _update_animation() -> void:
-	if is_air_attacking:
-		animated_sprite.play("AIR_ATTACK")
-	elif is_attacking:
+	if is_attacking:
 		pass  # handled by animation_finished
-	elif _air_attack_finished_mid_air:
-		pass  # stay on last frame
-	elif _force_idle_after_air_attack:
-		if current_equipped_weapon == "gun" and has_gun:
-			animated_sprite.play("GUN_IDLE")
-		else:
-			animated_sprite.play("IDLE")
-		_stop_running_sound()
-	elif is_wall_jumping:
+	elif is_jumping:
 		if current_equipped_weapon == "gun" and has_gun:
 			animated_sprite.play("GUN_JUMP")
 		else:
 			animated_sprite.play("JUMP")
 		_stop_running_sound()
-	elif not is_on_floor() and not _air_attack_just_ended:
+	elif not is_on_floor():
 		if current_equipped_weapon == "gun" and has_gun:
 			animated_sprite.play("GUN_JUMP")
 		else:
 			animated_sprite.play("JUMP")
 		_stop_running_sound()
 	elif velocity.x != 0:
-		_force_idle_after_air_attack = false
-		_air_attack_finished_mid_air = false
 		if current_equipped_weapon == "gun" and has_gun:
 			animated_sprite.play("GUN_RUN")
 		else:
@@ -577,22 +527,22 @@ func _update_weapon_visibility() -> void:
 	# Hide both weapons by default (but only if not currently swinging/attacking)
 	if gun_sprite:
 		gun_sprite.visible = false
-	# We won't forcibly hide the bat if an attack is in progress or an air attack is active.
-	if bat_sprite and not is_attacking and not is_air_attacking:
+	# We won't forcibly hide the bat if an attack is in progress.
+	if bat_sprite and not is_attacking:
 		bat_sprite.visible = false
 
 	# Show appropriate weapon based on currently equipped weapon
 	if current_equipped_weapon == "gun" and has_gun and gun_sprite:
 		gun_sprite.visible = true
 	elif current_equipped_weapon == "bat" and has_bat and not _bat_thrown:
-		# Show bat when not in air attack OR during active melee attack
+		# Show bat when not in melee attack. Let attack code control visibility.
 		if bat_sprite:
 			# Bat must be visible during melee attack. Let attack code control visibility.
-			if is_attacking or not is_air_attacking:
+			if is_attacking:
 				bat_sprite.visible = true
 
 func _update_bat_aim() -> void:
-	if not bat_sprite or not has_bat or current_equipped_weapon == "gun" or is_air_attacking or is_attacking:
+	if not bat_sprite or not has_bat or current_equipped_weapon == "gun" or is_attacking:
 		return
 
 	var to_mouse := get_global_mouse_position() - bat_sprite.global_position
@@ -710,269 +660,38 @@ func _hide_bat() -> void:
 	if bat_sprite:
 		bat_sprite.visible = false
 
-	if _bat_swing_tween and _bat_swing_tween.is_valid():
-		_bat_swing_tween.kill()
-	_bat_swing_tween = null
-
-
-# ——— AIR ATTACK ———
-func _start_air_attack() -> void:
-	if is_air_attacking:
-		return
-	
-	# Play air attack sound
-	if _air_attack_sound_cache:
-		var scene_for_sound := get_tree().current_scene
-		if scene_for_sound:
-			var audio := AudioStreamPlayer2D.new()
-			audio.stream = _air_attack_sound_cache
-			audio.position = global_position
-			scene_for_sound.add_child(audio)
-			AudioUtils.play_random_pitch(audio, 0.9, 1.1)
-			audio.finished.connect(audio.queue_free)
-	
-	# Find nearest enemy (optional, for aiming)
-	air_attack_target = _find_nearest_enemy()
-	
-	is_air_attacking = true
-	is_attacking = false  # Override normal attack state
-	
-	# Always perform downward diagonal attack with constant horizontal distance
-	var horizontal_direction: float = 1.0  # Default right
-	
-	# Priority 1: If enemy exists, aim toward them horizontally
-	if air_attack_target != null:
-		var to_enemy: Vector2 = air_attack_target.global_position - global_position
-		horizontal_direction = sign(to_enemy.x)
-	# Priority 2: Use player's current facing direction as fallback only if no enemy found
-	elif animated_sprite.flip_h:
-		horizontal_direction = -1.0
-	
-	# Calculate target position for straight diagonal movement
-	var target_x: float = global_position.x + (horizontal_direction * air_attack_horizontal_distance)
-	var target_y: float = global_position.y + (air_attack_horizontal_distance * 0.8)  # Downward diagonal
-	var target_position: Vector2 = Vector2(target_x, target_y)
-	
-	# Face the attack direction
-	animated_sprite.flip_h = horizontal_direction < 0
-	
-	# Create motion tween for smooth diagonal movement with ease-in/ease-out
-	if air_attack_tween and air_attack_tween.is_valid():
-		air_attack_tween.kill()
-	
-	air_attack_tween = create_tween()
-	air_attack_tween.set_trans(Tween.TRANS_CUBIC)  # Smooth cubic easing
-	air_attack_tween.set_ease(Tween.EASE_IN_OUT)   # Ease in and out for natural motion
-	
-	var duration: float = 0.3  # Fixed duration for consistent speed
-	
-	# Instead of setting constant velocity, use tween to interpolate position
-	# for smooth ease-in/ease-out diagonal movement
-	var start_position: Vector2 = global_position
-	var attack_target_position: Vector2 = Vector2(target_x, target_y)
-	
-	# Create smooth position interpolation
-	air_attack_tween.tween_method(_update_air_attack_position.bind(start_position, attack_target_position), 0.0, 1.0, duration)
-	
-	air_attack_tween.finished.connect(_on_air_attack_tween_finished)
-
-func _update_air_attack_position(progress: float, start_pos: Vector2, target_pos: Vector2) -> void:
-	# Apply smooth cubic easing to position
-	var current_pos: Vector2 = start_pos.lerp(target_pos, progress)
-	# Calculate velocity from position change for physics
-	var new_velocity: Vector2 = (current_pos - global_position) / get_physics_process_delta_time()
-	velocity = new_velocity
-
-func _find_nearest_enemy() -> Node:
-	var nearest: Node = null
-	var nearest_distance_sq: float = 10000.0  # Reasonable search radius squared
-	
-	for enemy in _cached_enemies:
-		if not is_instance_valid(enemy) or enemy.is_dead or not enemy.is_active:
-			continue
-		
-		var distance_sq = global_position.distance_squared_to(enemy.global_position)
-		if distance_sq < nearest_distance_sq:
-			nearest_distance_sq = distance_sq
-			nearest = enemy
-	
-	return nearest
-
-func _update_air_attack() -> void:
-	# Early exit with combined state check
-	if not is_air_attacking or _air_attack_ending:
-		return
-	
-	# Check ground contact first (most common ending condition)
-	if is_on_floor():
-		_end_air_attack()
-		return
-	
-	# Optimize: Only check enemy collisions at intervals instead of every frame
-	_air_attack_check_timer += get_physics_process_delta_time()
-	if _air_attack_check_timer < AIR_ATTACK_CHECK_INTERVAL:
-		return  # Skip collision check this frame
-	
-	_air_attack_check_timer = 0.0  # Reset timer
-	
-	# Check enemy collisions only if still in air (optimized)
-	_check_air_attack_enemy_collisions()
-
-func _check_air_attack_enemy_collisions() -> void:
+func _apply_damage_to_enemies() -> void:
 	var player_pos_sq := global_position  # Cache position for all distance checks
-	
+
 	# Single pass: find nearby enemies and apply damage immediately
 	for enemy in _cached_enemies:
 		if not is_instance_valid(enemy) or enemy.is_dead or not enemy.is_active:
 			continue
-		
+
 		# Quick distance check using squared distance (faster than sqrt)
 		var distance_sq = player_pos_sq.distance_squared_to(enemy.global_position)
-		if distance_sq < _air_attack_collision_threshold_sq:
-			air_attack_target = enemy
-			_apply_air_attack_damage()
-			_end_air_attack()
-			return
+		if distance_sq < 40.0 * 40.0:  # Use fixed threshold instead of air attack variable
+			enemy.take_damage(20)
 
-func _on_air_attack_tween_finished() -> void:
-	# Only end if not already ending
-	if not _air_attack_ending:
-		_end_air_attack()
+			# Apply knockback to enemy in the direction player is facing
+			var facing_dir: int = -1 if animated_sprite.flip_h else 1
+			CharacterUtils.apply_knockback(enemy, facing_dir, 320.0, 0.25)
 
-func _apply_air_attack_damage() -> void:
-	if air_attack_target and air_attack_target.has_method("take_damage"):
-		air_attack_target.take_damage(20)
-		
-		# Apply knockback to enemy in the direction player is facing during air attack
-		var facing_dir: int = -1 if animated_sprite.flip_h else 1
-		CharacterUtils.apply_knockback(air_attack_target, facing_dir, 320.0, 0.25)
-		
-		# Create impact effect
-		if BLOOD_SCENE:
-			var blood := BLOOD_SCENE.instantiate()
-			var scene := get_tree().current_scene
-			if blood and scene:
-				blood.global_position = air_attack_target.global_position
-				var blood_direction: Vector2 = (air_attack_target.global_position - global_position).normalized()
-				blood.set_direction(blood_direction)
+			# Create impact effect
+			if BLOOD_SCENE:
+				var blood := BLOOD_SCENE.instantiate()
+				var scene := get_tree().current_scene
+				if blood and scene:
+					blood.global_position = enemy.global_position
+					var blood_direction: Vector2 = (enemy.global_position - global_position).normalized()
+					blood.set_direction(blood_direction)
 				
-				# Add blood to scene tree at correct position (after Wall, before background)
-				var wall_node = scene.get_node_or_null("Wall")
-				var background_node = scene.get_node_or_null("background")
-				
-				if wall_node and background_node:
-					# Insert blood after Wall node but before background
-					var blood_index = wall_node.get_index() + 1
-					scene.add_child(blood)
-					scene.move_child(blood, blood_index)
-				elif wall_node:
-					# Fallback: insert after Wall
-					var blood_index = wall_node.get_index() + 1
-					scene.add_child(blood)
-					scene.move_child(blood, blood_index)
-				else:
-					# Fallback: just add to scene
-					scene.add_child(blood)
-
-func _end_air_attack() -> void:
-	# Prevent multiple calls to this function
-	if _air_attack_ending:
-		return
-	
-	# Also skip if air attack is already ended
-	if not is_air_attacking:
-		return
-	
-	_air_attack_ending = true
-	is_air_attacking = false
-	air_attack_target = null
-	is_attacking = false  # Also clear regular attack state
-	_air_attack_just_ended = true
-	_air_attack_cooldown = 1.0  # 1 second cooldown
-	_force_idle_after_air_attack = true  # Force idle animation until player moves
-	
-	# Check if we're still in the air when the attack ends
-	if not is_on_floor():
-		_air_attack_finished_mid_air = true
-		# Let the animation finish naturally, then connect to animation_finished
-		# to pause it on the last frame
-		if not animated_sprite.animation_finished.is_connected(_on_air_attack_animation_finished):
-			animated_sprite.animation_finished.connect(_on_air_attack_animation_finished)
-	else:
-		_air_attack_finished_mid_air = false
-	
-	# Kill the tween if it's still running
-	if air_attack_tween and air_attack_tween.is_valid():
-		air_attack_tween.kill()
-	air_attack_tween = null
-	
-	# Reset velocity to prevent any residual movement
-	velocity = Vector2.ZERO
-	
-	# Delay animation state update to next frame to avoid conflict with main animation logic
-	call_deferred("_update_animation_state")
+				# Fallback: just add to scene
+				scene.add_child(blood)
 
 
-# ——— ANIMATION FINISHED ———
-func _update_animation_state() -> void:
-	# Force immediate animation update based on current state
-	var old_anim = animated_sprite.animation
-	
-	# Clear the ending flag since we're now updating
-	_air_attack_ending = false
-	
-	# Don't change animation if air attack finished mid-air - stay on last frame
-	if _air_attack_finished_mid_air:
-		return
-	
-	if is_dead:
-		animated_sprite.play("DEATH")
-	elif is_air_attacking:
-		animated_sprite.play("AIR_ATTACK")
-	elif is_attacking:
-		# attack animations handled by animation_finished
-		pass
-	elif is_wall_jumping:
-		# Use jump animation for wall jump as well
-		if has_gun:
-			animated_sprite.play("GUN_JUMP")
-		else:
-			animated_sprite.play("JUMP")
-		_stop_running_sound()
-	elif not is_on_floor() and not _air_attack_just_ended:
-		# Only play jump animation if not in cooldown from air attack
-		if has_gun:
-			animated_sprite.play("GUN_JUMP")
-		else:
-			animated_sprite.play("JUMP")
-		_stop_running_sound()
-	elif velocity.x != 0:
-		if has_gun:
-			animated_sprite.play("GUN_RUN")
-		else:
-			animated_sprite.play("RUN")
-		_play_running_sound()
-	else:
-		if has_gun:
-			animated_sprite.play("GUN_IDLE")
-		else:
-			animated_sprite.play("IDLE")
-		_stop_running_sound()
-	
-	var new_anim = animated_sprite.animation
-	if old_anim != new_anim:
-		print("[AIR_ATTACK] Animation changed: ", old_anim, " -> ", new_anim)
-
-func _on_air_attack_animation_finished() -> void:
-	# This is called when the air attack animation finishes naturally
-	# Disconnect the signal to avoid multiple calls
-	if animated_sprite.animation_finished.is_connected(_on_air_attack_animation_finished):
-		animated_sprite.animation_finished.disconnect(_on_air_attack_animation_finished)
-	
-	# Only pause if we're still in the air attack finished state and in the air
-	if _air_attack_finished_mid_air and not is_on_floor():
-		# Pause on the last frame
-		animated_sprite.pause()
+func _start_camera_shake() -> void:
+	_camera_shake_timer = camera_shake_time
 
 func _on_animation_finished() -> void:
 	var anim = animated_sprite.animation
@@ -1497,49 +1216,6 @@ func _flicker_red() -> void:
 	# Flash 2
 	_flicker_tween.tween_property(animated_sprite, "modulate", Color(2, 0.4, 0.4), 0.07)
 	_flicker_tween.tween_property(animated_sprite, "modulate", Color.WHITE, 0.07)
-
-func _apply_damage_to_enemies() -> void:
-	if not bat_sprite:
-		return
-	
-	var base_damage: int = 15
-	var hit_something := false
-	
-	# Check for bat collision with enemies
-	for enemy in get_tree().get_nodes_in_group("enemies"):
-		if not enemy.has_method("take_damage"):
-			continue
-		
-		# Check if bat sprite collides with enemy using distance-based collision
-		var distance := bat_sprite.global_position.distance_to(enemy.global_position)
-		if distance > 40.0:  # Bat reach distance
-			continue
-		
-		# Apply damage to enemy
-		var enemy_was_alive = not enemy.is_dead
-		enemy.take_damage(base_damage)
-		hit_something = true
-		
-		# Check if this attack killed the enemy
-		if enemy_was_alive and enemy.is_dead:
-			# Play KO sound for killing attacks with random pitch
-			AudioUtils.play_positioned_sound(PLAYER_KO_SOUND, global_position, 0.8, 1.2)
-		else:
-			# Play normal hit sound for non-lethal attacks
-			if hit_player:
-				hit_player.play()
-		
-		# Apply knockback away from bat position
-		var knockback_direction: int = sign(enemy.global_position.x - bat_sprite.global_position.x)
-		CharacterUtils.apply_knockback(enemy, knockback_direction, 250.0, 0.18)
-	
-	if hit_something:
-		# Sound is now handled within the enemy loop (KO for kills, normal hit for non-lethal)
-		pass
-
-
-func _start_camera_shake() -> void:
-	_camera_shake_timer = camera_shake_time
 
 
 func _play_player_death_sound() -> void:
