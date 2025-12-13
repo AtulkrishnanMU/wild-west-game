@@ -524,22 +524,19 @@ func _update_animation() -> void:
 		_stop_running_sound()
 
 func _update_weapon_visibility() -> void:
-	# Hide both weapons by default (but only if not currently swinging/attacking)
+	# Hide both weapons by default
 	if gun_sprite:
 		gun_sprite.visible = false
-	# We won't forcibly hide the bat if an attack is in progress.
-	if bat_sprite and not is_attacking:
+	if bat_sprite:
 		bat_sprite.visible = false
 
 	# Show appropriate weapon based on currently equipped weapon
 	if current_equipped_weapon == "gun" and has_gun and gun_sprite:
 		gun_sprite.visible = true
 	elif current_equipped_weapon == "bat" and has_bat and not _bat_thrown:
-		# Show bat when not in melee attack. Let attack code control visibility.
+		# Show bat whenever equipped with bat (and not thrown)
 		if bat_sprite:
-			# Bat must be visible during melee attack. Let attack code control visibility.
-			if is_attacking:
-				bat_sprite.visible = true
+			bat_sprite.visible = true
 
 func _update_bat_aim() -> void:
 	if not bat_sprite or not has_bat or current_equipped_weapon == "gun" or is_attacking:
@@ -661,7 +658,10 @@ func _hide_bat() -> void:
 		bat_sprite.visible = false
 
 func _apply_damage_to_enemies() -> void:
-	var player_pos_sq := global_position  # Cache position for all distance checks
+	if not bat_sprite:
+		return
+	
+	var bat_pos_sq := bat_sprite.global_position  # Use bat position for distance checks
 
 	# Single pass: find nearby enemies and apply damage immediately
 	for enemy in _cached_enemies:
@@ -669,8 +669,8 @@ func _apply_damage_to_enemies() -> void:
 			continue
 
 		# Quick distance check using squared distance (faster than sqrt)
-		var distance_sq = player_pos_sq.distance_squared_to(enemy.global_position)
-		if distance_sq < 40.0 * 40.0:  # Use fixed threshold instead of air attack variable
+		var distance_sq = bat_pos_sq.distance_squared_to(enemy.global_position)
+		if distance_sq < 60.0 * 60.0:  # Increased attack radius from 40 to 60 pixels
 			enemy.take_damage(20)
 
 			# Apply knockback to enemy in the direction player is facing
