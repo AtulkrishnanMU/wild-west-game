@@ -66,19 +66,13 @@ static func stop_running_sound(running_player: AudioStreamPlayer2D) -> void:
 static func play_blood_splat_sound(blood_splat_sound: AudioStream, position: Vector2) -> void:
 	play_positioned_sound(blood_splat_sound, position, 0.8, 1.2)
 
-# Plays death sound with optional random selection between two sounds
-static func play_death_sound(death_sound_1: AudioStream, death_sound_2: AudioStream, position: Vector2) -> void:
-	var sound_to_play: AudioStream = null
-	
-	if death_sound_1 and death_sound_2:
-		# Randomly choose between two death sounds
-		sound_to_play = death_sound_1 if randf() < 0.5 else death_sound_2
-	elif death_sound_1:
-		sound_to_play = death_sound_1
-	elif death_sound_2:
-		sound_to_play = death_sound_2
-	else:
+# Plays death sound with random selection from array of sounds
+static func play_death_sound(death_sounds: Array[AudioStream], position: Vector2) -> void:
+	if death_sounds.is_empty():
 		return
+	
+	# Randomly select one death sound from the array
+	var sound_to_play = death_sounds[randi() % death_sounds.size()]
 	
 	play_positioned_sound(sound_to_play, position, 0.9, 1.1)
 

@@ -50,9 +50,6 @@ func _force_death_state() -> void:
 	# Play death sound effect
 	_play_enemy_death_sound()
 	
-	# Start corpse decay
-	_start_corpse_decay()
-	
 	# Switch to dead collision
 	_switch_to_dead_collision()
 	
@@ -87,6 +84,21 @@ func _physics_process(delta: float) -> void:
 		velocity.y += GRAVITY * delta
 	velocity.x = CharacterUtils.apply_smooth_movement(self, 0.0, 0.0, delta, ACCELERATION, DECELERATION, AIR_ACCELERATION)
 	move_and_slide()
+
+# Override death sound to use specific wilhelm scream for intro scene
+func _play_enemy_death_sound() -> void:
+	var wilhelm_scream = preload("res://sounds/enemy_death/wilhelm-scream.mp3")
+	if wilhelm_scream:
+		AudioUtils.play_positioned_sound(wilhelm_scream, global_position, 0.9, 1.1)
+	# Play death fall sound 0.5 seconds after death sound
+	_play_death_fall_delayed()
+
+func _play_death_fall_delayed() -> void:
+	# Wait 0.5 seconds then play death fall sound
+	await get_tree().create_timer(0.5).timeout
+	var death_fall_sound = preload("res://sounds/death-fall.mp3")
+	if death_fall_sound:
+		AudioUtils.play_positioned_sound(death_fall_sound, global_position, 0.7, 1.3)
 
 # Override all attack-related functions to do nothing
 func _start_attack_close() -> void:

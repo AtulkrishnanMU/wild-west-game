@@ -44,9 +44,10 @@ const PLAYER_RELOAD_SOUND := preload("res://sounds/reload.mp3")
 const PLAYER_AIR_ATTACK_SOUND := preload("res://sounds/air-attack.mp3")
 const PLAYER_BAT_THROW_SOUND := preload("res://sounds/slash.mp3")
 const PLAYER_DEATH_SOUND := preload("res://sounds/player-death.mp3")
-const HURT_SOUND := preload("res://sounds/hurt.mp3")
+const PLAYER_KO_SOUND := preload("res://sounds/hit-KO.mp3")
+const HURT_SOUND := preload("res://sounds/enemy_hurt/hurt.mp3")
 const BLOOD_SPLAT_SOUND := preload("res://sounds/blood-splat.mp3")
-const RUNNING_SOUND := preload("res://sounds/running.mp3")
+const RUNNING_SOUND := preload("res://sounds/running.mp3") 
 const PLAYER_BAT_SCENE := preload("res://scenes/objects/thrown_bat.tscn")
 const PLAYER_MAG_SIZE: int = 10
 const PLAYER_MAX_RELOADS: int = 5
@@ -1433,17 +1434,26 @@ func _apply_damage_to_enemies() -> void:
 			continue
 		
 		# Apply damage to enemy
+		var enemy_was_alive = not enemy.is_dead
 		enemy.take_damage(base_damage)
 		hit_something = true
+		
+		# Check if this attack killed the enemy
+		if enemy_was_alive and enemy.is_dead:
+			# Play KO sound for killing attacks with random pitch
+			AudioUtils.play_positioned_sound(PLAYER_KO_SOUND, global_position, 0.8, 1.2)
+		else:
+			# Play normal hit sound for non-lethal attacks
+			if hit_player:
+				hit_player.play()
 		
 		# Apply knockback away from bat position
 		var knockback_direction: int = sign(enemy.global_position.x - bat_sprite.global_position.x)
 		CharacterUtils.apply_knockback(enemy, knockback_direction, 250.0, 0.18)
 	
 	if hit_something:
-		# Play hit sound
-		if hit_player:
-			hit_player.play()
+		# Sound is now handled within the enemy loop (KO for kills, normal hit for non-lethal)
+		pass
 
 
 func _start_camera_shake() -> void:
@@ -1451,7 +1461,17 @@ func _start_camera_shake() -> void:
 
 
 func _play_player_death_sound() -> void:
-	AudioUtils.play_death_sound(PLAYER_DEATH_SOUND, null, global_position)
+	var death_sounds: Array[AudioStream] = [PLAYER_DEATH_SOUND]
+	AudioUtils.play_death_sound(death_sounds, global_position)
+	# Play death fall sound 0.5 seconds after player death
+	_play_death_fall_delayed()
+
+func _play_death_fall_delayed() -> void:
+	# Wait 0.3 seconds then play death fall sound
+	await get_tree().create_timer(0.3).timeout
+	var death_fall_sound = preload("res://sounds/death-fall.mp3")
+	if death_fall_sound:
+		AudioUtils.play_positioned_sound(death_fall_sound, global_position, 0.7, 1.3)
 
 
 func _play_hurt_sound() -> void:

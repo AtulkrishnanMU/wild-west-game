@@ -16,15 +16,15 @@ const MAX_HEALTH := 50
 const ACCELERATION = 800.0   # pixels per second squared (slower than player)
 const DECELERATION = 1000.0  # pixels per second squared (stronger for quicker stops)
 const AIR_ACCELERATION = 600.0  # reduced acceleration when in air
-# Softer, less saturated green for final corpse tint
-const CORPSE_DECAY_COLOR: Color = Color(0.62, 0.82, 0.68, 1.0)
 const CASH_SCENE := preload("res://scenes/objects/cash.tscn")
 const BLOOD_SCENE := preload("res://scenes/objects/blood_splash.tscn")
 const AudioUtils = preload("res://scripts/utils/audio_utils.gd")
-const ENEMY_DEATH_SOUND_1 = preload("res://sounds/enemy-death.mp3")
-const ENEMY_DEATH_SOUND_2 = preload("res://sounds/enemy-death2.mp3")
-const ENEMY_HURT_SOUND = preload("res://sounds/hurt.mp3")
+const ENEMY_DEATH_SOUND_1 = preload("res://sounds/enemy_death/enemy-death.mp3")
+const ENEMY_DEATH_SOUND_2 = preload("res://sounds/enemy_death/enemy-death2.mp3")
+const ENEMY_DEATH_SOUND_3 = preload("res://sounds/enemy_death/enemy-death3.mp3")
+const ENEMY_DEATH_SOUND_4 = preload("res://sounds/enemy_death/enemy-death4.mp3")
 const BLOOD_SPLAT_SOUND = preload("res://sounds/blood-splat.mp3")
+const DEATH_FALL_SOUND = preload("res://sounds/death-fall.mp3")
 const RUNNING_SOUND = preload("res://sounds/running.mp3")
 var health: int = MAX_HEALTH
 var FAR_JUMP_DISTANCE: float = 140.0
@@ -321,7 +321,11 @@ func take_damage_with_direction(amount: int, bullet_direction: Vector2, bullet_p
 	
 	# Spawn blood splash at bullet hit position with bullet direction
 	CharacterUtils.apply_damage_with_effects(self, amount, BLOOD_SCENE, BLOOD_SPLAT_SOUND, null, bullet_direction, bullet_position)
-
+	
+	# Play random hurt sound when taking damage (but not dying)
+	if health > 0:
+		_play_enemy_hurt_sound()
+	
 	# FLASH REDDISH ON EVERY HIT (including killing blow)
 	_flash_reddish()
 	
@@ -355,24 +359,13 @@ func take_damage_with_direction(amount: int, bullet_direction: Vector2, bullet_p
 		# Face the player on death if possible
 		if player:
 			animated_sprite.flip_h = (player.global_position.x < global_position.x)
-		_start_corpse_decay()
 		if randf() < 0.2:
 			_start_kill_slowmo()
 		# Always drop cash on death, but defer to avoid physics flush issues
 		call_deferred("_drop_cash_on_death")
 		_play_enemy_death_sound()
-
-func _start_corpse_decay() -> void:
-	if _decay_tween and _decay_tween.is_valid():
-		_decay_tween.kill()
-	if sprite_material == null:
-		return
-	_decay_tween = create_tween()
-	_decay_tween.set_trans(Tween.TRANS_SINE)
-	_decay_tween.set_ease(Tween.EASE_IN_OUT)
-	# Fade the dedicated decay_tint parameter toward green; base enemies stay unchanged.
-	_decay_tween.tween_property(sprite_material, "shader_parameter/decay_tint", CORPSE_DECAY_COLOR, 10.0)
-
+		# Play death fall sound 1 second after death sound
+		_play_death_fall_delayed()
 
 func _flash_reddish() -> void:
 	if _hit_tween and _hit_tween.is_valid():
@@ -451,7 +444,26 @@ func _drop_cash_on_death() -> void:
 
 
 func _play_enemy_death_sound() -> void:
-	AudioUtils.play_death_sound(ENEMY_DEATH_SOUND_1, ENEMY_DEATH_SOUND_2, global_position)
+	var death_sounds: Array[AudioStream] = []
+	var dir = DirAccess.open("res://sounds/enemy_death/")
+	if dir:
+		dir.list_dir_begin()
+		var file_name = dir.get_next()
+		while file_name != "":
+			if file_name.ends_with(".mp3"):
+				var sound_path = "res://sounds/enemy_death/" + file_name
+				var sound = load(sound_path)
+				if sound:
+					death_sounds.append(sound)
+			file_name = dir.get_next()
+		dir.list_dir_end()
+	
+	if death_sounds.size() > 0:
+		AudioUtils.play_death_sound(death_sounds, global_position)
+	else:
+		# Fallback to hardcoded sounds if folder is empty
+		death_sounds = [ENEMY_DEATH_SOUND_1, ENEMY_DEATH_SOUND_2]
+		AudioUtils.play_death_sound(death_sounds, global_position)
 
 
 func _play_running_sound() -> void:
@@ -464,7 +476,27 @@ func _play_blood_splat_sound() -> void:
 	AudioUtils.play_blood_splat_sound(BLOOD_SPLAT_SOUND, global_position)
 
 func _play_enemy_hurt_sound() -> void:
-	AudioUtils.play_hurt_sound(ENEMY_HURT_SOUND, global_position)
+	var hurt_sounds: Array[AudioStream] = []
+	var dir = DirAccess.open("res://sounds/enemy_hurt/")
+	if dir:
+		dir.list_dir_begin()
+		var file_name = dir.get_next()
+		while file_name != "":
+			if file_name.ends_with(".mp3"):
+				var sound_path = "res://sounds/enemy_hurt/" + file_name
+				var sound = load(sound_path)
+				if sound:
+					hurt_sounds.append(sound)
+			file_name = dir.get_next()
+		dir.list_dir_end()
+	
+	if hurt_sounds.size() > 0:
+		AudioUtils.play_death_sound(hurt_sounds, global_position)
+
+func _play_death_fall_delayed() -> void:
+	# Wait 0.5 seconds then play death fall sound
+	await get_tree().create_timer(0.5).timeout
+	AudioUtils.play_positioned_sound(DEATH_FALL_SOUND, global_position, 0.7, 1.3)
 	
 func _check_visibility_activation():
 	_visibility_check_timer += get_physics_process_delta_time()
