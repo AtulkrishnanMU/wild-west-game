@@ -186,6 +186,8 @@ func _ready() -> void:
 		_gun_base_position = gun_sprite.position
 	if bat_sprite:
 		_bat_base_position = bat_sprite.position
+	if sword_hitbox:
+		sword_hitbox.body_entered.connect(_on_bat_collision_entered)
 	
 	# Setup combo timer
 	_setup_combo_timer()
@@ -596,6 +598,10 @@ func _show_bat_and_swing() -> void:
 		return
 
 	bat_sprite.visible = true
+	
+	# Enable sword hitbox for bat collision during attack
+	if sword_hitbox:
+		sword_hitbox.monitoring = true
 
 	# Determine facing from cursor like the aim code
 	var to_mouse := get_global_mouse_position() - bat_sprite.global_position
@@ -637,7 +643,6 @@ func _show_bat_and_swing() -> void:
 	# --- STRIKE ---
 	_bat_swing_tween.tween_property(bat_sprite, "rotation", hit_rot, 0.10)
 	_bat_swing_tween.parallel().tween_property(bat_sprite, "position", hit_pos, 0.10)
-	_bat_swing_tween.parallel().tween_callback(_apply_damage_to_enemies)
 
 	# --- FOLLOW THROUGH ---
 	_bat_swing_tween.tween_property(bat_sprite, "rotation", follow_rot, 0.06)
@@ -656,38 +661,52 @@ func _show_bat_and_swing() -> void:
 func _hide_bat() -> void:
 	if bat_sprite:
 		bat_sprite.visible = false
+	
+	# Disable sword hitbox when attack ends
+	if sword_hitbox:
+		sword_hitbox.monitoring = false
 
-func _apply_damage_to_enemies() -> void:
-	if not bat_sprite:
+func _on_bat_collision_entered(body: Node) -> void:
+	# Only apply damage during attacks and to valid enemies
+	if not is_attacking:
 		return
 	
-	var bat_pos_sq := bat_sprite.global_position  # Use bat position for distance checks
-
-	# Single pass: find nearby enemies and apply damage immediately
-	for enemy in _cached_enemies:
-		if not is_instance_valid(enemy) or enemy.is_dead or not enemy.is_active:
-			continue
-
-		# Quick distance check using squared distance (faster than sqrt)
-		var distance_sq = bat_pos_sq.distance_squared_to(enemy.global_position)
-		if distance_sq < 60.0 * 60.0:  # Increased attack radius from 40 to 60 pixels
-			enemy.take_damage(20)
-
-			# Apply knockback to enemy in the direction player is facing
-			var facing_dir: int = -1 if animated_sprite.flip_h else 1
-			CharacterUtils.apply_knockback(enemy, facing_dir, 320.0, 0.25)
-
-			# Create impact effect
-			if BLOOD_SCENE:
-				var blood := BLOOD_SCENE.instantiate()
-				var scene := get_tree().current_scene
-				if blood and scene:
-					blood.global_position = enemy.global_position
-					var blood_direction: Vector2 = (enemy.global_position - global_position).normalized()
-					blood.set_direction(blood_direction)
-				
-				# Fallback: just add to scene
-				scene.add_child(blood)
+	# Check if the collided body is an enemy
+	if not body.is_in_group("enemies"):
+		return
+	
+	# Check if enemy can take damage
+	if not body.has_method("take_damage"):
+		return
+	
+	# Apply damage to enemy
+	var enemy_was_alive = not body.is_dead
+	body.take_damage(20)
+	
+	# Check if this attack killed the enemy
+	if enemy_was_alive and body.is_dead:
+		# Play KO sound for killing attacks with random pitch
+		AudioUtils.play_positioned_sound(PLAYER_KO_SOUND, global_position, 0.8, 1.2)
+	else:
+		# Play normal hit sound for non-lethal attacks
+		if hit_player:
+			hit_player.play()
+	
+	# Apply knockback away from bat position
+	var knockback_direction: int = sign(body.global_position.x - bat_sprite.global_position.x)
+	CharacterUtils.apply_knockback(body, knockback_direction, 250.0, 0.18)
+	
+	# Create impact effect
+	if BLOOD_SCENE:
+		var blood := BLOOD_SCENE.instantiate()
+		var scene := get_tree().current_scene
+		if blood and scene:
+			blood.global_position = body.global_position
+			var blood_direction: Vector2 = (body.global_position - global_position).normalized()
+			blood.set_direction(blood_direction)
+			
+			# Fallback: just add to scene
+			scene.add_child(blood)
 
 
 func _start_camera_shake() -> void:
