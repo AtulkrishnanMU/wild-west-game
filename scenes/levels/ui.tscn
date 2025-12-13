@@ -90,10 +90,10 @@ horizontal_alignment = 1
 
 [node name="ComboTextLabel" type="Label" parent="."]
 visible = false
-offset_left = 477.00003
-offset_top = 417.00003
-offset_right = 678.5226
-offset_bottom = 440.3954
+offset_left = 978.0
+offset_top = 556.0
+offset_right = 1179.5227
+offset_bottom = 579.3954
 scale = Vector2(1.2107829, 1.2107829)
 text = "K I L L S"
 label_settings = SubResource("LabelSettings_jsomr")
@@ -101,10 +101,10 @@ horizontal_alignment = 1
 
 [node name="ComboTotalLabel" type="Label" parent="."]
 visible = false
-offset_left = 516.9999
-offset_top = 440.00003
-offset_right = 718.5225
-offset_bottom = 463.00003
+offset_left = 1017.99976
+offset_top = 579.0
+offset_right = 1219.5225
+offset_bottom = 602.0
 scale = Vector2(0.8, 0.8)
 text = "TOTAL: 0"
 label_settings = SubResource("LabelSettings_jsomr")

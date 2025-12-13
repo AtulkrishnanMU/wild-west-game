@@ -1,0 +1,89 @@
+[gd_scene load_steps=12 format=3 uid="uid://c0xwillnejllv"]
+
+[ext_resource type="Script" uid="uid://sf0h0hf0detr" path="res://scripts/objects/jail_door.gd" id="1_0x8y7"]
+[ext_resource type="Texture2D" uid="uid://d0hy6ptj6wqse" path="res://assets/objects/BigDoor_S.png" id="2_3mx2w"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_3mx2w"]
+atlas = ExtResource("2_3mx2w")
+region = Rect2(0, 0, 30, 42)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_pt45b"]
+atlas = ExtResource("2_3mx2w")
+region = Rect2(0, 0, 30, 42)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_41ppi"]
+atlas = ExtResource("2_3mx2w")
+region = Rect2(30, 0, 30, 42)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_gelj3"]
+atlas = ExtResource("2_3mx2w")
+region = Rect2(60, 0, 30, 42)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_k3asj"]
+atlas = ExtResource("2_3mx2w")
+region = Rect2(90, 0, 30, 42)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_7xm56"]
+atlas = ExtResource("2_3mx2w")
+region = Rect2(120, 0, 30, 42)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_prvbm"]
+atlas = ExtResource("2_3mx2w")
+region = Rect2(150, 0, 30, 42)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_ppf1h"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_3mx2w")
+}],
+"loop": false,
+"name": &"idle",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_pt45b")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_41ppi")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_gelj3")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_k3asj")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_7xm56")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_prvbm")
+}],
+"loop": false,
+"name": &"open",
+"speed": 24.0
+}]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_abc123"]
+size = Vector2(32, 96)
+
+[node name="JailDoor" type="Node2D"]
+scale = Vector2(0.44975775, 0.7722739)
+script = ExtResource("1_0x8y7")
+
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
+position = Vector2(-19.625, -9.711586)
+scale = Vector2(3.6416667, 2.4356027)
+sprite_frames = SubResource("SpriteFrames_ppf1h")
+animation = &"open"
+autoplay = "idle"
+frame = 5
+frame_progress = 1.0
+
+[node name="CollisionArea" type="Area2D" parent="."]
+position = Vector2(-19.625, -104)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="CollisionArea"]
+position = Vector2(-0.8218403, 93.64099)
+shape = SubResource("RectangleShape2D_abc123")

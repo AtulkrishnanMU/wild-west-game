@@ -2,7 +2,7 @@ extends Control
 
 @export var max_value: float = 100.0
 @export var value: float = 0.0
-@export var color: Color = Color(0.043, 0.502, 0.432, 1)  # #0b806e
+@export var color: Color = Color.WHITE  # White color
 @export var bg_color: Color = Color(0.1, 0.1, 0.1, 0.8)
 @export var thickness: float = 8.0
 @export var radius: float = 20.0

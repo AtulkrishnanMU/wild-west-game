@@ -8,7 +8,7 @@ class_name Collider
 func _ready():
 	# Set up collision properties
 	collision_layer = 1  # World collision layer
-	collision_mask = 1   # Detect world objects
+	collision_mask = 8   # Detect projectiles (bullets are on layer 8)
 	
 	# Ensure the ColorRect matches the collision shape
 	update_visual_size()

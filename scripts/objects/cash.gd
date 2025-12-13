@@ -47,10 +47,10 @@ func _on_body_entered(body: Node) -> void:
 	# Use CharacterUtils for popup (works for any Node2D)
 	if body.has_method("get") and body.get("POPUP_FONT_SIZE"):
 		# Use player's popup font size and cash height if available
-		CharacterUtils.spawn_floating_popup(body, "+%d" % CASH_AMOUNT, Color(1.0, 0.84, 0.0), Vector2(0, -20), body.POPUP_FONT_SIZE, body.CASH_POPUP_HEIGHT)
+		CharacterUtils.spawn_floating_popup(body, "+%d $" % CASH_AMOUNT, Color.WHITE, Vector2(0, -20), body.POPUP_FONT_SIZE, body.CASH_POPUP_HEIGHT)
 	else:
 		# Fallback to default font size and height
-		CharacterUtils.spawn_floating_popup(body, "+%d" % CASH_AMOUNT, Color(1.0, 0.84, 0.0))
+		CharacterUtils.spawn_floating_popup(body, "+%d $" % CASH_AMOUNT, Color.WHITE)
 	queue_free()
 
 

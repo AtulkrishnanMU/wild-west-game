@@ -27,11 +27,10 @@ const AudioUtils = preload("res://scripts/utils/audio_utils.gd")
 const GunUtils = preload("res://scripts/utils/gun_utils.gd")
 
 # Health color constants - should match level.gd constants
-const HEALTH_HIGH_THRESHOLD := 0.6  # Above this = green
-const HEALTH_LOW_THRESHOLD := 0.3   # Above this = yellow, below = red
-const HEALTH_HIGH_COLOR := Color(0.2, 0.6, 0.2)    # Green (less bright)
-const HEALTH_MEDIUM_COLOR := Color(0.95, 0.8, 0.2)  # Yellow
-const HEALTH_LOW_COLOR := Color(0.95, 0.2, 0.2)    # Red
+const HEALTH_HIGH_THRESHOLD := 0.6  # Above this = white
+const HEALTH_LOW_THRESHOLD := 0.3   # Above this = white, below = red
+const HEALTH_HIGH_COLOR := Color.WHITE    # White for high health
+const HEALTH_LOW_COLOR := Color(0.651, 0.067, 0.11, 1)    # #a6111c
 const HEALTH_HIGHLIGHT_COLOR := Color(1.0, 0.75, 0.8)  # Pink for healing highlights
 const HEALTH_GAIN_SOUND := preload("res://sounds/health-gain.mp3")  # Health gain sound effect
 
@@ -1317,7 +1316,7 @@ func apply_combo_healing() -> void:
 			emit_signal("health_changed", health, MAX_HEALTH)
 			print("DEBUG: Healed for: ", actual_heal, " (combo: ", combo_streak, ", potential: ", heal_potential, ")")
 			# Show healing popup with consistent size
-			CharacterUtils.spawn_floating_popup(self, "+" + str(actual_heal) + " HP", Color(1.0, 0.75, 0.8), Vector2(-20, -25), 14, HEALTH_POPUP_HEIGHT)
+			CharacterUtils.spawn_floating_popup(self, "+" + str(actual_heal) + " HP", Color.WHITE, Vector2(-20, -25), 14, HEALTH_POPUP_HEIGHT)
 			# Play health gain sound
 			AudioUtils.play_positioned_sound(HEALTH_GAIN_SOUND, global_position)
 			# Sync health bar color to show pink flash
@@ -1341,10 +1340,8 @@ func get_health_color() -> Color:
 		ratio = float(health) / float(MAX_HEALTH)
 	
 	# Use shared constants instead of hardcoded values
-	if ratio > HEALTH_HIGH_THRESHOLD:
+	if ratio > HEALTH_LOW_THRESHOLD:
 		return HEALTH_HIGH_COLOR
-	elif ratio > HEALTH_LOW_THRESHOLD:
-		return HEALTH_MEDIUM_COLOR
 	else:
 		return HEALTH_LOW_COLOR
 

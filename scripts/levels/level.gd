@@ -9,9 +9,8 @@ const HEALTH_HIGH_THRESHOLD := 0.6  # Above this = green
 const HEALTH_LOW_THRESHOLD := 0.3   # Above this = yellow, below = red
 
 # Health color definitions - SINGLE SOURCE OF TRUTH
-const HEALTH_HIGH_COLOR := Color(0.043, 0.502, 0.432, 1)    # #0b806e
-const HEALTH_MEDIUM_COLOR := Color(0.7, 0.6, 0.2)  # Darker yellow-green
-const HEALTH_LOW_COLOR := Color(0.7, 0.3, 0.2)    # Darker red-green
+const HEALTH_HIGH_COLOR := Color.WHITE  # White for high health
+const HEALTH_LOW_COLOR := Color(0.651, 0.067, 0.11, 1)  # #a6111c
 
 # Tutorial configuration class
 class TutorialConfig:
@@ -81,10 +80,8 @@ var _tutorial_space_pressed: bool = false
 
 # Helper function to get health color based on ratio - SINGLE SOURCE OF TRUTH
 func get_health_color(ratio: float) -> Color:
-	if ratio > HEALTH_HIGH_THRESHOLD:
+	if ratio > HEALTH_LOW_THRESHOLD:
 		return HEALTH_HIGH_COLOR
-	elif ratio > HEALTH_LOW_THRESHOLD:
-		return HEALTH_MEDIUM_COLOR
 	else:
 		return HEALTH_LOW_COLOR
 
@@ -141,6 +138,7 @@ func setup_ui() -> void:
 		FontConfig.apply_ui_font(cash_label)
 	if health_percent_label:
 		FontConfig.apply_ui_font(health_percent_label)
+		health_percent_label.modulate = Color.WHITE  # Set HP text color to white
 		# Set initial text to MAX_HEALTH/MAX_HEALTH format
 		if player:
 			health_percent_label.text = str(player.MAX_HEALTH) + "/" + str(player.MAX_HEALTH) + " HP"
@@ -174,11 +172,10 @@ func setup_music() -> void:
 func create_health_bar_background() -> StyleBoxFlat:
 	var style_box := StyleBoxFlat.new()
 	style_box.bg_color = Color(0.2, 0.2, 0.2, 0.8)  # Dark gray background
-	style_box.border_width_left = 2
-	style_box.border_width_right = 2
-	style_box.border_width_top = 2
-	style_box.border_width_bottom = 2
-	style_box.border_color = Color.WHITE  # White outline
+	style_box.border_width_left = 0  # Remove border from background
+	style_box.border_width_right = 0
+	style_box.border_width_top = 0
+	style_box.border_width_bottom = 0
 	style_box.corner_radius_top_left = 2  # Reduced corner radius
 	style_box.corner_radius_top_right = 2
 	style_box.corner_radius_bottom_left = 2
@@ -202,13 +199,10 @@ func get_current_health_color() -> Color:
 func create_health_bar_foreground() -> StyleBoxFlat:
 	var style_box := StyleBoxFlat.new()
 	style_box.bg_color = Color.TRANSPARENT  # Transparent foreground
-	style_box.border_width_left = 1
-	style_box.border_width_right = 1
-	style_box.border_width_top = 1
-	style_box.border_width_bottom = 1
-	# Use current health color for outline instead of white
-	var health_color = get_current_health_color()
-	style_box.border_color = health_color  # Same color as fill
+	style_box.border_width_left = 0  # Remove border from foreground too
+	style_box.border_width_right = 0
+	style_box.border_width_top = 0
+	style_box.border_width_bottom = 0
 	style_box.corner_radius_top_left = 2  # Reduced corner radius
 	style_box.corner_radius_top_right = 2
 	style_box.corner_radius_bottom_left = 2
@@ -321,9 +315,14 @@ func set_health_bar_color_unified(color: Color, duration: float = 0.0) -> void:
 		# Animate modulate
 		tween.tween_property(health_bar, "modulate", color, duration)
 		
-		# Create and animate fill color
+		# Create and animate fill color with border
 		var fill_style = StyleBoxFlat.new()
 		fill_style.bg_color = color
+		fill_style.border_width_left = 2  # Add border to fill style
+		fill_style.border_width_right = 2
+		fill_style.border_width_top = 2
+		fill_style.border_width_bottom = 2
+		fill_style.border_color = Color.WHITE  # White border on top
 		fill_style.corner_radius_top_left = 2
 		fill_style.corner_radius_top_right = 2
 		fill_style.corner_radius_bottom_left = 2
@@ -338,6 +337,11 @@ func set_health_bar_color_unified(color: Color, duration: float = 0.0) -> void:
 		health_bar.modulate = color
 		var fill_style = StyleBoxFlat.new()
 		fill_style.bg_color = color
+		fill_style.border_width_left = 2  # Add border to fill style
+		fill_style.border_width_right = 2
+		fill_style.border_width_top = 2
+		fill_style.border_width_bottom = 2
+		fill_style.border_color = Color.WHITE  # White border on top
 		fill_style.corner_radius_top_left = 2
 		fill_style.corner_radius_top_right = 2
 		fill_style.corner_radius_bottom_left = 2
@@ -384,11 +388,11 @@ func _on_player_health_changed(current: int, max_value: int) -> void:
 	# Manage heartbeat sound based on health level
 	_manage_heartbeat_sound(ratio)
 	
-	# Manage health bar pulsing based on health color
-	if health_color == HEALTH_LOW_COLOR:  # Red color
-		_start_health_bar_pulse()
-	else:
-		_stop_health_bar_pulse()
+	# Manage health bar pulsing based on health color - DISABLED
+	# if health_color == HEALTH_LOW_COLOR:  # Red color
+	#	_start_health_bar_pulse()
+	# else:
+	#	_stop_health_bar_pulse()
 		
 	if health_percent_label != null and max_value > 0:
 		health_percent_label.text = str(current) + "/" + str(max_value) + " HP"
@@ -477,9 +481,9 @@ func _pulse_health_bar() -> void:
 	health_bar_pulse_tween = create_tween()
 	health_bar_pulse_tween.set_loops()
 	
-	# Pulsing parameters - faster and smaller
-	var pulse_scale = 1.05  # 5% bigger (reduced from 10%)
-	var pulse_duration = 0.4  # Duration of one pulse cycle (faster, was 0.8)
+	# Pulsing parameters - more subtle
+	var pulse_scale = 1.02  # 2% bigger (much more subtle)
+	var pulse_duration = 0.6  # Duration of one pulse cycle (slightly slower)
 	
 	# Health bar pulsing from center
 	health_bar_pulse_tween.tween_property(health_bar, "scale", original_health_bar_scale * pulse_scale, pulse_duration * 0.5)
@@ -530,8 +534,8 @@ func _on_combo_streak_changed(current: int) -> void:
 			FontConfig.apply_ui_font(combo_total_label)
 			# Apply custom overrides AFTER FontConfig
 			combo_total_label.add_theme_font_size_override("font_size", 30)  # Much larger font
-			combo_total_label.modulate = Color(1.0, 0.75, 0.8)  # Pink color
-			combo_total_label.add_theme_color_override("font_color", Color(1.0, 0.75, 0.8))  # Pink font color
+			combo_total_label.modulate = Color.WHITE  # White color
+			combo_total_label.add_theme_color_override("font_color", Color.WHITE)  # White font color
 			combo_total_label.add_theme_color_override("font_outline_color", Color.BLACK)  # Black outline
 
 			_fade_in_combo_element(combo_total_label)
