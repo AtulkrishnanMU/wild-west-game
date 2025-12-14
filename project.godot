@@ -11,7 +11,7 @@ config_version=5
 [application]
 
 config/name="Wild west"
-run/main_scene="uid://8frbpgqpdtbu"
+run/main_scene="uid://b144xoh0eppd4"
 config/features=PackedStringArray("4.5", "Forward Plus")
 config/icon="res://icon.svg"
 
@@ -64,7 +64,7 @@ renderer/rendering_method="gl_compatibility"
 renderer/rendering_method.mobile="gl_compatibility"
 textures/vram_compression/import_etc2_astc=true
 scaling_3d/mode="pixel"
-environment/defaults/default_clear_color=Color(0, 0, 0, 1)
+environment/defaults/default_clear_color=Color(0.30323282, 0.30323285, 0.30323276, 1)
 2d/snap/snap_2d_transforms_to_pixel=true
 2d/snap/snap_2d_vertices_to_pixel=true
 environment/default_background_color=Color(1, 1, 1, 1)

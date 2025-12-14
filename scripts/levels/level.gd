@@ -102,6 +102,46 @@ var _tutorial_left_clicked: bool = false
 var _tutorial_right_clicked: bool = false
 var _tutorial_space_pressed: bool = false
 
+# Base _ready function that handles automatic setup
+func _ready():
+	# Automatically find and assign common nodes
+	_auto_assign_nodes()
+	
+	# Call setup functions
+	setup_level()
+	setup_ui()
+
+# Automatically assign common nodes if they exist
+func _auto_assign_nodes():
+	# Find player if not already assigned
+	if not player and has_node("Player"):
+		player = $Player
+	
+	# Find UI layer if not already assigned
+	if not ui_layer and has_node("UI"):
+		ui_layer = $UI
+	
+	# Find UI elements if UI layer exists
+	if ui_layer:
+		if not health_bar and ui_layer.has_node("HealthBar"):
+			health_bar = ui_layer.get_node("HealthBar")
+		if not cash_label and ui_layer.has_node("CashLabel"):
+			cash_label = ui_layer.get_node("CashLabel")
+		if not health_percent_label and ui_layer.has_node("HealthPercentLabel"):
+			health_percent_label = ui_layer.get_node("HealthPercentLabel")
+		if not bullet_icons and ui_layer.has_node("BulletIcons"):
+			bullet_icons = ui_layer.get_node("BulletIcons")
+		if not reload_label and ui_layer.has_node("ReloadLabel"):
+			reload_label = ui_layer.get_node("ReloadLabel")
+		if not combo_text_label and ui_layer.has_node("ComboTextLabel"):
+			combo_text_label = ui_layer.get_node("ComboTextLabel")
+		if not combo_total_label and ui_layer.has_node("ComboTotalLabel"):
+			combo_total_label = ui_layer.get_node("ComboTotalLabel")
+		if not combo_timer_bar and ui_layer.has_node("ComboTimerBar"):
+			combo_timer_bar = ui_layer.get_node("ComboTimerBar")
+		if not combo_number_label and ui_layer.has_node("ComboNumberLabel"):
+			combo_number_label = ui_layer.get_node("ComboNumberLabel")
+
 # Helper function to get health color based on ratio - SINGLE SOURCE OF TRUTH
 func get_health_color(ratio: float) -> Color:
 	if ratio > HEALTH_LOW_THRESHOLD:
@@ -119,7 +159,13 @@ func _connect_existing_enemies() -> void:
 
 # Common UI setup function
 func setup_ui() -> void:
-		# Configure progress bars FIRST before initializing health
+	# Validate that player exists
+	if not player:
+		push_error("ERROR: Player not found in scene! Make sure a Player node is added to the scene.")
+		assert(false, "Player node is required for UI setup. Please add a Player node to the scene.")
+		return
+	
+	# Configure progress bars FIRST before initializing health
 	if health_bar:
 		health_bar.show_percentage = false
 		# Reduce corner radius and add white outline
@@ -146,12 +192,15 @@ func setup_ui() -> void:
 			player.combo_streak_changed.connect(_on_combo_streak_changed)
 		
 	# Initialize UI to current player state AFTER styling is configured
-		update_health_bar_unified(player.health, player.MAX_HEALTH)
-		_on_player_cash_changed(player.cash)
-		_on_player_reloads_changed(player._player_reload_count, player.PLAYER_MAX_RELOADS)
+	update_health_bar_unified(player.health, player.MAX_HEALTH)
+	_on_player_cash_changed(player.cash)
+	_on_player_reloads_changed(player._player_reload_count, player.PLAYER_MAX_RELOADS)
 	
 	# Connect existing enemies to combo system
 	_connect_existing_enemies()
+	
+	# Setup weapon menu
+	_setup_weapon_menu()
 	
 	# Apply default font to UI elements
 	if cash_label:
@@ -166,8 +215,53 @@ func setup_ui() -> void:
 		FontConfig.apply_ui_font(reload_label)
 	# Combo labels are styled individually in the combo handler
 
+# Set visibility of conditional UI elements (bullets, reload, combo)
+func _set_conditional_ui_visibility(visible: bool) -> void:
+	if bullet_icons:
+		bullet_icons.visible = visible
+	if reload_label:
+		reload_label.visible = visible
+	if combo_text_label:
+		combo_text_label.visible = visible
+	if combo_total_label:
+		combo_total_label.visible = visible
+	if combo_timer_bar:
+		combo_timer_bar.visible = visible
+
+# Setup weapon menu (common across all levels)
+func _setup_weapon_menu() -> void:
+	# Connect weapon menu to player if UI layer exists
+	if ui_layer and ui_layer.has_method("set_player"):
+		ui_layer.set_player(player)
+
+# Fade in essential UI elements (common across all levels)
+func fade_in_essential_ui() -> void:
+	# Create fade tween for UI elements
+	var fade_tween := create_tween()
+	
+	# Fade in essential UI elements (health, cash, health percent)
+	if ui_layer:
+		if health_bar:
+			# Health bar is already visible from base class, just fade in
+			fade_tween.tween_property(health_bar, "modulate:a", 1.0, 0.5)
+			# Also fade in child elements
+			for child in health_bar.get_children():
+				fade_tween.tween_property(child, "modulate:a", 1.0, 0.5)
+		if cash_label:
+			fade_tween.tween_property(cash_label, "modulate:a", 1.0, 0.5)
+		if health_percent_label:
+			fade_tween.tween_property(health_percent_label, "modulate:a", 1.0, 0.5)
+		# Note: bullet_icons, reload_label, and combo elements remain hidden
+		# They will be shown by their respective update functions when needed
+
 # Common setup function
 func setup_level() -> void:
+	# Validate that player exists
+	if not player:
+		push_error("ERROR: Player not found in scene! Make sure a Player node is added to the scene.")
+		assert(false, "Player node is required for level setup. Please add a Player node to the scene.")
+		return
+	
 	# Initialize camera follow if available
 	if player and player.has_node("Camera2D"):
 		camera = player.get_node("Camera2D")
@@ -364,11 +458,13 @@ func _on_player_health_changed(current: int, max_value: int) -> void:
 	# Manage heartbeat sound based on health level
 	_manage_heartbeat_sound(ratio)
 	
-	# Manage health bar pulsing based on health color - DISABLED
-	# if health_color == HEALTH_LOW_COLOR:  # Red color
-	#	_start_health_bar_pulse()
-	# else:
-	#	_stop_health_bar_pulse()
+	# Manage health bar pulsing based on health color - AFTER color is set
+	if health_color == HEALTH_LOW_COLOR:  # Red color (low health)
+		print("Starting health bar pulse - health ratio: ", ratio)
+		_start_health_bar_pulse()
+	else:
+		print("Stopping health bar pulse - health ratio: ", ratio)
+		_stop_health_bar_pulse()
 		
 	if health_percent_label != null and max_value > 0:
 		health_percent_label.text = str(current) + "/" + str(max_value) + " HP"
@@ -427,19 +523,29 @@ func _start_health_bar_pulse() -> void:
 		health_bar.pivot_offset = health_bar.size / 2
 	
 	is_pulsing = true
-	_pulse_health_bar()
+	
+	# Start pulsing after a small delay to ensure it can override the color setting
+	await get_tree().create_timer(0.1).timeout
+	if is_pulsing:  # Check if still supposed to be pulsing
+		_pulse_health_bar()
 
 func _stop_health_bar_pulse() -> void:
 	if not is_pulsing:
 		return
 	
-	# Cancel existing tween
+	# Cancel existing tweens
 	if health_bar_pulse_tween and health_bar_pulse_tween.is_valid():
 		health_bar_pulse_tween.kill()
 	
-	# Reset health bar scale
+	# Restore health bar scale and color
 	if health_bar:
 		health_bar.scale = original_health_bar_scale
+		# Restore original fill color
+		_initialize_health_bar_styles()
+		_cached_fill_style.bg_color = HEALTH_LOW_COLOR
+		health_bar.add_theme_stylebox_override("fill", _cached_fill_style)
+		# Also restore modulate
+		health_bar.modulate = HEALTH_LOW_COLOR
 	
 	is_pulsing = false
 
@@ -447,17 +553,38 @@ func _pulse_health_bar() -> void:
 	if not is_pulsing or health_bar == null:
 		return
 	
-	# Create pulsing tween
+	# Initialize cached styles if not done yet
+	_initialize_health_bar_styles()
+	
+	# Cancel any existing pulse tween
+	if health_bar_pulse_tween and health_bar_pulse_tween.is_valid():
+		health_bar_pulse_tween.kill()
+	
+	# Create new pulsing tween
 	health_bar_pulse_tween = create_tween()
 	health_bar_pulse_tween.set_loops()
 	
-	# Pulsing parameters - more subtle
-	var pulse_scale = 1.02  # 2% bigger (much more subtle)
-	var pulse_duration = 0.6  # Duration of one pulse cycle (slightly slower)
+	# Pulsing parameters - sync with heartbeat sound
+	var pulse_duration = 0.6  # Duration of one pulse cycle (matches heartbeat)
+	var flash_duration = 0.2  # Flash for 200ms
 	
-	# Health bar pulsing from center
-	health_bar_pulse_tween.tween_property(health_bar, "scale", original_health_bar_scale * pulse_scale, pulse_duration * 0.5)
-	health_bar_pulse_tween.tween_property(health_bar, "scale", original_health_bar_scale, pulse_duration * 0.5).set_delay(pulse_duration * 0.5)
+	# Store original color
+	var original_color = HEALTH_LOW_COLOR
+	
+	# White flash pulse cycle
+	health_bar_pulse_tween.tween_property(health_bar, "modulate", Color.WHITE, flash_duration)
+	health_bar_pulse_tween.tween_property(health_bar, "modulate", original_color, pulse_duration - flash_duration)
+	
+	# Also update fill color in sync with modulate
+	health_bar_pulse_tween.tween_callback(func():
+		_cached_fill_style.bg_color = Color.WHITE
+		health_bar.add_theme_stylebox_override("fill", _cached_fill_style)
+	).set_delay(0)
+	
+	health_bar_pulse_tween.tween_callback(func():
+		_cached_fill_style.bg_color = original_color
+		health_bar.add_theme_stylebox_override("fill", _cached_fill_style)
+	).set_delay(flash_duration)
 
 
 func _on_player_cash_changed(current: float) -> void:
@@ -499,6 +626,8 @@ func _on_combo_streak_changed(current: int) -> void:
 		# Hide the number label since we're combining them
 		if combo_number_label:
 			combo_number_label.visible = false
+			# Apply FontConfig for consistency (even though hidden)
+			FontConfig.apply_ui_font(combo_number_label)
 		
 		if combo_total_label:
 			# Calculate total HP that will be added (triangular formula: n(n+1)/2)
@@ -565,6 +694,20 @@ func _on_combo_streak_changed(current: int) -> void:
 		if combo_timer_bar:
 			_fade_out_combo_element(combo_timer_bar)
 
+# Debug function to test health bar pulsing (call from console or key press)
+func debug_test_low_health() -> void:
+	if player:
+		print("DEBUG: Setting health to 30 (below threshold) to test pulsing")
+		player.health = 30  # Set to very low health to trigger pulsing
+		_on_player_health_changed(player.health, player.MAX_HEALTH)
+
+# Debug function to restore health (call from console or key press)  
+func debug_restore_health() -> void:
+	if player:
+		print("DEBUG: Restoring health to full")
+		player.health = player.MAX_HEALTH
+		_on_player_health_changed(player.health, player.MAX_HEALTH)
+
 func _process(delta: float) -> void:
 	# Update combo timer bar only when combo is active
 	if combo_timer_bar and player and player._combo_timer and player._combo_active:
@@ -574,6 +717,13 @@ func _process(delta: float) -> void:
 	
 	# Process tutorial input tracking
 	_process_tutorial_input()
+	
+	# Debug controls for testing health bar pulsing
+	if Input.is_action_just_pressed("ui_accept"):  # Space key
+		if Input.is_key_pressed(KEY_H):  # H + Space = Low health test
+			debug_test_low_health()
+		elif Input.is_key_pressed(KEY_R):  # R + Space = Restore health
+			debug_restore_health()
 
 
 func _update_bullet_icons(current: int, max_value: int) -> void:
@@ -1001,31 +1151,3 @@ func _set_ui_visibility(visible: bool) -> void:
 	if health_percent_label:
 		health_percent_label.modulate.a = alpha
 		health_percent_label.visible = vis
-
-func _set_conditional_ui_visibility(visible: bool) -> void:
-	if not ui_layer:
-		return
-	
-	var alpha = 1.0 if visible else 0.0
-	var vis = visible
-	
-	# Apply visibility to conditional UI elements (bullet icons, reload, combo)
-	if bullet_icons:
-		bullet_icons.modulate.a = alpha
-		bullet_icons.visible = vis
-	
-	if reload_label:
-		reload_label.modulate.a = alpha
-		reload_label.visible = vis
-	
-	if combo_text_label:
-		combo_text_label.modulate.a = alpha
-		combo_text_label.visible = vis
-	
-	if combo_total_label:
-		combo_total_label.modulate.a = alpha
-		combo_total_label.visible = vis
-	
-	if combo_timer_bar:
-		combo_timer_bar.modulate.a = alpha
-		combo_timer_bar.visible = vis

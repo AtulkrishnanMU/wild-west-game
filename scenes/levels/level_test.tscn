@@ -1,0 +1,881 @@
+[gd_scene load_steps=22 format=3 uid="uid://8frbpgqpdtbu"]
+
+[ext_resource type="Script" uid="uid://bon2tqed1f4g0" path="res://scripts/levels/level_test.gd" id="1_tp444"]
+[ext_resource type="PackedScene" path="res://scenes/objects/blood_floating_decal.tscn" id="3_0a6j2"]
+[ext_resource type="PackedScene" path="res://scenes/objects/blood_droplet.tscn" id="4_pjn7f"]
+[ext_resource type="PackedScene" path="res://scenes/objects/blood_decal.tscn" id="5_ts3kv"]
+[ext_resource type="PackedScene" uid="uid://bpp56g7uetkk8" path="res://scenes/objects/collider.tscn" id="6_t58d3"]
+[ext_resource type="Texture2D" uid="uid://bscpv01x64qqf" path="res://assets/tileset/tileset.png" id="7_mrb78"]
+[ext_resource type="PackedScene" uid="uid://vi8yy0g5xqwb" path="res://scenes/levels/ui.tscn" id="8_4k25c"]
+[ext_resource type="PackedScene" uid="uid://cdxxulv2n0q04" path="res://scenes/objects/alert_alarm.tscn" id="9_j1sqf"]
+[ext_resource type="PackedScene" uid="uid://cgi4k0orycx0" path="res://scenes/characters/axe_enemy.tscn" id="10_t72ms"]
+[ext_resource type="PackedScene" uid="uid://20gk72vk5hmc" path="res://scenes/characters/gun_enemy.tscn" id="11_65do1"]
+[ext_resource type="PackedScene" uid="uid://dhbfe5hauejqw" path="res://scenes/objects/fan.tscn" id="12_wxl5h"]
+[ext_resource type="Script" uid="uid://4ccwbri40ij0" path="res://scripts/characters/dead_axe_man.gd" id="13_nis08"]
+[ext_resource type="Script" uid="uid://bccg4dohsb380" path="res://scripts/levels/intro_sequence.gd" id="14_1r1pi"]
+[ext_resource type="PackedScene" path="res://scenes/levels/post_death_dialogue.tscn" id="15_2npxb"]
+[ext_resource type="Script" uid="uid://bosqb4cvfji5k" path="res://scripts/objects/alarm_trigger.gd" id="16_6aolw"]
+[ext_resource type="PackedScene" uid="uid://c5a3w2pm50uds" path="res://scenes/characters/player.tscn" id="17_qnt4a"]
+[ext_resource type="PackedScene" uid="uid://bmu7ykjtjjcgi" path="res://scenes/objects/chain.tscn" id="18_renpy"]
+[ext_resource type="PackedScene" uid="uid://c0xwillnejllv" path="res://scenes/objects/jail_door.tscn" id="19_14a6r"]
+
+[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_plydf"]
+texture = ExtResource("7_mrb78")
+0:0/0 = 0
+1:0/0 = 0
+2:0/0 = 0
+3:0/0 = 0
+4:0/0 = 0
+5:0/0 = 0
+6:0/0 = 0
+7:0/0 = 0
+8:0/0 = 0
+9:0/0 = 0
+10:0/0 = 0
+11:0/0 = 0
+12:0/0 = 0
+13:0/0 = 0
+15:0/0 = 0
+16:0/0 = 0
+17:0/0 = 0
+18:0/0 = 0
+0:1/0 = 0
+1:1/0 = 0
+2:1/0 = 0
+3:1/0 = 0
+4:1/0 = 0
+5:1/0 = 0
+6:1/0 = 0
+7:1/0 = 0
+8:1/0 = 0
+9:1/0 = 0
+10:1/0 = 0
+11:1/0 = 0
+12:1/0 = 0
+13:1/0 = 0
+15:1/0 = 0
+16:1/0 = 0
+17:1/0 = 0
+18:1/0 = 0
+0:2/0 = 0
+1:2/0 = 0
+2:2/0 = 0
+3:2/0 = 0
+4:2/0 = 0
+5:2/0 = 0
+8:2/0 = 0
+9:2/0 = 0
+10:2/0 = 0
+11:2/0 = 0
+13:2/0 = 0
+14:2/0 = 0
+15:2/0 = 0
+16:2/0 = 0
+17:2/0 = 0
+18:2/0 = 0
+0:3/0 = 0
+1:3/0 = 0
+3:3/0 = 0
+4:3/0 = 0
+8:3/0 = 0
+9:3/0 = 0
+10:3/0 = 0
+11:3/0 = 0
+12:3/0 = 0
+13:3/0 = 0
+14:3/0 = 0
+15:3/0 = 0
+16:3/0 = 0
+17:3/0 = 0
+18:3/0 = 0
+0:4/0 = 0
+1:4/0 = 0
+3:4/0 = 0
+4:4/0 = 0
+15:4/0 = 0
+16:4/0 = 0
+17:4/0 = 0
+18:4/0 = 0
+0:5/0 = 0
+1:5/0 = 0
+2:5/0 = 0
+3:5/0 = 0
+4:5/0 = 0
+5:5/0 = 0
+6:5/0 = 0
+7:5/0 = 0
+8:5/0 = 0
+9:5/0 = 0
+10:5/0 = 0
+11:5/0 = 0
+15:5/0 = 0
+16:5/0 = 0
+17:5/0 = 0
+18:5/0 = 0
+0:6/0 = 0
+2:6/0 = 0
+3:6/0 = 0
+4:6/0 = 0
+5:6/0 = 0
+6:6/0 = 0
+7:6/0 = 0
+8:6/0 = 0
+9:6/0 = 0
+10:6/0 = 0
+11:6/0 = 0
+15:6/0 = 0
+16:6/0 = 0
+17:6/0 = 0
+18:6/0 = 0
+0:7/0 = 0
+1:7/0 = 0
+2:7/0 = 0
+3:7/0 = 0
+4:7/0 = 0
+5:7/0 = 0
+6:7/0 = 0
+7:7/0 = 0
+9:7/0 = 0
+10:7/0 = 0
+11:7/0 = 0
+15:7/0 = 0
+16:7/0 = 0
+17:7/0 = 0
+18:7/0 = 0
+0:8/0 = 0
+1:8/0 = 0
+2:8/0 = 0
+3:8/0 = 0
+4:8/0 = 0
+5:8/0 = 0
+6:8/0 = 0
+7:8/0 = 0
+8:8/0 = 0
+9:8/0 = 0
+10:8/0 = 0
+11:8/0 = 0
+12:8/0 = 0
+15:8/0 = 0
+16:8/0 = 0
+17:8/0 = 0
+18:8/0 = 0
+0:9/0 = 0
+1:9/0 = 0
+2:9/0 = 0
+3:9/0 = 0
+4:9/0 = 0
+5:9/0 = 0
+6:9/0 = 0
+7:9/0 = 0
+8:9/0 = 0
+9:9/0 = 0
+10:9/0 = 0
+11:9/0 = 0
+12:9/0 = 0
+15:9/0 = 0
+16:9/0 = 0
+17:9/0 = 0
+18:9/0 = 0
+0:10/0 = 0
+1:10/0 = 0
+2:10/0 = 0
+3:10/0 = 0
+4:10/0 = 0
+5:10/0 = 0
+6:10/0 = 0
+7:10/0 = 0
+10:10/0 = 0
+11:10/0 = 0
+12:10/0 = 0
+15:10/0 = 0
+16:10/0 = 0
+17:10/0 = 0
+18:10/0 = 0
+0:11/0 = 0
+1:11/0 = 0
+2:11/0 = 0
+3:11/0 = 0
+4:11/0 = 0
+5:11/0 = 0
+6:11/0 = 0
+7:11/0 = 0
+15:11/0 = 0
+16:11/0 = 0
+17:11/0 = 0
+18:11/0 = 0
+0:12/0 = 0
+1:12/0 = 0
+2:12/0 = 0
+3:12/0 = 0
+5:12/0 = 0
+6:12/0 = 0
+7:12/0 = 0
+8:12/0 = 0
+9:12/0 = 0
+10:12/0 = 0
+11:12/0 = 0
+12:12/0 = 0
+15:12/0 = 0
+16:12/0 = 0
+17:12/0 = 0
+18:12/0 = 0
+0:13/0 = 0
+1:13/0 = 0
+2:13/0 = 0
+3:13/0 = 0
+5:13/0 = 0
+6:13/0 = 0
+7:13/0 = 0
+8:13/0 = 0
+9:13/0 = 0
+10:13/0 = 0
+11:13/0 = 0
+12:13/0 = 0
+15:13/0 = 0
+16:13/0 = 0
+17:13/0 = 0
+18:13/0 = 0
+7:14/0 = 0
+8:14/0 = 0
+9:14/0 = 0
+10:14/0 = 0
+11:14/0 = 0
+12:14/0 = 0
+15:14/0 = 0
+16:14/0 = 0
+17:14/0 = 0
+18:14/0 = 0
+0:15/0 = 0
+1:15/0 = 0
+0:16/0 = 0
+1:16/0 = 0
+2:16/0 = 0
+3:16/0 = 0
+4:16/0 = 0
+5:16/0 = 0
+6:16/0 = 0
+7:16/0 = 0
+0:17/0 = 0
+1:17/0 = 0
+2:17/0 = 0
+3:17/0 = 0
+4:17/0 = 0
+5:17/0 = 0
+6:17/0 = 0
+7:17/0 = 0
+8:17/0 = 0
+9:17/0 = 0
+10:17/0 = 0
+11:17/0 = 0
+12:17/0 = 0
+13:17/0 = 0
+14:17/0 = 0
+15:17/0 = 0
+0:18/0 = 0
+1:18/0 = 0
+2:18/0 = 0
+3:18/0 = 0
+4:18/0 = 0
+5:18/0 = 0
+6:18/0 = 0
+7:18/0 = 0
+0:19/0 = 0
+1:19/0 = 0
+8:16/size_in_atlas = Vector2i(4, 1)
+8:16/next_alternative_id = 2
+8:16/0 = 0
+8:16/1 = 1
+8:16/1/flip_h = true
+12:16/size_in_atlas = Vector2i(2, 1)
+12:16/next_alternative_id = 2
+12:16/0 = 0
+12:16/1 = 1
+12:16/1/flip_h = true
+14:16/size_in_atlas = Vector2i(2, 1)
+14:16/next_alternative_id = 2
+14:16/0 = 0
+14:16/1 = 1
+14:16/1/flip_h = true
+16:16/size_in_atlas = Vector2i(3, 1)
+16:16/next_alternative_id = 2
+16:16/0 = 0
+16:16/1 = 1
+16:16/1/flip_h = true
+
+[sub_resource type="TileSet" id="TileSet_5ntmo"]
+sources/0 = SubResource("TileSetAtlasSource_plydf")
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_alarm_trigger"]
+size = Vector2(7, 67)
+
+[node name="LevelTest" type="Node2D"]
+script = ExtResource("1_tp444")
+
+[node name="BloodEffects" type="Node2D" parent="."]
+position = Vector2(141, 0)
+
+[node name="BloodFloatingDroplet" parent="BloodEffects" instance=ExtResource("3_0a6j2")]
+position = Vector2(393, 402)
+
+[node name="BloodFloatingDroplet2" parent="BloodEffects" instance=ExtResource("3_0a6j2")]
+position = Vector2(385, 403)
+
+[node name="BloodFloatingDroplet3" parent="BloodEffects" instance=ExtResource("3_0a6j2")]
+position = Vector2(389, 399)
+
+[node name="BloodFloatingDroplet4" parent="BloodEffects" instance=ExtResource("3_0a6j2")]
+position = Vector2(390, 409)
+
+[node name="BloodFloatingDroplet5" parent="BloodEffects" instance=ExtResource("3_0a6j2")]
+position = Vector2(367, 406)
+
+[node name="BloodFloatingDroplet6" parent="BloodEffects" instance=ExtResource("3_0a6j2")]
+position = Vector2(376, 398)
+
+[node name="BloodFloatingDroplet7" parent="BloodEffects" instance=ExtResource("3_0a6j2")]
+position = Vector2(381, 412)
+
+[node name="BloodFloatingDroplet8" parent="BloodEffects" instance=ExtResource("3_0a6j2")]
+position = Vector2(389, 415)
+
+[node name="BloodFloatingDroplet9" parent="BloodEffects" instance=ExtResource("3_0a6j2")]
+position = Vector2(347, 420)
+
+[node name="BloodFloatingDroplet10" parent="BloodEffects" instance=ExtResource("3_0a6j2")]
+position = Vector2(351, 412)
+
+[node name="BloodFloatingDroplet11" parent="BloodEffects" instance=ExtResource("3_0a6j2")]
+position = Vector2(379, 408)
+
+[node name="BloodFloatingDroplet12" parent="BloodEffects" instance=ExtResource("3_0a6j2")]
+position = Vector2(359, 404)
+
+[node name="BloodDroplet" parent="BloodEffects" instance=ExtResource("4_pjn7f")]
+position = Vector2(365, 429)
+
+[node name="BloodDecal" parent="BloodEffects" instance=ExtResource("5_ts3kv")]
+position = Vector2(369, 428)
+scale = Vector2(0.5, 0.5)
+
+[node name="BloodDroplet2" parent="BloodEffects" instance=ExtResource("4_pjn7f")]
+position = Vector2(360, 430)
+
+[node name="BloodDroplet3" parent="BloodEffects" instance=ExtResource("4_pjn7f")]
+position = Vector2(375, 430)
+
+[node name="BloodDroplet4" parent="BloodEffects" instance=ExtResource("4_pjn7f")]
+position = Vector2(381, 429)
+
+[node name="BloodDroplet5" parent="BloodEffects" instance=ExtResource("4_pjn7f")]
+position = Vector2(386, 429)
+
+[node name="BloodDroplet6" parent="BloodEffects" instance=ExtResource("4_pjn7f")]
+position = Vector2(378, 429)
+
+[node name="BloodDroplet7" parent="BloodEffects" instance=ExtResource("4_pjn7f")]
+position = Vector2(356, 429)
+
+[node name="BloodDroplet8" parent="BloodEffects" instance=ExtResource("4_pjn7f")]
+position = Vector2(352, 429)
+
+[node name="BloodDroplet9" parent="BloodEffects" instance=ExtResource("4_pjn7f")]
+position = Vector2(370, 429)
+
+[node name="BloodDroplet10" parent="BloodEffects" instance=ExtResource("4_pjn7f")]
+position = Vector2(362, 429)
+
+[node name="BloodDroplet11" parent="BloodEffects" instance=ExtResource("4_pjn7f")]
+position = Vector2(391, 429)
+
+[node name="BloodDecal2" parent="BloodEffects" instance=ExtResource("5_ts3kv")]
+position = Vector2(395, 429)
+scale = Vector2(0.5, 0.5)
+
+[node name="BloodDroplet12" parent="BloodEffects" instance=ExtResource("4_pjn7f")]
+position = Vector2(347, 430)
+
+[node name="BloodDroplet13" parent="BloodEffects" instance=ExtResource("4_pjn7f")]
+position = Vector2(350, 431)
+
+[node name="BloodDroplet14" parent="BloodEffects" instance=ExtResource("4_pjn7f")]
+position = Vector2(363, 429)
+
+[node name="BloodDroplet15" parent="BloodEffects" instance=ExtResource("4_pjn7f")]
+position = Vector2(368, 429)
+
+[node name="BloodDroplet16" parent="BloodEffects" instance=ExtResource("4_pjn7f")]
+position = Vector2(366, 430)
+
+[node name="BloodDroplet17" parent="BloodEffects" instance=ExtResource("4_pjn7f")]
+position = Vector2(373, 429)
+
+[node name="BloodDroplet18" parent="BloodEffects" instance=ExtResource("4_pjn7f")]
+position = Vector2(366, 429)
+
+[node name="BloodDroplet19" parent="BloodEffects" instance=ExtResource("4_pjn7f")]
+position = Vector2(370, 430)
+
+[node name="BloodDroplet20" parent="BloodEffects" instance=ExtResource("4_pjn7f")]
+position = Vector2(377, 430)
+
+[node name="BloodDroplet21" parent="BloodEffects" instance=ExtResource("4_pjn7f")]
+position = Vector2(380, 430)
+
+[node name="BloodDroplet22" parent="BloodEffects" instance=ExtResource("4_pjn7f")]
+position = Vector2(360, 429)
+
+[node name="BloodDroplet23" parent="BloodEffects" instance=ExtResource("4_pjn7f")]
+position = Vector2(368, 429)
+
+[node name="BloodDroplet24" parent="BloodEffects" instance=ExtResource("4_pjn7f")]
+position = Vector2(384, 429)
+
+[node name="BloodDroplet25" parent="BloodEffects" instance=ExtResource("4_pjn7f")]
+position = Vector2(354, 430)
+
+[node name="BloodDroplet26" parent="BloodEffects" instance=ExtResource("4_pjn7f")]
+position = Vector2(358, 430)
+
+[node name="BloodFloatingDropletCopy" parent="BloodEffects" instance=ExtResource("3_0a6j2")]
+position = Vector2(415, 418)
+
+[node name="BloodFloatingDroplet2Copy" parent="BloodEffects" instance=ExtResource("3_0a6j2")]
+position = Vector2(428, 395)
+
+[node name="BloodFloatingDroplet3Copy" parent="BloodEffects" instance=ExtResource("3_0a6j2")]
+position = Vector2(371, 421)
+
+[node name="BloodFloatingDroplet4Copy" parent="BloodEffects" instance=ExtResource("3_0a6j2")]
+position = Vector2(407, 401)
+
+[node name="BloodFloatingDroplet5Copy" parent="BloodEffects" instance=ExtResource("3_0a6j2")]
+position = Vector2(364, 427)
+
+[node name="BloodFloatingDroplet6Copy" parent="BloodEffects" instance=ExtResource("3_0a6j2")]
+position = Vector2(398, 384)
+
+[node name="BloodFloatingDroplet7Copy" parent="BloodEffects" instance=ExtResource("3_0a6j2")]
+position = Vector2(403, 427)
+
+[node name="BloodFloatingDroplet8Copy" parent="BloodEffects" instance=ExtResource("3_0a6j2")]
+position = Vector2(376, 432)
+
+[node name="BloodFloatingDroplet9Copy" parent="BloodEffects" instance=ExtResource("3_0a6j2")]
+position = Vector2(334, 405)
+
+[node name="BloodFloatingDroplet10Copy" parent="BloodEffects" instance=ExtResource("3_0a6j2")]
+position = Vector2(339, 428)
+
+[node name="BloodFloatingDroplet11Copy" parent="BloodEffects" instance=ExtResource("3_0a6j2")]
+position = Vector2(421, 398)
+
+[node name="BloodFloatingDroplet12Copy" parent="BloodEffects" instance=ExtResource("3_0a6j2")]
+position = Vector2(342, 416)
+
+[node name="BloodDropletCopy" parent="BloodEffects" instance=ExtResource("4_pjn7f")]
+position = Vector2(414, 428)
+
+[node name="BloodDroplet3Copy" parent="BloodEffects" instance=ExtResource("4_pjn7f")]
+position = Vector2(391, 416)
+
+[node name="BloodDroplet4Copy" parent="BloodEffects" instance=ExtResource("4_pjn7f")]
+position = Vector2(433, 423)
+
+[node name="BloodDroplet6Copy" parent="BloodEffects" instance=ExtResource("4_pjn7f")]
+position = Vector2(429, 419)
+
+[node name="BloodDroplet8Copy" parent="BloodEffects" instance=ExtResource("4_pjn7f")]
+position = Vector2(358, 417)
+
+[node name="BloodDroplet9Copy" parent="BloodEffects" instance=ExtResource("4_pjn7f")]
+position = Vector2(398, 412)
+
+[node name="BloodDroplet10Copy" parent="BloodEffects" instance=ExtResource("4_pjn7f")]
+position = Vector2(347, 431)
+
+[node name="BloodDroplet11Copy" parent="BloodEffects" instance=ExtResource("4_pjn7f")]
+position = Vector2(443, 415)
+
+[node name="BloodDroplet12Copy" parent="BloodEffects" instance=ExtResource("4_pjn7f")]
+position = Vector2(328, 425)
+
+[node name="BloodDroplet14Copy" parent="BloodEffects" instance=ExtResource("4_pjn7f")]
+position = Vector2(415, 419)
+
+[node name="BloodDroplet16Copy" parent="BloodEffects" instance=ExtResource("4_pjn7f")]
+position = Vector2(421, 432)
+
+[node name="BloodDroplet17Copy" parent="BloodEffects" instance=ExtResource("4_pjn7f")]
+position = Vector2(368, 417)
+
+[node name="BloodDroplet19Copy" parent="BloodEffects" instance=ExtResource("4_pjn7f")]
+position = Vector2(361, 427)
+
+[node name="BloodDroplet20Copy" parent="BloodEffects" instance=ExtResource("4_pjn7f")]
+position = Vector2(425, 413)
+
+[node name="BloodDroplet22Copy" parent="BloodEffects" instance=ExtResource("4_pjn7f")]
+position = Vector2(338, 416)
+
+[node name="BloodDroplet23Copy" parent="BloodEffects" instance=ExtResource("4_pjn7f")]
+position = Vector2(416, 409)
+
+[node name="BloodDroplet24Copy" parent="BloodEffects" instance=ExtResource("4_pjn7f")]
+position = Vector2(433, 432)
+
+[node name="BloodDroplet25Copy" parent="BloodEffects" instance=ExtResource("4_pjn7f")]
+position = Vector2(301, 425)
+
+[node name="BloodFloatingDropletCopy2" parent="BloodEffects" instance=ExtResource("3_0a6j2")]
+position = Vector2(442, 387)
+
+[node name="BloodFloatingDroplet2Copy2" parent="BloodEffects" instance=ExtResource("3_0a6j2")]
+position = Vector2(363, 432)
+
+[node name="BloodFloatingDroplet3Copy2" parent="BloodEffects" instance=ExtResource("3_0a6j2")]
+position = Vector2(408, 376)
+
+[node name="BloodFloatingDroplet4Copy2" parent="BloodEffects" instance=ExtResource("3_0a6j2")]
+position = Vector2(375, 427)
+
+[node name="BloodFloatingDroplet5Copy2" parent="BloodEffects" instance=ExtResource("3_0a6j2")]
+position = Vector2(389, 391)
+
+[node name="BloodFloatingDroplet6Copy2" parent="BloodEffects" instance=ExtResource("3_0a6j2")]
+position = Vector2(354, 412)
+
+[node name="BloodFloatingDroplet7Copy2" parent="BloodEffects" instance=ExtResource("3_0a6j2")]
+position = Vector2(395, 398)
+
+[node name="BloodFloatingDroplet8Copy2" parent="BloodEffects" instance=ExtResource("3_0a6j2")]
+position = Vector2(412, 401)
+
+[node name="BloodFloatingDroplet9Copy2" parent="BloodEffects" instance=ExtResource("3_0a6j2")]
+position = Vector2(330, 429)
+
+[node name="BloodFloatingDroplet10Copy2" parent="BloodEffects" instance=ExtResource("3_0a6j2")]
+position = Vector2(365, 403)
+
+[node name="BloodFloatingDroplet11Copy2" parent="BloodEffects" instance=ExtResource("3_0a6j2")]
+position = Vector2(357, 421)
+
+[node name="BloodFloatingDroplet12Copy2" parent="BloodEffects" instance=ExtResource("3_0a6j2")]
+position = Vector2(379, 389)
+
+[node name="BloodDropletCopy2" parent="BloodEffects" instance=ExtResource("4_pjn7f")]
+position = Vector2(398, 427)
+
+[node name="BloodDecalCopy2" parent="BloodEffects" instance=ExtResource("5_ts3kv")]
+position = Vector2(361, 430)
+scale = Vector2(0.5, 0.5)
+
+[node name="BloodDroplet2Copy2" parent="BloodEffects" instance=ExtResource("4_pjn7f")]
+position = Vector2(378, 418)
+
+[node name="BloodDroplet3Copy2" parent="BloodEffects" instance=ExtResource("4_pjn7f")]
+position = Vector2(373, 427)
+
+[node name="BloodDroplet4Copy2" parent="BloodEffects" instance=ExtResource("4_pjn7f")]
+position = Vector2(403, 429)
+
+[node name="BloodDroplet5Copy2" parent="BloodEffects" instance=ExtResource("4_pjn7f")]
+position = Vector2(369, 411)
+
+[node name="BloodDroplet6Copy2" parent="BloodEffects" instance=ExtResource("4_pjn7f")]
+position = Vector2(445, 428)
+
+[node name="BloodDroplet7Copy2" parent="BloodEffects" instance=ExtResource("4_pjn7f")]
+position = Vector2(372, 408)
+
+[node name="BloodDroplet8Copy2" parent="BloodEffects" instance=ExtResource("4_pjn7f")]
+position = Vector2(336, 433)
+
+[node name="BloodDroplet9Copy2" parent="BloodEffects" instance=ExtResource("4_pjn7f")]
+position = Vector2(428, 432)
+
+[node name="BloodDroplet10Copy2" parent="BloodEffects" instance=ExtResource("4_pjn7f")]
+position = Vector2(362, 429)
+
+[node name="BloodDroplet11Copy2" parent="BloodEffects" instance=ExtResource("4_pjn7f")]
+position = Vector2(405, 402)
+
+[node name="BloodDroplet12Copy2" parent="BloodEffects" instance=ExtResource("4_pjn7f")]
+position = Vector2(317, 432)
+
+[node name="BloodDroplet13Copy2" parent="BloodEffects" instance=ExtResource("4_pjn7f")]
+position = Vector2(403, 432)
+
+[node name="BloodDroplet14Copy2" parent="BloodEffects" instance=ExtResource("4_pjn7f")]
+position = Vector2(399, 405)
+
+[node name="BloodDroplet15Copy2" parent="BloodEffects" instance=ExtResource("4_pjn7f")]
+position = Vector2(342, 432)
+
+[node name="BloodDroplet16Copy2" parent="BloodEffects" instance=ExtResource("4_pjn7f")]
+position = Vector2(418, 428)
+
+[node name="BloodDroplet17Copy2" parent="BloodEffects" instance=ExtResource("4_pjn7f")]
+position = Vector2(345, 404)
+
+[node name="BloodDroplet18Copy2" parent="BloodEffects" instance=ExtResource("4_pjn7f")]
+position = Vector2(414, 427)
+
+[node name="BloodDroplet19Copy2" parent="BloodEffects" instance=ExtResource("4_pjn7f")]
+position = Vector2(342, 432)
+
+[node name="BloodDroplet20Copy2" parent="BloodEffects" instance=ExtResource("4_pjn7f")]
+position = Vector2(438, 424)
+
+[node name="BloodDroplet21Copy2" parent="BloodEffects" instance=ExtResource("4_pjn7f")]
+position = Vector2(403, 432)
+
+[node name="BloodDroplet22Copy2" parent="BloodEffects" instance=ExtResource("4_pjn7f")]
+position = Vector2(319, 403)
+
+[node name="BloodDroplet23Copy2" parent="BloodEffects" instance=ExtResource("4_pjn7f")]
+position = Vector2(427, 395)
+
+[node name="BloodDroplet24Copy2" parent="BloodEffects" instance=ExtResource("4_pjn7f")]
+position = Vector2(452, 419)
+
+[node name="BloodDroplet25Copy2" parent="BloodEffects" instance=ExtResource("4_pjn7f")]
+position = Vector2(299, 432)
+
+[node name="BloodDroplet26Copy2" parent="BloodEffects" instance=ExtResource("4_pjn7f")]
+position = Vector2(393, 429)
+
+[node name="Colliders" type="Node2D" parent="."]
+
+[node name="Collider" parent="Colliders" instance=ExtResource("6_t58d3")]
+position = Vector2(543, 631.99994)
+
+[node name="Collider40" parent="Colliders" instance=ExtResource("6_t58d3")]
+position = Vector2(157.99994, 405.99997)
+
+[node name="Collider2" parent="Colliders" instance=ExtResource("6_t58d3")]
+position = Vector2(801.00006, 631.99994)
+
+[node name="Collider3" parent="Colliders" instance=ExtResource("6_t58d3")]
+position = Vector2(537, 168.99994)
+
+[node name="Collider4" parent="Colliders" instance=ExtResource("6_t58d3")]
+position = Vector2(925.99994, 168.99998)
+
+[node name="Collider5" parent="Colliders" instance=ExtResource("6_t58d3")]
+position = Vector2(1280.9999, 250)
+
+[node name="Collider6" parent="Colliders" instance=ExtResource("6_t58d3")]
+position = Vector2(1604.9998, 298)
+
+[node name="Collider7" parent="Colliders" instance=ExtResource("6_t58d3")]
+position = Vector2(1997, 619.00006)
+scale = Vector2(3.9299376, 3.9234536)
+
+[node name="Collider8" parent="Colliders" instance=ExtResource("6_t58d3")]
+position = Vector2(1118, 711.9999)
+
+[node name="Collider9" parent="Colliders" instance=ExtResource("6_t58d3")]
+position = Vector2(1536, 775.99994)
+
+[node name="Collider10" parent="Colliders" instance=ExtResource("6_t58d3")]
+position = Vector2(1272, 775.9999)
+
+[node name="Collider11" parent="Colliders" instance=ExtResource("6_t58d3")]
+position = Vector2(1919.9999, 1095.9999)
+
+[node name="Collider12" parent="Colliders" instance=ExtResource("6_t58d3")]
+position = Vector2(2264, 1095.9999)
+
+[node name="Collider13" parent="Colliders" instance=ExtResource("6_t58d3")]
+position = Vector2(2468, 1079.9999)
+
+[node name="Collider14" parent="Colliders" instance=ExtResource("6_t58d3")]
+position = Vector2(2500, 1064)
+
+[node name="Collider15" parent="Colliders" instance=ExtResource("6_t58d3")]
+position = Vector2(2531.9998, 1048.9999)
+
+[node name="Collider16" parent="Colliders" instance=ExtResource("6_t58d3")]
+position = Vector2(2563.9998, 1032)
+
+[node name="Collider17" parent="Colliders" instance=ExtResource("6_t58d3")]
+position = Vector2(2594, 1016.9999)
+
+[node name="Collider18" parent="Colliders" instance=ExtResource("6_t58d3")]
+position = Vector2(2626.9998, 999.99994)
+
+[node name="Collider19" parent="Colliders" instance=ExtResource("6_t58d3")]
+position = Vector2(2660, 984.99994)
+
+[node name="Collider20" parent="Colliders" instance=ExtResource("6_t58d3")]
+position = Vector2(2692, 967.99994)
+
+[node name="Collider21" parent="Colliders" instance=ExtResource("6_t58d3")]
+position = Vector2(2723, 951.99994)
+
+[node name="Collider22" parent="Colliders" instance=ExtResource("6_t58d3")]
+position = Vector2(2756, 935.99994)
+
+[node name="Collider23" parent="Colliders" instance=ExtResource("6_t58d3")]
+position = Vector2(2788, 919.99994)
+
+[node name="Collider34" parent="Colliders" instance=ExtResource("6_t58d3")]
+position = Vector2(2733, 458)
+
+[node name="Collider35" parent="Colliders" instance=ExtResource("6_t58d3")]
+position = Vector2(3123, 457.99997)
+
+[node name="Collider36" parent="Colliders" instance=ExtResource("6_t58d3")]
+position = Vector2(3452.9995, 457.99994)
+
+[node name="Collider24" parent="Colliders" instance=ExtResource("6_t58d3")]
+position = Vector2(3178.9998, 919.99994)
+
+[node name="Collider25" parent="Colliders" instance=ExtResource("6_t58d3")]
+position = Vector2(3227.9998, 919.99994)
+
+[node name="Collider26" parent="Colliders" instance=ExtResource("6_t58d3")]
+position = Vector2(3615.9998, 1064.9999)
+
+[node name="Collider27" parent="Colliders" instance=ExtResource("6_t58d3")]
+position = Vector2(3995.9995, 1065)
+
+[node name="Collider28" parent="Colliders" instance=ExtResource("6_t58d3")]
+position = Vector2(4275, 754.99994)
+
+[node name="Collider29" parent="Colliders" instance=ExtResource("6_t58d3")]
+position = Vector2(4275, 648.99994)
+
+[node name="Collider37" parent="Colliders" instance=ExtResource("6_t58d3")]
+position = Vector2(4020.0002, 608.99994)
+scale = Vector2(-5.6, 0.90000004)
+
+[node name="Collider38" parent="Colliders" instance=ExtResource("6_t58d3")]
+position = Vector2(3751, 751)
+scale = Vector2(-5, 0.90000004)
+
+[node name="Collider39" parent="Colliders" instance=ExtResource("6_t58d3")]
+position = Vector2(3576, 530.99994)
+scale = Vector2(1.5, -5.3)
+
+[node name="Collider30" parent="Colliders" instance=ExtResource("6_t58d3")]
+position = Vector2(4135.9995, 186)
+
+[node name="Collider31" parent="Colliders" instance=ExtResource("6_t58d3")]
+position = Vector2(3814.9998, 297.99997)
+
+[node name="Collider32" parent="Colliders" instance=ExtResource("6_t58d3")]
+position = Vector2(2071.9995, 619.00006)
+scale = Vector2(3.916985, 3.9227917)
+
+[node name="Collider33" parent="Colliders" instance=ExtResource("6_t58d3")]
+position = Vector2(2348, 549.99994)
+rotation = -0.48892558
+
+[node name="background" type="TileMap" parent="."]
+position = Vector2(43, -4)
+tile_set = SubResource("TileSet_5ntmo")
+format = 2
+layer_0/tile_data = PackedInt32Array(3604615, 786432, 3, 3604616, 524288, 3, 3604617, 851968, 3, 3539081, 851968, 2, 3539082, 917504, 2, 3539083, 851968, 3, 3473547, 851968, 2, 3473548, 917504, 2, 3408014, 917504, 2, 3342480, 917504, 2, 3276946, 917504, 2, 3211412, 917504, 2, 3145878, 917504, 2, 3080344, 917504, 2, 3014810, 917504, 2, 2949276, 917504, 2, 2883742, 917504, 2, 3473549, 851968, 3, 3408015, 851968, 3, 3342481, 851968, 3, 3276947, 851968, 3, 3211413, 851968, 3, 3145879, 851968, 3, 3080345, 851968, 3, 3014811, 851968, 3, 2949277, 851968, 3, 3342479, 851968, 2, 3408013, 851968, 2, 3276945, 851968, 2, 3211411, 851968, 2, 3145877, 851968, 2, 3080343, 851968, 2, 3014809, 851968, 2, 2949275, 851968, 2, 2883741, 851968, 2, 3604618, 917504, 3, 3604619, 917504, 3, 3539084, 917504, 3, 3539085, 917504, 3, 3473550, 917504, 3, 3473551, 917504, 3, 3408016, 917504, 3, 3408017, 917504, 3, 3342483, 917504, 3, 3342482, 917504, 3, 3276948, 917504, 3, 3276949, 917504, 3, 3211414, 917504, 3, 3211415, 917504, 3, 3145880, 917504, 3, 3145881, 917504, 3, 3080346, 917504, 3, 3080347, 917504, 3, 3014812, 917504, 3, 3014813, 917504, 3, 2949278, 917504, 3, 2883746, 720896, 3, 2883743, 524288, 3, 2883744, 524288, 3, 2883745, 524288, 3, 2949279, 917504, 3, 2949280, 917504, 3, 2949281, 917504, 3, 3670151, 917504, 3, 3670152, 917504, 3, 3670153, 917504, 3, 3670154, 917504, 3, 3604620, 917504, 3, 3539086, 917504, 3, 3473552, 917504, 3, 3408018, 917504, 3, 3342484, 917504, 3, 3276950, 917504, 3, 3211416, 917504, 3, 3145882, 917504, 3, 3080348, 917504, 3, 3014814, 917504, 3, 2949282, 917504, 3)
+
+[node name="UI" parent="." instance=ExtResource("8_4k25c")]
+
+[node name="AlertAlarm" parent="." instance=ExtResource("9_j1sqf")]
+position = Vector2(1717, 500)
+
+[node name="Axe_enemy2" parent="." instance=ExtResource("10_t72ms")]
+position = Vector2(1195, 479)
+
+[node name="Axe_enemy" parent="." instance=ExtResource("10_t72ms")]
+position = Vector2(2324, 807)
+
+[node name="Axe_enemy3" parent="." instance=ExtResource("10_t72ms")]
+position = Vector2(2385, 774)
+
+[node name="Axe_enemy4" parent="." instance=ExtResource("10_t72ms")]
+position = Vector2(2447, 742)
+
+[node name="Axe_enemy5" parent="." instance=ExtResource("10_t72ms")]
+position = Vector2(2509, 710)
+
+[node name="Axe_enemy6" parent="." instance=ExtResource("10_t72ms")]
+position = Vector2(2256, 838)
+
+[node name="Axe_enemy7" parent="." instance=ExtResource("10_t72ms")]
+position = Vector2(3838, 823)
+
+[node name="Axe_enemy8" parent="." instance=ExtResource("10_t72ms")]
+position = Vector2(3876, 824)
+
+[node name="Gun_enemy2" parent="." instance=ExtResource("11_65do1")]
+position = Vector2(3026, 693)
+
+[node name="Axe_enemy9" parent="." instance=ExtResource("10_t72ms")]
+position = Vector2(3916, 820)
+
+[node name="Axe_enemy10" parent="." instance=ExtResource("10_t72ms")]
+position = Vector2(4000, 527)
+
+[node name="Axe_enemy11" parent="." instance=ExtResource("10_t72ms")]
+position = Vector2(3948, 526)
+
+[node name="Camera2D" type="Camera2D" parent="."]
+position = Vector2(443, 411)
+zoom = Vector2(1.6, 1.6)
+position_smoothing_enabled = true
+
+[node name="Fan" parent="." instance=ExtResource("12_wxl5h")]
+position = Vector2(1107, 424)
+
+[node name="Fan2" parent="." instance=ExtResource("12_wxl5h")]
+position = Vector2(1826, 794)
+
+[node name="Fan3" parent="." instance=ExtResource("12_wxl5h")]
+position = Vector2(1855, 794)
+
+[node name="Fan4" parent="." instance=ExtResource("12_wxl5h")]
+position = Vector2(3991, 473)
+
+[node name="Fan5" parent="." instance=ExtResource("12_wxl5h")]
+position = Vector2(3523, 777)
+
+[node name="DeadAxeMan" parent="." instance=ExtResource("10_t72ms")]
+position = Vector2(507, 417)
+script = ExtResource("13_nis08")
+
+[node name="IntroSequence" type="Node2D" parent="."]
+script = ExtResource("14_1r1pi")
+
+[node name="PostDeathDialogue" parent="." instance=ExtResource("15_2npxb")]
+offset_left = 683.0
+offset_top = 386.0
+offset_right = 683.0
+offset_bottom = 386.0
+
+[node name="AlarmTrigger" type="Area2D" parent="."]
+position = Vector2(1200, 400)
+collision_layer = 0
+collision_mask = 2
+script = ExtResource("16_6aolw")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="AlarmTrigger"]
+position = Vector2(-584, -3)
+shape = SubResource("RectangleShape2D_alarm_trigger")
+
+[node name="Player" parent="." instance=ExtResource("17_qnt4a")]
+position = Vector2(450, 405)
+
+[node name="Axe_enemy12" parent="." instance=ExtResource("10_t72ms")]
+position = Vector2(1527, 551)
+
+[node name="chain" parent="." instance=ExtResource("18_renpy")]
+position = Vector2(441.99997, 339)
+
+[node name="chain2" parent="." instance=ExtResource("18_renpy")]
+position = Vector2(2944, 626)
+
+[node name="chain3" parent="." instance=ExtResource("18_renpy")]
+position = Vector2(2966, 627)
+
+[node name="JailDoor" parent="." instance=ExtResource("19_14a6r")]
+position = Vector2(621, 408.00003)

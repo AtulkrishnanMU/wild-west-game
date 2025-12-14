@@ -71,19 +71,9 @@ static func create_blood_effect(character: Node2D, spread: float = 4.0) -> void:
 			var wall_node = _cached_wall_node.get_ref()
 			var background_node = _cached_background_node.get_ref()
 			
-			if wall_node and background_node:
-				# Insert blood after Wall node but before background
-				var blood_index: int = wall_node.get_index() + 1
-				scene.add_child(blood)
-				scene.move_child(blood, blood_index)
-			elif wall_node:
-				# Fallback: insert after Wall
-				var blood_index: int = wall_node.get_index() + 1
-				scene.add_child(blood)
-				scene.move_child(blood, blood_index)
-			else:
-				# Fallback: just add to scene
-				scene.add_child(blood)
+			# Place blood at the very bottom layer (first to be drawn)
+			scene.add_child(blood)
+			scene.move_child(blood, 0)
 
 # Dust tracking for landing detection
 static func check_dust_landing(character: Node2D, was_on_floor: bool, velocity: Vector2, threshold: float = 50.0) -> bool:
@@ -245,19 +235,9 @@ static func apply_damage_with_effects(character: Node2D, amount: int, blood_scen
 			var wall_node: Node = _cached_wall_node.get_ref()
 			var background_node: Node = _cached_background_node.get_ref()
 			
-			if wall_node and background_node:
-				# Insert blood after Wall node but before background
-				var blood_index: int = wall_node.get_index() + 1
-				scene.add_child(blood)
-				scene.move_child(blood, blood_index)
-			elif wall_node:
-				# Fallback: insert after Wall
-				var blood_index: int = wall_node.get_index() + 1
-				scene.add_child(blood)
-				scene.move_child(blood, blood_index)
-			else:
-				# Fallback: just add to scene
-				scene.add_child(blood)
+			# Place blood at the very bottom layer (first to be drawn)
+			scene.add_child(blood)
+			scene.move_child(blood, 0)
 	
 	# Play blood splat sound
 	if blood_splat_sound:
@@ -312,3 +292,287 @@ static func play_character_animation(animated_sprite: AnimatedSprite2D, anim_nam
 static func set_character_facing(animated_sprite: AnimatedSprite2D, should_face_left: bool) -> void:
 	if animated_sprite:
 		animated_sprite.flip_h = should_face_left
+
+# ===== DIALOGUE SYSTEM FOR CUTSCENES =====
+
+# Dialogue data structure for characters
+class DialogueData:
+	var active: bool = false
+	var box: Panel = null
+	var label: RichTextLabel = null
+	var portrait: TextureRect = null
+	var tween: Tween = null
+	var current_text: String = ""
+	var current_parts: PackedStringArray = []
+	var current_index: int = 0
+	var portrait_path: String = ""
+	var waiting_for_input: bool = false
+	var character: Node = null
+	var typing_sound_player: AudioStreamPlayer = null
+	
+	func clear() -> void:
+		active = false
+		box = null
+		label = null
+		portrait = null
+		tween = null
+		current_text = ""
+		current_parts.clear()
+		current_index = 0
+		portrait_path = ""
+		waiting_for_input = false
+		character = null
+		typing_sound_player = null
+
+# Character dialogue instances
+static var _player_dialogue: DialogueData = DialogueData.new()
+static var _enemy_dialogue: DialogueData = DialogueData.new()
+
+# Show dialogue for any character (player or enemy)
+# character: the character showing dialogue
+# dialogue_text: text to display (supports <break> tags)
+# portrait_path: optional path to portrait image
+# text_speed: seconds per character (default 0.05)
+# is_enemy: true if this is enemy dialogue, false for player dialogue
+static func show_dialogue(character: Node, dialogue_text: String, portrait_path: String = "", text_speed: float = 0.05, is_enemy: bool = false) -> void:
+	var dialogue_data = _enemy_dialogue if is_enemy else _player_dialogue
+	
+	if dialogue_data.active:
+		return  # Don't overlap dialogues
+	
+	# Store dialogue data
+	dialogue_data.current_text = dialogue_text
+	dialogue_data.portrait_path = portrait_path
+	dialogue_data.character = character
+	
+	# Split dialogue by <break> tags
+	dialogue_data.current_parts = dialogue_text.split("<break>", false)
+	dialogue_data.current_index = 0
+	
+	# Create dialogue UI
+	_create_dialogue_ui(character, dialogue_data, is_enemy)
+	
+	# Start showing dialogue
+	dialogue_data.active = true
+	_show_dialogue_part(character, dialogue_data, text_speed)
+
+# Create dialogue UI for character
+static func _create_dialogue_ui(character: Node, dialogue_data: DialogueData, is_enemy: bool) -> void:
+	# Create main dialogue panel (black box with white outline) - centered
+	dialogue_data.box = Panel.new()
+	dialogue_data.box.z_index = 1000  # Show on top of everything
+	
+	# Set minimum size to prevent layout collapse
+	dialogue_data.box.custom_minimum_size = Vector2(800, 115)
+	dialogue_data.box.size = Vector2(800, 115)
+	
+	# Anchor panel to center-top of screen instead of manual positioning
+	dialogue_data.box.anchor_left = 0.5
+	dialogue_data.box.anchor_right = 0.5
+	dialogue_data.box.anchor_top = 0
+	var top_y = 200  # Position 200 pixels from top of screen
+	dialogue_data.box.offset_left = -400  # Half width to center
+	dialogue_data.box.offset_right = 400   # Half width to center
+	dialogue_data.box.offset_top = top_y
+	dialogue_data.box.offset_bottom = top_y + 115
+	
+	# Style the dialogue box
+	var style_box = StyleBoxFlat.new()
+	style_box.bg_color = Color.BLACK
+	style_box.border_width_left = 3
+	style_box.border_width_right = 3
+	style_box.border_width_top = 3
+	style_box.border_width_bottom = 3
+	style_box.border_color = Color.WHITE
+	style_box.corner_radius_top_left = 8
+	style_box.corner_radius_top_right = 8
+	style_box.corner_radius_bottom_left = 8
+	style_box.corner_radius_bottom_right = 8
+	
+	dialogue_data.box.add_theme_stylebox_override("panel", style_box)
+	
+	# Create container for portrait and text
+	var container = HBoxContainer.new()
+	container.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	container.add_theme_constant_override("separation", 15)
+	
+	# Add margin to center content
+	var margin = MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 20)
+	margin.add_theme_constant_override("margin_right", 20)
+	margin.add_theme_constant_override("margin_top", 20)
+	margin.add_theme_constant_override("margin_bottom", 20)
+	
+	dialogue_data.box.add_child(margin)
+	margin.add_child(container)
+	
+	# Create portrait
+	dialogue_data.portrait = TextureRect.new()
+	dialogue_data.portrait.custom_minimum_size = Vector2(80, 80)  # Square portrait
+	dialogue_data.portrait.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
+	dialogue_data.portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	
+	# Load portrait if path provided
+	if dialogue_data.portrait_path != "":
+		var portrait_texture = load(dialogue_data.portrait_path)
+		if portrait_texture:
+			dialogue_data.portrait.texture = portrait_texture
+	
+	# Create text container
+	var text_container = VBoxContainer.new()
+	text_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	text_container.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	
+	# For non-player characters: right-align content inside but keep box centered
+	if is_enemy:
+		# Keep dialogue box centered (remove right alignment)
+		# Add text first, then portrait (portrait on right)
+		container.add_child(text_container)
+		container.add_child(dialogue_data.portrait)
+	else:
+		# Player dialogue: left-align (current behavior)
+		# Add portrait first, then text (portrait on left)
+		container.add_child(dialogue_data.portrait)
+		container.add_child(text_container)
+	
+	text_container.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	
+	# Create speaker label (shows who is speaking) - left aligned
+	var speaker_label = Label.new()
+	speaker_label.text = "Enemy" if is_enemy else "Player"
+	speaker_label.add_theme_font_size_override("font_size", 18)
+	speaker_label.add_theme_color_override("font_color", Color.YELLOW if is_enemy else Color.CYAN)
+	speaker_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT  # Always left align character name for everyone
+	# Apply default font from FontConfig
+	FontConfig.apply_ui_font(speaker_label)
+	text_container.add_child(speaker_label)
+	
+	# Create dialogue label - left aligned
+	dialogue_data.label = RichTextLabel.new()
+	dialogue_data.label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	dialogue_data.label.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	dialogue_data.label.custom_minimum_size = Vector2(600, 0)
+	
+	dialogue_data.label.bbcode_enabled = true
+	dialogue_data.label.autowrap_mode = TextServer.AUTOWRAP_WORD
+	dialogue_data.label.scroll_active = false
+	dialogue_data.label.fit_content = false
+	
+	dialogue_data.label.text = ""
+	dialogue_data.label.add_theme_font_size_override("normal_font_size", 16)
+	dialogue_data.label.add_theme_color_override("default_color", Color.WHITE)
+	dialogue_data.label.add_theme_constant_override("line_separation", 4)
+	dialogue_data.label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT  # Always left align text for everyone
+	# Apply default font from FontConfig for RichTextLabel
+	FontConfig.apply_dialogue_font(dialogue_data.label)
+	text_container.add_child(dialogue_data.label)
+	
+	# Add dialogue box to UI layer (not world scene)
+	var scene = character.get_tree().current_scene
+	if scene:
+		# Try to find UI layer first
+		var ui_layer = scene.get_node_or_null("UI")
+		if ui_layer:
+			ui_layer.add_child(dialogue_data.box)
+		else:
+			# Fallback to scene root if no UI layer found
+			scene.add_child(dialogue_data.box)
+
+# Show a part of the dialogue with gradual text reveal using substring approach
+static func _show_dialogue_part(character: Node, dialogue_data: DialogueData, text_speed: float) -> void:
+	if dialogue_data.current_index >= dialogue_data.current_parts.size():
+		_hide_dialogue(character, dialogue_data)
+		return
+	
+	var current_part = dialogue_data.current_parts[dialogue_data.current_index]
+	
+	# Set full text immediately (prevents layout shifts)
+	dialogue_data.label.text = current_part
+	
+	# Kill existing tween if any
+	if dialogue_data.tween and dialogue_data.tween.is_valid():
+		dialogue_data.tween.kill()
+	
+	# Create new tween for substring-based reveal
+	dialogue_data.tween = character.create_tween()
+	dialogue_data.tween.set_parallel(false)
+	
+	# Store the full text for substring operations
+	var full_text = current_part
+	var total_chars = full_text.length()
+	
+	# Start with empty visible text
+	dialogue_data.label.visible_ratio = 0.0
+	
+	# Create and start typing sound
+	_setup_typing_sound(dialogue_data)
+	_play_typing_sound(dialogue_data)
+	
+	# Gradual reveal using visible_ratio (more efficient than character insertion)
+	var reveal_duration = text_speed * total_chars
+	dialogue_data.tween.tween_method(
+		func(progress: float): dialogue_data.label.visible_ratio = progress,
+		0.0, 1.0, reveal_duration
+	)
+	
+	# Wait for completion, then stop sound and wait for player input
+	dialogue_data.tween.tween_callback(_stop_typing_sound.bind(dialogue_data))
+	dialogue_data.tween.tween_callback(_setup_dialogue_input_wait.bind(character, dialogue_data))
+
+# Setup waiting for player input to continue dialogue
+static func _setup_dialogue_input_wait(character: Node, dialogue_data: DialogueData) -> void:
+	dialogue_data.waiting_for_input = true
+
+# Check if dialogue is waiting for player input
+static func is_waiting_for_input(is_enemy: bool = false) -> bool:
+	var dialogue_data = _enemy_dialogue if is_enemy else _player_dialogue
+	return dialogue_data.waiting_for_input
+
+# Handle player input to continue dialogue
+static func handle_dialogue_input(is_enemy: bool = false) -> void:
+	var dialogue_data = _enemy_dialogue if is_enemy else _player_dialogue
+	if dialogue_data.waiting_for_input:
+		dialogue_data.waiting_for_input = false
+		_continue_dialogue(dialogue_data.character, dialogue_data)
+
+# Continue to next dialogue part
+static func _continue_dialogue(character: Node, dialogue_data: DialogueData) -> void:
+	dialogue_data.current_index += 1
+	_show_dialogue_part(character, dialogue_data, 0.05)
+
+# Hide dialogue and clean up
+static func _hide_dialogue(character: Node, dialogue_data: DialogueData) -> void:
+	if dialogue_data.box:
+		# Stop typing sound if playing
+		_stop_typing_sound(dialogue_data)
+		dialogue_data.box.queue_free()
+		dialogue_data.clear()
+
+# Setup typing sound player
+static func _setup_typing_sound(dialogue_data: DialogueData) -> void:
+	# Create audio player if it doesn't exist
+	if not dialogue_data.typing_sound_player:
+		dialogue_data.typing_sound_player = AudioStreamPlayer.new()
+		dialogue_data.typing_sound_player.stream = load("res://sounds/text-typing.mp3")
+		dialogue_data.typing_sound_player.autoplay = false
+		dialogue_data.character.add_child(dialogue_data.typing_sound_player)
+
+# Play typing sound in loop
+static func _play_typing_sound(dialogue_data: DialogueData) -> void:
+	if dialogue_data.typing_sound_player:
+		dialogue_data.typing_sound_player.play()
+
+# Stop typing sound
+static func _stop_typing_sound(dialogue_data: DialogueData) -> void:
+	if dialogue_data.typing_sound_player and dialogue_data.typing_sound_player.playing:
+		dialogue_data.typing_sound_player.stop()
+
+# Check if dialogue is active for a character
+static func is_dialogue_active(is_enemy: bool = false) -> bool:
+	var dialogue_data = _enemy_dialogue if is_enemy else _player_dialogue
+	return dialogue_data.active
+
+# Force hide all dialogue (useful for scene changes)
+static func hide_all_dialogue() -> void:
+	_player_dialogue.clear()
+	_enemy_dialogue.clear()

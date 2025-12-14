@@ -141,6 +141,10 @@ var has_backup_gun: bool = false
 # Current equipped weapon tracking
 var current_equipped_weapon: String = "bat"  # "bat" or "gun"
 
+# Playable state for cutscene control
+var playable: bool = true
+var input_enabled: bool = true
+
 # UI reference
 var _ui: Node = null
 
@@ -188,12 +192,9 @@ func _ready() -> void:
 		_camera_original_offset = camera.offset
 	if sword_hitbox:
 		_sword_hitbox_base_position = sword_hitbox.position
-	if gun_sprite:
-		_gun_base_position = gun_sprite.position
-	if bat_sprite:
-		_bat_base_position = bat_sprite.position
-	if sword_hitbox:
-		sword_hitbox.body_entered.connect(_on_bat_collision_entered)
+	
+	# Setup weapon positions
+	_setup_weapon_positions()
 	
 	# Setup combo timer
 	_setup_combo_timer()
@@ -204,6 +205,26 @@ func _ready() -> void:
 	# Cache audio streams for performance (now using preloaded constants)
 	_reload_sound_cache = PLAYER_RELOAD_SOUND
 	_bat_throw_sound_cache = PLAYER_BAT_THROW_SOUND
+
+func _input(event: InputEvent) -> void:
+	# Handle dialogue input (space bar)
+	if event is InputEventKey and event.pressed:
+		if event.keycode == KEY_SPACE:
+			# Check if any dialogue is waiting for input
+			if CharacterUtils.is_waiting_for_input(false):  # Player dialogue
+				CharacterUtils.handle_dialogue_input(false)
+			elif CharacterUtils.is_waiting_for_input(true):  # Enemy dialogue
+				CharacterUtils.handle_dialogue_input(true)
+
+func _setup_weapon_positions() -> void:
+	if gun_sprite:
+		_gun_base_position = gun_sprite.position
+	if bat_sprite:
+		_bat_base_position = bat_sprite.position
+	if sword_hitbox:
+		sword_hitbox.body_entered.connect(_on_bat_collision_entered)
+
+	# Cache audio streams for performance (now using preloaded constants)
 	_gun_shot_sound_cache = PLAYER_GUN_SHOT_SOUND
 	_player_death_sound_cache = PLAYER_DEATH_SOUND
 	_player_ko_sound_cache = PLAYER_KO_SOUND
@@ -215,7 +236,6 @@ func _ready() -> void:
 	var weapon_menu_nodes = get_tree().get_nodes_in_group("weapon_menu")
 	if weapon_menu_nodes.size() > 0:
 		_ui = weapon_menu_nodes[0]
-	
 	
 	# Load gun cursor texture
 	gun_cursor_texture = load("res://assets/objects/gun_aim.png")
@@ -230,15 +250,14 @@ func _physics_process(delta: float) -> void:
 	# Early returns for special states
 	if _should_skip_normal_movement():
 		_handle_special_movement(delta)
-		return
+	else:
+		# Handle normal player input and movement
+		_handle_movement_input(delta)
+		_handle_combat_input()
+		_handle_weapon_systems()
+		_handle_animation_and_effects()
 	
-	# Handle normal player input and movement
-	_handle_movement_input(delta)
-	_handle_combat_input()
-	_handle_weapon_systems()
-	_handle_animation_and_effects()
-	
-	# Final physics update
+	# Final physics update - ALWAYS runs (critical for cutscenes)
 	move_and_slide()
 
 func _handle_physics(delta: float) -> void:
@@ -304,11 +323,21 @@ func _handle_special_movement(delta: float) -> void:
 		if knockback_timer <= 0.0:
 			knockback_velocity = Vector2.ZERO
 	elif not controls_enabled:
-		velocity.x = move_toward(velocity.x, 0, SPEED)
+		# Don't clear velocity during cutscenes - let run() method control movement
+		# Only clear velocity if we're not in a playable cutscene state
+		if not playable:
+			velocity.x = move_toward(velocity.x, 0, SPEED)
+	
+	# Handle animations during special movement (cutscenes)
+	_handle_animation_and_effects()
 	
 	move_and_slide()
 
 func _handle_movement_input(delta: float) -> void:
+	# Skip input handling if input is disabled (cutscene mode)
+	if not input_enabled:
+		return
+	
 	# Variable height jumping with buffer system
 	var jump_pressed = Input.is_action_pressed("ui_accept")
 	var jump_just_pressed = Input.is_action_just_pressed("ui_accept")
@@ -509,7 +538,10 @@ func _update_sword_hitbox() -> void:
 		sword_hitbox.position = Vector2(_sword_hitbox_base_position.x * sign_x, _sword_hitbox_base_position.y)
 
 func _update_animation() -> void:
-	if is_attacking:
+	if is_dead:
+		# Don't override death animation
+		return
+	elif is_attacking:
 		pass  # handled by animation_finished
 	elif is_jumping:
 		if current_equipped_weapon == "gun" and has_gun:
@@ -906,6 +938,74 @@ func _drop_player_gun() -> void:
 	# Softer arc: slight backwards throw, lower upward force
 	pickup.initial_velocity = Vector2(throw_dir * 140.0, -180.0)
 	scene.add_child(pickup)
+
+
+# ===== REUSABLE ACTION METHODS FOR CUTSCENES =====
+
+# Run method for both player control and cutscenes
+# direction: -1 for left, 1 for right, 0 to stop
+# distance: optional distance in pixels (for cutscenes), if 0 then runs indefinitely
+func run(direction: float, distance: float = 0.0) -> void:
+	if not playable or is_dead or is_attacking:
+		return
+	
+	# Set facing direction
+	if direction != 0.0:
+		animated_sprite.flip_h = direction < 0
+	
+	# Calculate target speed
+	var target_speed: float = direction * SPEED
+	
+	# Apply smooth movement
+	velocity.x = CharacterUtils.apply_smooth_movement(self, target_speed, SPEED, get_physics_process_delta_time(), ACCELERATION, DECELERATION, AIR_ACCELERATION)
+	
+	# Handle distance-based running for cutscenes
+	if distance > 0.0:
+		# This would need to be handled in a cutscene system with position tracking
+		pass
+
+# Attack method for both player control and cutscenes
+# attack_type: "idle", "moving", or "gun"
+# direction: optional direction for attack (-1 left, 1 right), uses current facing if 0
+func attack(attack_type: String = "idle", direction: float = 0.0) -> void:
+	if not playable or is_dead or is_attacking:
+		return
+	
+	# Set facing direction if specified
+	if direction != 0.0:
+		animated_sprite.flip_h = direction < 0
+	
+	match attack_type:
+		"idle":
+			_start_attack_idle()
+		"moving":
+			_start_attack_moving()
+		"gun":
+			if has_gun and not _player_is_reloading and _gun_fire_cooldown <= 0.0:
+				_start_gun_attack()
+		_:
+			# Default to idle attack
+			_start_attack_idle()
+
+# Jump method for both player control and cutscenes
+# jump_height: optional height multiplier (1.0 = normal, higher = higher jump)
+func jump(jump_height: float = 1.0) -> void:
+	if not playable or is_dead or is_attacking or not is_on_floor():
+		return
+	
+	is_jumping = true
+	jump_hold_time = 0.0
+	jump_start_y = global_position.y
+	velocity.y = JUMP_VELOCITY * jump_height
+	jump_buffer_time = 0.0
+
+
+# Dialogue box system for cutscenes - now using CharacterUtils
+func show_dialogue(dialogue_text: String, portrait_path: String = "", text_speed: float = 0.05) -> void:
+	CharacterUtils.show_dialogue(self, dialogue_text, portrait_path, text_speed, false)
+
+func is_dialogue_active() -> bool:
+	return CharacterUtils.is_dialogue_active(false)
 
 
 func _play_player_gun_recoil(shot_dir: Vector2) -> void:

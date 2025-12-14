@@ -19,14 +19,14 @@ var INTRO_GUN_SOUND: AudioStream = null
 func _ready() -> void:
 	# Initialize shared UI references for Level base class
 	player = get_node_or_null("Player")
-	health_bar = $"UI/HealthBar"
-	cash_label = $"UI/CashLabel"
-	health_percent_label = $"UI/HealthPercentLabel"
-	bullet_icons = $"UI/BulletIcons"
-	reload_label = $"UI/ReloadLabel"
-	combo_text_label = $"UI/ComboTextLabel"
-	combo_timer_bar = $"UI/ComboTimerBar"
-	ui_layer = $"UI"
+	health_bar = get_node_or_null("UI/HealthBar")
+	cash_label = get_node_or_null("UI/CashLabel")
+	health_percent_label = get_node_or_null("UI/HealthPercentLabel")
+	bullet_icons = get_node_or_null("UI/BulletIcons")
+	reload_label = get_node_or_null("UI/ReloadLabel")
+	combo_text_label = get_node_or_null("UI/ComboTextLabel")
+	combo_timer_bar = get_node_or_null("UI/ComboTimerBar")
+	ui_layer = get_node_or_null("UI")
 
 	# Use common UI setup only if player exists  
 	if player:

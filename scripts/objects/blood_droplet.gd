@@ -51,24 +51,10 @@ func _on_collision(body: Node) -> void:
 func _create_blood_decal() -> void:
 	var decal = BLOOD_DECAL_SCENE.instantiate()
 	if decal:
-		# Add decal to the scene tree with correct positioning (after Wall, before background)
+		# Add decal to the scene tree at bottom layer (first to be drawn)
 		var scene = get_tree().current_scene
-		var wall_node = scene.get_node_or_null("Wall")
-		var background_node = scene.get_node_or_null("background")
-		
-		if wall_node and background_node:
-			# Insert decal after Wall node but before background
-			var decal_index = wall_node.get_index() + 1
-			scene.add_child(decal)
-			scene.move_child(decal, decal_index)
-		elif wall_node:
-			# Fallback: insert after Wall
-			var decal_index = wall_node.get_index() + 1
-			scene.add_child(decal)
-			scene.move_child(decal, decal_index)
-		else:
-			# Fallback: just add to scene
-			scene.add_child(decal)
+		scene.add_child(decal)
+		scene.move_child(decal, 0)
 		
 		decal.global_position = global_position
 		

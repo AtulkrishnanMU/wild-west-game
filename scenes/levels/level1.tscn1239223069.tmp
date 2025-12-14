@@ -1,0 +1,18 @@
+[gd_scene load_steps=4 format=3 uid="uid://c6070ch5whd31"]
+
+[ext_resource type="Script" uid="uid://pmf0k5c1mlow" path="res://scripts/levels/level1.gd" id="1_2x3y4"]
+[ext_resource type="PackedScene" uid="uid://vi8yy0g5xqwb" path="res://scenes/levels/ui.tscn" id="8_ui"]
+[ext_resource type="PackedScene" uid="uid://bpp56g7uetkk8" path="res://scenes/objects/collider.tscn" id="18_4fww7"]
+
+[node name="Level1" type="Node2D"]
+script = ExtResource("1_2x3y4")
+
+[node name="Collider" parent="." instance=ExtResource("18_4fww7")]
+position = Vector2(2069, 551)
+scale = Vector2(43.100372, -2.5125008)
+
+[node name="Collider2" parent="." instance=ExtResource("18_4fww7")]
+position = Vector2(2046, 133)
+scale = Vector2(43.100372, -2.5125008)
+
+[node name="UI" parent="." instance=ExtResource("8_ui")]

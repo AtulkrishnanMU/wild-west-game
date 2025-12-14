@@ -559,3 +559,63 @@ func _perform_leap_escape(direction: float) -> void:
 	# Play leap sound (use running sound or add specific leap sound later)
 	if running_player:
 		AudioUtils.play_random_pitch(running_player, 1.2, 1.5)
+
+
+# ===== REUSABLE ACTION METHODS FOR CUTSCENES =====
+
+# Run method for both AI control and cutscenes
+# direction: -1 for left, 1 for right, 0 to stop
+# distance: optional distance in pixels (for cutscenes), if 0 then runs indefinitely
+func run(direction: float, distance: float = 0.0) -> void:
+	if not is_active or is_dead or is_attacking:
+		return
+	
+	# Set facing direction
+	if direction != 0.0:
+		animated_sprite.flip_h = direction < 0
+	
+	# Calculate target speed
+	var target_speed: float = direction * SPEED
+	
+	# Apply smooth movement
+	velocity.x = CharacterUtils.apply_smooth_movement(self, target_speed, SPEED, get_physics_process_delta_time(), ACCELERATION, DECELERATION, AIR_ACCELERATION)
+	
+	# Handle distance-based running for cutscenes
+	if distance > 0.0:
+		# This would need to be handled in a cutscene system with position tracking
+		pass
+
+# Attack method for both AI control and cutscenes
+# attack_type: "close" or "running"
+# direction: optional direction for attack (-1 left, 1 right), uses current facing if 0
+func attack(attack_type: String = "close", direction: float = 0.0) -> void:
+	if not is_active or is_dead or is_attacking:
+		return
+	
+	# Set facing direction if specified
+	if direction != 0.0:
+		animated_sprite.flip_h = direction < 0
+	
+	match attack_type:
+		"close":
+			_start_attack_close()
+		"running":
+			_start_attack_running()
+		_:
+			# Default to close attack
+			_start_attack_close()
+
+# Jump method for both AI control and cutscenes
+# jump_height: optional height multiplier (1.0 = normal, higher = higher jump)
+func jump(jump_height: float = 1.0) -> void:
+	if not is_active or is_dead or is_attacking or not is_on_floor():
+		return
+	
+	velocity.y = JUMP_SPEED * jump_height
+
+# Dialogue system for cutscenes - using CharacterUtils
+func show_dialogue(dialogue_text: String, portrait_path: String = "", text_speed: float = 0.05) -> void:
+	CharacterUtils.show_dialogue(self, dialogue_text, portrait_path, text_speed, true)
+
+func is_dialogue_active() -> bool:
+	return CharacterUtils.is_dialogue_active(true)

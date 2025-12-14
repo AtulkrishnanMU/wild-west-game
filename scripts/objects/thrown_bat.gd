@@ -191,20 +191,9 @@ func _create_impact_effect(pos: Vector2) -> void:
 			var blood_direction = (pos - global_position).normalized()
 			blood.set_direction(blood_direction)
 			
-			# Add blood to scene at correct position
-			var wall_node = scene.get_node_or_null("Wall")
-			var background_node = scene.get_node_or_null("background")
-			
-			if wall_node and background_node:
-				var blood_index = wall_node.get_index() + 1
-				scene.add_child(blood)
-				scene.move_child(blood, blood_index)
-			elif wall_node:
-				var blood_index = wall_node.get_index() + 1
-				scene.add_child(blood)
-				scene.move_child(blood, blood_index)
-			else:
-				scene.add_child(blood)
+			# Add blood to scene at bottom layer (first to be drawn)
+			scene.add_child(blood)
+			scene.move_child(blood, 0)
 
 
 func _setup_spin_sound():
@@ -309,11 +298,14 @@ func _move_and_bounce(delta: float):
 	# Validate inputs before movement
 	if _is_position_invalid() or _is_direction_invalid():
 		# Invalid state detected in _move_and_bounce
+		print("DEBUG: Invalid position/direction detected, forcing return")
 		_force_fallback_return()
 		return
 	
 	var move_vec = direction.normalized() * current_speed * delta
 	var intended_pos = global_position + move_vec
+	
+	print("DEBUG: Bat movement - current_pos: ", global_position, " intended_pos: ", intended_pos, " move_vec: ", move_vec)
 	
 	var space := get_world_2d().direct_space_state
 	var query := PhysicsRayQueryParameters2D.create(global_position, intended_pos)
@@ -373,10 +365,14 @@ func _move_and_bounce(delta: float):
 	var camera_pos = get_viewport().get_camera_2d().global_position if get_viewport().get_camera_2d() else Vector2.ZERO
 	var screen_bounds = Rect2(camera_pos - screen_size/2, screen_size)
 	
-	if not screen_bounds.has_point(global_position):
-		# Bat left screen - trigger return logic
-		if not is_returning:
-			_force_fallback_return()
+	print("DEBUG: Out of bounds check - bat_pos: ", global_position, " camera_pos: ", camera_pos, " screen_bounds: ", screen_bounds, " in_bounds: ", screen_bounds.has_point(global_position))
+	
+	# TEMPORARILY DISABLE OUT OF BOUNDS CHECK TO TEST
+	# if not screen_bounds.has_point(global_position):
+	#	# Bat left screen - trigger return logic
+	#	print("DEBUG: Bat is out of bounds, forcing return")
+	#	if not is_returning:
+	#		_force_fallback_return()
 
 # STATE HANDLERS
 
@@ -428,16 +424,19 @@ func _check_fallback_conditions():
 	# CONDITION 1: Total timeout exceeded
 	if total_flight_time >= fallback_timeout:
 		# Fallback: Bat timeout exceeded, forcing return
+		print("DEBUG: Fallback timeout exceeded, forcing return")
 		_force_fallback_return()
 		return
 	
 	# CONDITION 2: Stuck detection (no movement)
 	if last_position != Vector2.ZERO:
 		var movement_distance = global_position.distance_to(last_position)
+		print("DEBUG: Movement check - distance: ", movement_distance, " stuck_timer: ", stuck_timer)
 		if movement_distance < 1.0:  # Barely moved
 			stuck_timer += get_physics_process_delta_time()
 			if stuck_timer >= stuck_detection_time:
 				# Fallback: Bat appears stuck, forcing return
+				print("DEBUG: Stuck detected, forcing return")
 				_force_fallback_return()
 				return
 		else:
