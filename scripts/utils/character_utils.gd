@@ -8,6 +8,20 @@ const BLOOD_SCENE := preload("res://scenes/objects/blood_splash.tscn")
 # Performance optimization: cached player reference
 static var _cached_player_ref: WeakRef = weakref(null)
 
+# Performance optimization: cached scene node references
+static var _cached_wall_node: WeakRef = weakref(null)
+static var _cached_background_node: WeakRef = weakref(null)
+static var _cache_initialized: bool = false
+
+# Initialize scene node cache for better performance
+static func _initialize_scene_cache(scene: Node) -> void:
+	if _cache_initialized:
+		return
+	
+	_cached_wall_node = weakref(scene.get_node_or_null("Wall"))
+	_cached_background_node = weakref(scene.get_node_or_null("background"))
+	_cache_initialized = true
+
 # Dust creation functions
 static func create_dust_effect(character: Node2D, offset_y: float = 12.0, spread_x: float = 8.0) -> void:
 	# Spawn dust splash at character landing position (near feet)
@@ -52,18 +66,19 @@ static func create_blood_effect(character: Node2D, spread: float = 4.0) -> void:
 				var facing_dir := Vector2.LEFT if sprite.flip_h else Vector2.RIGHT
 				blood.set_direction(facing_dir)
 			
-			# Add blood to scene tree at correct position (after Wall, before background)
-			var wall_node = scene.get_node_or_null("Wall")
-			var background_node = scene.get_node_or_null("background")
+			# Initialize scene cache and use cached references for better performance
+			_initialize_scene_cache(scene)
+			var wall_node = _cached_wall_node.get_ref()
+			var background_node = _cached_background_node.get_ref()
 			
 			if wall_node and background_node:
 				# Insert blood after Wall node but before background
-				var blood_index = wall_node.get_index() + 1
+				var blood_index: int = wall_node.get_index() + 1
 				scene.add_child(blood)
 				scene.move_child(blood, blood_index)
 			elif wall_node:
 				# Fallback: insert after Wall
-				var blood_index = wall_node.get_index() + 1
+				var blood_index: int = wall_node.get_index() + 1
 				scene.add_child(blood)
 				scene.move_child(blood, blood_index)
 			else:
@@ -225,18 +240,19 @@ static func apply_damage_with_effects(character: Node2D, amount: int, blood_scen
 						facing_dir = Vector2.LEFT if sprite.flip_h else Vector2.RIGHT
 					blood.set_direction(facing_dir)
 			
-			# Cache scene nodes to avoid repeated lookups
-			var wall_node := scene.get_node_or_null("Wall")
-			var background_node := scene.get_node_or_null("background")
+			# Initialize scene cache and use cached references for better performance
+			_initialize_scene_cache(scene)
+			var wall_node: Node = _cached_wall_node.get_ref()
+			var background_node: Node = _cached_background_node.get_ref()
 			
 			if wall_node and background_node:
 				# Insert blood after Wall node but before background
-				var blood_index := wall_node.get_index() + 1
+				var blood_index: int = wall_node.get_index() + 1
 				scene.add_child(blood)
 				scene.move_child(blood, blood_index)
 			elif wall_node:
 				# Fallback: insert after Wall
-				var blood_index := wall_node.get_index() + 1
+				var blood_index: int = wall_node.get_index() + 1
 				scene.add_child(blood)
 				scene.move_child(blood, blood_index)
 			else:

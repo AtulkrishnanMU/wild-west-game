@@ -22,7 +22,6 @@ func set_dead_enemy(dead: bool) -> void:
 func _spawn_blood_droplets() -> void:
 	var droplet_count = DEAD_ENEMY_DROPLET_COUNT if is_dead_enemy else DROPLET_COUNT
 	var floating_decal_count = DEAD_ENEMY_FLOATING_DECAL_COUNT if is_dead_enemy else FLOATING_DECAL_COUNT
-	print("Blood splash: is_dead_enemy=", is_dead_enemy, ", droplet_count=", droplet_count, ", floating_decal_count=", floating_decal_count)
 	
 	# Spawn regular falling droplets
 	for i in range(droplet_count):

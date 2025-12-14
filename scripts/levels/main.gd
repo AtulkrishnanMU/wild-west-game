@@ -76,8 +76,6 @@ func _process(delta: float) -> void:
 	if intro_done:
 		camera_follow_enabled = true
 		process_level(delta)
-	else:
-		pass
 
 func _start_intro_pan() -> void:
 	if intro_done or intro_running:

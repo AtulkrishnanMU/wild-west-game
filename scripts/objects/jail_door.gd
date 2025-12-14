@@ -26,10 +26,8 @@ func _ready():
 
 
 func _on_body_entered(body):
-	print("Body entered: ", body.name, " | Is locked: ", is_locked)
 	if body.name == "Player" and not is_locked:
 		# Player collided with door - play open animation
-		print("Opening door for player!")
 		open_door()
 
 func _on_body_exited(body):
@@ -38,16 +36,12 @@ func _on_body_exited(body):
 		pass
 
 func open_door():
-	print("open_door called - is_open: ", is_open, ", is_locked: ", is_locked)
 	if not is_open and not is_locked:
 		is_open = true
-		print("Playing open animation")
 		animated_sprite.play("open")
 		# Play door sound effect
 		if door_sound_player:
 			door_sound_player.play()
-	else:
-		print("Door already open or locked")
 
 func close_door():
 	if is_open:

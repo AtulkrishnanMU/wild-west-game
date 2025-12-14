@@ -12,7 +12,6 @@ func _ready() -> void:
 	call_deferred("_start_intro_sequence")
 
 func _start_intro_sequence() -> void:
-	print("Starting intro sequence")
 	
 	# Make player uncontrollable
 	_make_player_uncontrollable()
@@ -30,7 +29,6 @@ func _make_player_uncontrollable() -> void:
 		player.controls_enabled = false
 		player.velocity = Vector2.ZERO
 		player.is_attacking = true  # Prevent other actions
-		print("Player controls disabled")
 
 func _start_player_attack() -> void:
 	if not player or not player.animated_sprite:
@@ -50,13 +48,11 @@ func _start_player_attack() -> void:
 			slash_player.pitch_scale = randf_range(0.7, 1.6)
 			slash_player.play()
 	
-	print("Playing player attack animation: ", attack_anim)
 
 func _trigger_axe_man_death() -> void:
 	# Signal the dead axe man to start its sequence
 	if dead_axe_man and dead_axe_man.has_method("_start_idle_then_die"):
 		dead_axe_man._start_idle_then_die()
-		print("Triggered axe man death sequence")
 	
 	# Wait for the entire sequence to finish
 	await get_tree().create_timer(2.5).timeout  # 1s idle + death animation time
@@ -65,28 +61,23 @@ func _trigger_axe_man_death() -> void:
 	_show_dialogue()
 
 func _show_dialogue() -> void:
-	print("Showing post-death dialogue")
 	
 	# Use the existing dialogue node instead of creating a new one
 	if dialogue:
 		dialogue.visible = true
 		dialogue.show_dialogue()
-		print("Dialogue started")
 	else:
-		print("ERROR: Dialogue node not found!")
 		# Fallback - make player controllable
 		_make_player_controllable()
 		intro_sequence_finished.emit()
 
 func _on_dialogue_finished() -> void:
-	print("Dialogue finished")
 	
 	# Make player controllable again
 	_make_player_controllable()
 	
 	# Signal that the intro sequence is finished
 	intro_sequence_finished.emit()
-	print("Intro sequence finished")
 
 func _make_player_controllable() -> void:
 	# Re-enable player controls using the built-in controls_enabled variable
@@ -96,4 +87,3 @@ func _make_player_controllable() -> void:
 		# Return to idle animation
 		if player.animated_sprite:
 			player.animated_sprite.play("IDLE")
-		print("Player controls re-enabled")

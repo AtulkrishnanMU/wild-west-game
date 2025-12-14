@@ -41,9 +41,6 @@ func show_dialogue() -> void:
 	_can_advance = false
 	dialogue_label.text = ""  # Clear text initially
 	
-	print("Starting dialogue with words: ", words)
-	print("Dialogue label position: ", dialogue_label.global_position)
-	print("Dialogue label size: ", dialogue_label.size)
 	
 	# Start word display effect
 	_word_display_active = true
@@ -68,14 +65,12 @@ func _process(delta: float) -> void:
 			# Play gun shot sound
 			_play_gun_shot_sound()
 			
-			print("Added word '", words[current_word_index], "'. Current text: '", dialogue_label.text, "'")
 			
 			current_word_index += 1
 		else:
 			# All words displayed
 			_word_display_active = false
 			_can_advance = true
-			print("All words displayed, press spacebar to continue")
 
 func _play_gun_shot_sound() -> void:
 	var gun_shot_sound = load(GUN_SHOT_SOUND_PATH)

@@ -20,7 +20,6 @@ func _start_idle_then_die() -> void:
 	if animated_sprite and animated_sprite.sprite_frames.has_animation("IDLE"):
 		animated_sprite.play("IDLE")
 		animated_sprite.flip_h = true  # Face left
-		print("Playing IDLE animation for DeadAxeMan")
 	
 	# Wait 1 second then die
 	await get_tree().create_timer(1.0).timeout
@@ -43,9 +42,6 @@ func _force_death_state() -> void:
 	if animated_sprite and animated_sprite.sprite_frames.has_animation("DEATH"):
 		animated_sprite.play("DEATH")
 		animated_sprite.flip_h = true  # Face left
-		print("Playing DEATH animation for DeadAxeMan")
-	else:
-		print("DEATH animation not found!")
 	
 	# Play death sound effect
 	_play_enemy_death_sound()

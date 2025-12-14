@@ -26,6 +26,19 @@ const ENEMY_DEATH_SOUND_4 = preload("res://sounds/enemy_death/enemy-death4.mp3")
 const BLOOD_SPLAT_SOUND = preload("res://sounds/blood-splat.mp3")
 const DEATH_FALL_SOUND = preload("res://sounds/death-fall.mp3")
 const RUNNING_SOUND = preload("res://sounds/running.mp3")
+
+# Preloaded sound arrays to avoid directory scanning
+const ENEMY_DEATH_SOUNDS: Array[AudioStream] = [
+	ENEMY_DEATH_SOUND_1,
+	ENEMY_DEATH_SOUND_2, 
+	ENEMY_DEATH_SOUND_3,
+	ENEMY_DEATH_SOUND_4
+]
+const ENEMY_HURT_SOUNDS: Array[AudioStream] = [
+	preload("res://sounds/enemy_hurt/hurt.mp3"),
+	preload("res://sounds/enemy_hurt/hurt2.mp3"),
+	preload("res://sounds/enemy_hurt/hurt3.mp3")
+]
 var health: int = MAX_HEALTH
 var FAR_JUMP_DISTANCE: float = 140.0
 var ATTACK_RANGE_DISTANCE: float = ATTACK_RANGE
@@ -34,7 +47,7 @@ var has_been_visible_with_player := false
 var is_active := false
 var was_on_floor: bool = false  # Track if enemy was on floor in previous frame
 var _visibility_check_timer: float = 0.0
-const VISIBILITY_CHECK_INTERVAL: float = 0.1
+const VISIBILITY_CHECK_INTERVAL: float = 0.5
 @onready var animated_sprite: AnimatedSprite2D = $AnimatedSprite2D
 @onready var slash_player: AudioStreamPlayer2D = $SlashEnemyPlayer
 @onready var hit_player: AudioStreamPlayer2D = $HitEnemyPlayer
@@ -317,7 +330,6 @@ func take_damage(amount: int) -> void:
 func take_damage_with_direction(amount: int, bullet_direction: Vector2, bullet_position: Vector2 = Vector2.ZERO) -> void:
 	# Reduce health
 	health = max(health - amount, 0)
-	print("DEBUG: Enemy took damage, health now: ", health, " (was ", health + amount, ")")
 	
 	# Spawn blood splash at bullet hit position with bullet direction
 	CharacterUtils.apply_damage_with_effects(self, amount, BLOOD_SCENE, BLOOD_SPLAT_SOUND, null, bullet_direction, bullet_position)
@@ -336,7 +348,6 @@ func take_damage_with_direction(amount: int, bullet_direction: Vector2, bullet_p
 	
 	# Check if enemy died from this damage
 	if health <= 0 and not is_dead:
-		print("DEBUG: Enemy died! Emitting enemy_killed signal")
 		# Death handling with knockback
 		is_dead = true
 		is_attacking = false
@@ -444,26 +455,7 @@ func _drop_cash_on_death() -> void:
 
 
 func _play_enemy_death_sound() -> void:
-	var death_sounds: Array[AudioStream] = []
-	var dir = DirAccess.open("res://sounds/enemy_death/")
-	if dir:
-		dir.list_dir_begin()
-		var file_name = dir.get_next()
-		while file_name != "":
-			if file_name.ends_with(".mp3"):
-				var sound_path = "res://sounds/enemy_death/" + file_name
-				var sound = load(sound_path)
-				if sound:
-					death_sounds.append(sound)
-			file_name = dir.get_next()
-		dir.list_dir_end()
-	
-	if death_sounds.size() > 0:
-		AudioUtils.play_death_sound(death_sounds, global_position)
-	else:
-		# Fallback to hardcoded sounds if folder is empty
-		death_sounds = [ENEMY_DEATH_SOUND_1, ENEMY_DEATH_SOUND_2]
-		AudioUtils.play_death_sound(death_sounds, global_position)
+	AudioUtils.play_death_sound(ENEMY_DEATH_SOUNDS, global_position)
 
 
 func _play_running_sound() -> void:
@@ -476,22 +468,7 @@ func _play_blood_splat_sound() -> void:
 	AudioUtils.play_blood_splat_sound(BLOOD_SPLAT_SOUND, global_position)
 
 func _play_enemy_hurt_sound() -> void:
-	var hurt_sounds: Array[AudioStream] = []
-	var dir = DirAccess.open("res://sounds/enemy_hurt/")
-	if dir:
-		dir.list_dir_begin()
-		var file_name = dir.get_next()
-		while file_name != "":
-			if file_name.ends_with(".mp3"):
-				var sound_path = "res://sounds/enemy_hurt/" + file_name
-				var sound = load(sound_path)
-				if sound:
-					hurt_sounds.append(sound)
-			file_name = dir.get_next()
-		dir.list_dir_end()
-	
-	if hurt_sounds.size() > 0:
-		AudioUtils.play_death_sound(hurt_sounds, global_position)
+	AudioUtils.play_death_sound(ENEMY_HURT_SOUNDS, global_position)
 
 func _play_death_fall_delayed() -> void:
 	# Wait 0.5 seconds then play death fall sound

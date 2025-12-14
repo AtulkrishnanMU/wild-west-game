@@ -97,8 +97,6 @@ func _ready() -> void:
 	bat_cooldown_bar = get_node_or_null("BatCooldownBar")
 	yeet_label = get_node_or_null("YeetLabel")
 	
-	print("BatCooldownBar reference: ", bat_cooldown_bar)
-	print("YeetLabel reference: ", yeet_label)
 	
 	# Get other UI elements to hide when menu opens
 	health_bar = get_node_or_null("HealthBar")
@@ -320,7 +318,6 @@ func toggle_menu() -> void:
 
 func _open_menu() -> void:
 	if not weapon_menu:
-		print("Warning: WeaponMenu not found")
 		return
 	
 	is_menu_open = true
@@ -332,11 +329,9 @@ func _open_menu() -> void:
 	
 	# Make the menu consume all mouse input
 	weapon_menu.mouse_filter = Control.MOUSE_FILTER_STOP
-	print("Weapon menu opened")
 
 func _close_menu() -> void:
 	if not weapon_menu:
-		print("Warning: WeaponMenu not found")
 		return
 	
 	is_menu_open = false
@@ -347,7 +342,6 @@ func _close_menu() -> void:
 	
 	# Reset mouse filter to allow normal input
 	weapon_menu.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	print("Weapon menu closed")
 
 func _hide_other_ui_elements() -> void:
 	# Hide all other UI elements when weapon menu is open
@@ -371,10 +365,8 @@ func _hide_other_ui_elements() -> void:
 	# Always hide bat cooldown UI when menu is open, regardless of current weapon
 	if bat_cooldown_bar:
 		bat_cooldown_bar.visible = false
-		print("Hiding bat cooldown bar")
 	if yeet_label:
 		yeet_label.visible = false
-		print("Hiding yeet label")
 
 func _show_other_ui_elements() -> void:
 	# Show all other UI elements when weapon menu is closed
@@ -425,9 +417,7 @@ func _show_weapon_specific_ui() -> void:
 			bullet_icons.visible = true
 
 func _on_bat_selected() -> void:
-	print("Bat button clicked!")
 	if not player:
-		print("No player reference")
 		return
 	
 	# Play select sound
@@ -443,12 +433,9 @@ func _on_bat_selected() -> void:
 	
 	# Emit signal
 	weapon_changed.emit("bat")
-	print("Weapon switched to: BAT")
 
 func _on_gun_selected() -> void:
-	print("Gun button clicked!")
 	if not player or not player.has_gun:
-		print("No player reference or player doesn't have gun")
 		return
 	
 	# Play select sound
@@ -464,7 +451,6 @@ func _on_gun_selected() -> void:
 	
 	# Emit signal
 	weapon_changed.emit("gun")
-	print("Weapon switched to: GUN")
 
 func _play_hover_sound() -> void:
 	if menu_hover_sound:
@@ -504,21 +490,17 @@ func _gui_input(event: InputEvent) -> void:
 	# Block all mouse clicks when menu is open
 	if is_menu_open and event is InputEventMouseButton and event.pressed:
 		get_viewport().set_input_as_handled()
-		print("Mouse click blocked in GUI while menu is open")
 
 func _unhandled_input(event: InputEvent) -> void:
 	# Block all attack inputs when menu is open
 	if is_menu_open and event.is_action_pressed("attack"):
 		get_viewport().set_input_as_handled()
-		print("Attack input blocked while menu is open")
 
 func _input(event: InputEvent) -> void:
 	# Toggle menu with Tab key (check physical key directly)
 	if event is InputEventKey and event.pressed and event.keycode == KEY_TAB:
-		print("Tab key pressed, toggling menu")
 		toggle_menu()
 	
 	# Close menu with Escape
 	if event.is_action_pressed("ui_cancel") and is_menu_open:
-		print("Escape pressed, closing menu")
 		_close_menu()

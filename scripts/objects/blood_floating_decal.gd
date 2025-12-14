@@ -18,7 +18,6 @@ func _ready() -> void:
 	# Set random drift for floating effect
 	float_drift = Vector2(randf_range(-25, 25), randf_range(-15, 15))
 	
-	print("Floating decal created at position: ", global_position, " with drift: ", float_drift, " duration: ", float_duration)
 	
 	super._ready()
 
@@ -75,10 +74,7 @@ func _physics_process(delta: float) -> void:
 			has_stuck_in_air = true
 			velocity = Vector2.ZERO  # Stop all movement
 			float_drift = Vector2.ZERO
-			print("Floating decal stuck in air at position: ", global_position)
-	else:
-		# Should not reach here anymore since decals stick in air
-		pass
+	# Should not reach here anymore since decals stick in air
 	
 	# Fade out over lifetime - very slow fade for stuck decals
 	if sprite:

@@ -49,8 +49,8 @@ func _create_impact_effect() -> void:
 	# Create metal sparks for bullet impact
 	_create_metal_sparks(global_position, direction)
 	
-	# Create 3-5 white particles for impact
-	var particle_count := randi_range(3, 5)
+	# Create 1-2 white particles for impact (reduced from 3-5 for performance)
+	var particle_count := randi_range(1, 2)
 	for i in range(particle_count):
 		var particle := DUST_PARTICLE_SCENE.instantiate()
 		if particle == null:

@@ -60,7 +60,6 @@ func start_alarm() -> void:
 		return
 	
 	_is_active = true
-	print("Alarm started!")
 	
 	# Start audio
 	if audio_player:
@@ -74,7 +73,6 @@ func stop_alarm() -> void:
 		return
 	
 	_is_active = false
-	print("Alarm stopped!")
 	
 	# Stop audio
 	if audio_player:

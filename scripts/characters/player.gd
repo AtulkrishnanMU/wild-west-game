@@ -76,6 +76,12 @@ var _combo_duration: float = 5.0  # Seconds before combo expires
 var running_sound_player: AudioStreamPlayer2D = null
 var _reload_sound_cache: AudioStream = null
 var _bat_throw_sound_cache: AudioStream = null
+var _gun_shot_sound_cache: AudioStream = null
+var _player_death_sound_cache: AudioStream = null
+var _player_ko_sound_cache: AudioStream = null
+var _hurt_sound_cache: AudioStream = null
+var _blood_splat_sound_cache: AudioStream = null
+var _running_sound_cache: AudioStream = null
 
 const MAX_HEALTH := 200
 var health: int = MAX_HEALTH
@@ -168,7 +174,7 @@ var _flicker_tween: Tween = null
 # Performance optimization: cached enemy references
 var _cached_enemies: Array[Node] = []
 var _enemy_cache_update_timer: float = 0.0
-const ENEMY_CACHE_UPDATE_INTERVAL: float = 0.1  # Update cache every 100ms
+const ENEMY_CACHE_UPDATE_INTERVAL: float = 0.5  # Update cache every 500ms
 # Performance optimization: track connected enemies to avoid redundant checks
 var _connected_enemies: Array[Node] = []
 
@@ -198,6 +204,12 @@ func _ready() -> void:
 	# Cache audio streams for performance (now using preloaded constants)
 	_reload_sound_cache = PLAYER_RELOAD_SOUND
 	_bat_throw_sound_cache = PLAYER_BAT_THROW_SOUND
+	_gun_shot_sound_cache = PLAYER_GUN_SHOT_SOUND
+	_player_death_sound_cache = PLAYER_DEATH_SOUND
+	_player_ko_sound_cache = PLAYER_KO_SOUND
+	_hurt_sound_cache = HURT_SOUND
+	_blood_splat_sound_cache = BLOOD_SPLAT_SOUND
+	_running_sound_cache = RUNNING_SOUND
 	
 	# Get UI reference for cooldown display
 	var weapon_menu_nodes = get_tree().get_nodes_in_group("weapon_menu")
@@ -265,7 +277,6 @@ func _handle_jump_mechanics(delta: float) -> void:
 func _handle_landing_effects() -> void:
 	# Check for landing - create dust effect
 	if CharacterUtils.check_dust_landing(self, was_on_floor, velocity):
-		print("Creating dust effect - landing velocity: ", velocity.y)
 		CharacterUtils.create_dust_effect(self)
 	
 	# Reset jump state when landing
@@ -860,7 +871,6 @@ func _drop_player_gun() -> void:
 		if gun_sprite:
 			gun_sprite.visible = true
 		
-		print("[PLAYER GUN] Auto-equipped backup gun")
 		CharacterUtils.spawn_floating_popup(self, "BACKUP EQUIPPED", Color(0.4, 1.0, 0.4), Vector2(-35, -22), POPUP_FONT_SIZE, BACKUP_EQUIPPED_HEIGHT)
 		emit_signal("bullets_changed", PLAYER_MAG_SIZE - _player_shots_since_reload, PLAYER_MAG_SIZE)
 		emit_signal("reloads_changed", _player_reload_count, PLAYER_MAX_RELOADS)
@@ -1018,7 +1028,6 @@ func _setup_combo_timer() -> void:
 	add_child(_combo_timer)
 
 func _on_combo_timer_expired() -> void:
-	print("DEBUG: Combo timer expired, applying combo healing")
 	# Apply healing before resetting the combo
 	apply_combo_healing()
 	# Emit signal to trigger fade out animation (0 means combo ended)
@@ -1125,7 +1134,6 @@ func _create_cash_popup(amount: float) -> void:
 	cash_popup_timer.start()
 
 func apply_combo_healing() -> void:
-	print("DEBUG: apply_combo_healing called, current combo: ", combo_streak)
 	if combo_streak > 0:
 		# Calculate heal potential using triangular formula: n(n+1)/2
 		var heal_potential: int = combo_streak * (combo_streak + 1) / 2
@@ -1134,7 +1142,6 @@ func apply_combo_healing() -> void:
 			var old_health := health
 			health = min(health + actual_heal, MAX_HEALTH)
 			emit_signal("health_changed", health, MAX_HEALTH)
-			print("DEBUG: Healed for: ", actual_heal, " (combo: ", combo_streak, ", potential: ", heal_potential, ")")
 			# Show healing popup with consistent size
 			CharacterUtils.spawn_floating_popup(self, "+" + str(actual_heal) + " HP", Color.WHITE, Vector2(-20, -25), 14, HEALTH_POPUP_HEIGHT)
 			# Play health gain sound
@@ -1362,15 +1369,9 @@ func _update_cursor() -> void:
 func switch_to_weapon(weapon_type: String) -> void:
 	if weapon_type == "bat":
 		current_equipped_weapon = "bat"
-		print("Player switched to BAT")
 	elif weapon_type == "gun":
 		if has_gun:  # Only switch to gun if player has obtained it
 			current_equipped_weapon = "gun"
-			print("Player switched to GUN")
-		else:
-			print("Player cannot switch to GUN - not obtained")
-	else:
-		print("Invalid weapon type: ", weapon_type)
 	
 	# Update weapon visibility immediately
 	_update_weapon_visibility()

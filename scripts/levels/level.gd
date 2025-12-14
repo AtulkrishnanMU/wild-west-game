@@ -38,6 +38,30 @@ var health_bar_pulse_tween: Tween = null
 var is_pulsing: bool = false
 var original_health_bar_scale: Vector2 = Vector2.ONE
 
+# Performance optimization: cached StyleBox objects for health bar
+var _cached_fill_style: StyleBoxFlat = null
+var _cached_foreground_style: StyleBoxFlat = null
+
+# Initialize cached StyleBox objects for better performance
+func _initialize_health_bar_styles() -> void:
+	if _cached_fill_style != null:
+		return  # Already initialized
+	
+	# Create reusable fill style
+	_cached_fill_style = StyleBoxFlat.new()
+	_cached_fill_style.border_width_left = 2
+	_cached_fill_style.border_width_right = 2
+	_cached_fill_style.border_width_top = 2
+	_cached_fill_style.border_width_bottom = 2
+	_cached_fill_style.border_color = Color.WHITE
+	_cached_fill_style.corner_radius_top_left = 2
+	_cached_fill_style.corner_radius_top_right = 2
+	_cached_fill_style.corner_radius_bottom_left = 2
+	_cached_fill_style.corner_radius_bottom_right = 2
+	
+	# Cache foreground style
+	_cached_foreground_style = create_health_bar_foreground()
+
 # These are expected to be set by child scripts via @onready vars
 var player: Node = null
 var health_bar: ProgressBar = null
@@ -89,13 +113,9 @@ func get_health_color(ratio: float) -> Color:
 func _connect_existing_enemies() -> void:
 	# Find all existing enemies in the scene and connect them to combo system
 	var enemies := get_tree().get_nodes_in_group("enemies")
-	print("DEBUG: Found ", enemies.size(), " existing enemies to connect")
 	for enemy in enemies:
 		if enemy.has_signal("enemy_killed"):
-			print("DEBUG: Connecting existing enemy to combo system")
 			enemy.connect("enemy_killed", _on_enemy_killed)
-		else:
-			print("DEBUG: Existing enemy does not have enemy_killed signal")
 
 # Common UI setup function
 func setup_ui() -> void:
@@ -259,11 +279,7 @@ func spawn_enemy_around_player(enemy_scene: PackedScene, min_distance: float = 1
 	
 	# Track kills via Enemy's enemy_killed signal, if present
 	if enemy.has_signal("enemy_killed"):
-		print("DEBUG: Connecting enemy_killed signal")
 		enemy.connect("enemy_killed", _on_enemy_killed)
-		print("DEBUG: Successfully connected enemy_killed signal")
-	else:
-		print("DEBUG: Enemy does not have enemy_killed signal")
 		
 	# Also connect directly to player if available (more reliable)
 	# Note: Old health gain system removed - now using combo streak system
@@ -273,12 +289,9 @@ func spawn_enemy_around_player(enemy_scene: PackedScene, min_distance: float = 1
 
 # Common enemy killed handler
 func _on_enemy_killed(enemy: Node) -> void:
-	print("DEBUG: Enemy killed, attempting to increment combo")
 	# Increment combo streak for each enemy kill
 	if player and player.has_method("increment_combo_streak"):
 		player.increment_combo_streak()
-	else:
-		print("DEBUG: Player or increment_combo_streak method not found")
 
 # SINGLE UNIFIED HEALTH BAR UPDATE METHOD - USE THIS EVERYWHERE
 func update_health_bar_unified(current: int, max_value: int, duration: float = 0.3) -> void:
@@ -298,6 +311,9 @@ func set_health_bar_color_unified(color: Color, duration: float = 0.0) -> void:
 	if health_bar == null:
 		return
 	
+	# Initialize cached styles if not done yet
+	_initialize_health_bar_styles()
+	
 	if duration > 0.0:
 		# Animated color change
 		var tween = create_tween()
@@ -306,50 +322,27 @@ func set_health_bar_color_unified(color: Color, duration: float = 0.0) -> void:
 		# Animate modulate
 		tween.tween_property(health_bar, "modulate", color, duration)
 		
-		# Create and animate fill color with border
-		var fill_style = StyleBoxFlat.new()
-		fill_style.bg_color = color
-		fill_style.border_width_left = 2  # Add border to fill style
-		fill_style.border_width_right = 2
-		fill_style.border_width_top = 2
-		fill_style.border_width_bottom = 2
-		fill_style.border_color = Color.WHITE  # White border on top
-		fill_style.corner_radius_top_left = 2
-		fill_style.corner_radius_top_right = 2
-		fill_style.corner_radius_bottom_left = 2
-		fill_style.corner_radius_bottom_right = 2
-		
-		# Apply fill style immediately, then animate
-		health_bar.add_theme_stylebox_override("fill", fill_style)
+		# Update cached fill style color and apply
+		_cached_fill_style.bg_color = color
+		health_bar.add_theme_stylebox_override("fill", _cached_fill_style)
 		# Also update foreground outline to match fill color
-		health_bar.add_theme_stylebox_override("foreground", create_health_bar_foreground())
+		health_bar.add_theme_stylebox_override("foreground", _cached_foreground_style)
 	else:
 		# Immediate color change - ALWAYS set both together
 		health_bar.modulate = color
-		var fill_style = StyleBoxFlat.new()
-		fill_style.bg_color = color
-		fill_style.border_width_left = 2  # Add border to fill style
-		fill_style.border_width_right = 2
-		fill_style.border_width_top = 2
-		fill_style.border_width_bottom = 2
-		fill_style.border_color = Color.WHITE  # White border on top
-		fill_style.corner_radius_top_left = 2
-		fill_style.corner_radius_top_right = 2
-		fill_style.corner_radius_bottom_left = 2
-		fill_style.corner_radius_bottom_right = 2
-		health_bar.add_theme_stylebox_override("fill", fill_style)
+		# Update cached fill style color and apply
+		_cached_fill_style.bg_color = color
+		health_bar.add_theme_stylebox_override("fill", _cached_fill_style)
 		# Also update foreground outline to match fill color
-		health_bar.add_theme_stylebox_override("foreground", create_health_bar_foreground())
+		health_bar.add_theme_stylebox_override("foreground", _cached_foreground_style)
 
 # Helper function to sync fill color with health bar modulate - DEPRECATED, use set_health_bar_color_unified instead
 func sync_health_bar_fill_color() -> void:
-	print("WARNING: sync_health_bar_fill_color() is deprecated, use set_health_bar_color_unified instead")
 	if health_bar != null and player != null:
 		update_health_bar_unified(player.health, player.MAX_HEALTH)
 
 # Unified health bar color function - DEPRECATED, use set_health_bar_color_unified instead
 func set_health_bar_color(color: Color, duration: float = 0.0) -> void:
-	print("WARNING: set_health_bar_color() is deprecated, use set_health_bar_color_unified instead")
 	set_health_bar_color_unified(color, duration)
 
 # Restore health bar color function removed - health bar is always red
@@ -391,8 +384,6 @@ func _setup_heartbeat_sound() -> void:
 		heartbeat_player.stream = heartbeat_sound
 		heartbeat_player.volume_db = 0.0  # Increased volume (was -5.0)
 		heartbeat_player.stream.loop = true  # Enable looping
-	else:
-		print("Warning: Heartbeat sound not found at ", HEARTBEAT_SOUND_PATH)
 
 func _manage_heartbeat_sound(health_ratio: float) -> void:
 	if heartbeat_player == null or heartbeat_player.stream == null:
@@ -403,7 +394,6 @@ func _manage_heartbeat_sound(health_ratio: float) -> void:
 		if is_heartbeat_playing:
 			heartbeat_player.stop()
 			is_heartbeat_playing = false
-			print("DEBUG: Stopped heartbeat sound (player died)")
 		return
 	
 	var should_play = health_ratio <= HEALTH_LOW_THRESHOLD  # Play when health is 30% or less
@@ -412,19 +402,16 @@ func _manage_heartbeat_sound(health_ratio: float) -> void:
 		# Start playing heartbeat sound
 		heartbeat_player.play()
 		is_heartbeat_playing = true
-		print("DEBUG: Started heartbeat sound (health ratio: ", health_ratio, ")")
 	elif not should_play and is_heartbeat_playing:
 		# Stop playing heartbeat sound
 		heartbeat_player.stop()
 		is_heartbeat_playing = false
-		print("DEBUG: Stopped heartbeat sound (health ratio: ", health_ratio, ")")
 
 # Public function to stop heartbeat sound immediately (called from player)
 func stop_heartbeat_sound() -> void:
 	if heartbeat_player and is_heartbeat_playing:
 		heartbeat_player.stop()
 		is_heartbeat_playing = false
-		print("DEBUG: Stopped heartbeat sound (external call)")
 	
 	# Also stop health bar pulsing when player dies
 	_stop_health_bar_pulse()
@@ -579,21 +566,11 @@ func _on_combo_streak_changed(current: int) -> void:
 			_fade_out_combo_element(combo_timer_bar)
 
 func _process(delta: float) -> void:
-	# Simple debug to check if process is running
-	if player and player._combo_active:
-		print("DEBUG: _process running, combo_active: ", player._combo_active)
-	
-	# Update combo timer bar
+	# Update combo timer bar only when combo is active
 	if combo_timer_bar and player and player._combo_timer and player._combo_active:
 		var time_left = player._combo_timer.time_left
 		var max_time = player._combo_duration
-		var new_value = max_time - time_left
-		print("DEBUG: Timer update - time_left: ", time_left, " max_time: ", max_time, " new_value: ", new_value)
-		combo_timer_bar.value = new_value
-		print("DEBUG: Timer bar value set to: ", combo_timer_bar.value)
-	else:
-		if player and player._combo_timer:
-			print("DEBUG: Timer update failed - combo_timer_bar: ", combo_timer_bar, " _combo_active: ", player._combo_active, " time_left: ", player._combo_timer.time_left)
+		combo_timer_bar.value = max_time - time_left
 	
 	# Process tutorial input tracking
 	_process_tutorial_input()
@@ -632,7 +609,6 @@ func _update_bullet_icons(current: int, max_value: int) -> void:
 			tex = load("res://assets/objects/bullet.png")
 		if tex == null:
 			# Create a simple colored rectangle as fallback
-			print("Bullet texture not found, using colored rectangle")
 			icon.color = Color.WHITE
 		else:
 			icon.texture = tex
@@ -705,7 +681,6 @@ func _fade_out_combo_element(element: Control) -> void:
 	if not element or not element.visible:
 		return
 	
-	print("DEBUG: Fading out combo element: ", element.name)
 	
 	# Kill any existing tweens
 	if element.has_meta("fade_tween"):
@@ -719,13 +694,10 @@ func _fade_out_combo_element(element: Control) -> void:
 	tween.tween_property(element, "modulate:a", 0.0, 0.2)
 	tween.tween_callback(func(): 
 		element.visible = false
-		print("DEBUG: Element faded out and hidden: ", element.name)
 		# Check if this is the combo number label (last element) and trigger healing after fade
 		if element == combo_number_label and player and player.has_method("apply_combo_healing"):
-			print("DEBUG: Combo number label faded out, starting 0.1 second delay before healing")
 			# Add small delay to ensure fade out is complete before healing popup
 			await get_tree().create_timer(0.1).timeout
-			print("DEBUG: Delay complete, calling apply_combo_healing")
 			player.apply_combo_healing()
 	)
 	
@@ -752,7 +724,6 @@ func end_attack_zoom() -> void:
 # Generic tutorial popup framework
 func show_tutorial_popup(config: TutorialConfig) -> void:
 	if not player:
-		print("ERROR: Player not found for tutorial popup")
 		return
 	
 	_tutorial_config = config
@@ -785,7 +756,6 @@ func show_tutorial_popup(config: TutorialConfig) -> void:
 	_position_tutorial_popup()
 	_fade_in_tutorial_popup(config.fade_in_duration)
 	
-	print("Tutorial popup displayed")
 
 func hide_tutorial_popup() -> void:
 	if not _tutorial_popup:
@@ -799,7 +769,6 @@ func hide_tutorial_popup() -> void:
 	fade_tween.tween_callback(_remove_tutorial_popup)
 	
 	_tutorial_active = false
-	print("Tutorial popup hiding")
 
 # Tutorial input tracking in process
 func _process_tutorial_input() -> void:
@@ -872,7 +841,6 @@ func _remove_tutorial_popup() -> void:
 		_tutorial_popup = null
 		_tutorial_label = null
 		_tutorial_config = null
-		print("Tutorial popup removed")
 
 # Intro animation configuration class
 class IntroConfig:
@@ -897,7 +865,6 @@ class IntroConfig:
 # Generic intro animation framework
 func start_intro_sequence(config: IntroConfig) -> void:
 	if not player:
-		print("ERROR: Player not found for intro animation")
 		return
 	
 	_intro_config = config
@@ -965,7 +932,6 @@ func end_intro_sequence() -> void:
 	_intro_animation_active = false
 	_intro_config = null
 	
-	print("Intro animation completed")
 
 # Virtual method for child classes to override
 func _on_intro_sequence_completed() -> void:

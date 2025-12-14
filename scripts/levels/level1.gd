@@ -45,16 +45,12 @@ func _ready() -> void:
 	# Start intro animation using generic framework
 	_start_intro_animation()
 	
-	print("Level1 initialized with UI connections and intro animation")
 
 func _setup_weapon_menu() -> void:
 	# Connect weapon menu to player
 	var weapon_menu = $UI
 	if weapon_menu and weapon_menu.has_method("set_player"):
 		weapon_menu.set_player(player)
-		print("Weapon menu connected to player")
-	else:
-		print("Warning: Weapon menu not found or missing set_player method")
 
 # Override UI update functions to ensure visibility works correctly
 func _update_bullet_icons(current: int, max_value: int) -> void:
@@ -145,10 +141,7 @@ func _fade_in_essential_ui() -> void:
 func _on_alarm_triggered() -> void:
 	if not alarm_active:
 		alarm_active = true
-		print("Alarm system activated!")
 		
 		# Start the alarm sound if the alarm node exists and has the start_alarm method
 		if _alert_alarm and _alert_alarm.has_method("start_alarm"):
 			_alert_alarm.start_alarm()
-		else:
-			print("Warning: Alert alarm node doesn't have start_alarm method")
