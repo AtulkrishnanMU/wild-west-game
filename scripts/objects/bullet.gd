@@ -24,6 +24,7 @@ func _ready() -> void:
 	collision_mask |= 2  # Add alive enemy layer (bitwise OR)
 	collision_mask |= 8  # Add dead enemy layer (bitwise OR)
 	collision_mask |= 1  # Add world/collider layer (bitwise OR)
+	collision_mask |= 4  # Add destructible objects layer (bitwise OR)
 
 func _physics_process(delta: float) -> void:
 	global_position += direction * speed * delta

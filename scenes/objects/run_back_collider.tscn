@@ -1,0 +1,30 @@
+[gd_scene load_steps=4 format=3 uid="uid://54hcyj73grls"]
+
+[ext_resource type="Script" uid="uid://clqclkxd1nvw4" path="res://scripts/objects/run_back_collider.gd" id="1_0abc123"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_abc123"]
+size = Vector2(100, 100)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_def456"]
+size = Vector2(103, 100)
+
+[node name="RunBackCollider" type="StaticBody2D" groups=["colliders"]]
+script = ExtResource("1_0abc123")
+
+[node name="ColorRect" type="ColorRect" parent="."]
+visible = false
+offset_left = -50.0
+offset_top = -50.0
+offset_right = 50.0
+offset_bottom = 50.0
+color = Color(1, 0, 0, 0.5)
+metadata/_edit_use_anchors_ = true
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("RectangleShape2D_abc123")
+
+[node name="Area2D" type="Area2D" parent="."]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Area2D"]
+position = Vector2(0.5, 0)
+shape = SubResource("RectangleShape2D_def456")

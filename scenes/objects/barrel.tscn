@@ -1,0 +1,93 @@
+[gd_scene load_steps=13 format=3 uid="uid://dlowi6q8m6bdo"]
+
+[ext_resource type="Script" uid="uid://bqx5w3fowcg7r" path="res://scripts/objects/barrel.gd" id="1_0abc123"]
+[ext_resource type="Texture2D" uid="uid://pjqpur18251y" path="res://assets/objects/Destructible Objects Sprite Sheet.png" id="2_ky1ul"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_1kn84"]
+atlas = ExtResource("2_ky1ul")
+region = Rect2(192, 64, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_kldud"]
+atlas = ExtResource("2_ky1ul")
+region = Rect2(256, 64, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_tw3it"]
+atlas = ExtResource("2_ky1ul")
+region = Rect2(320, 64, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_82isu"]
+atlas = ExtResource("2_ky1ul")
+region = Rect2(384, 64, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_khl11"]
+atlas = ExtResource("2_ky1ul")
+region = Rect2(0, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_31y17"]
+atlas = ExtResource("2_ky1ul")
+region = Rect2(64, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_01jgp"]
+atlas = ExtResource("2_ky1ul")
+region = Rect2(128, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_ahbg3"]
+atlas = ExtResource("2_ky1ul")
+region = Rect2(0, 0, 64, 64)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_kcvnm"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_1kn84")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_kldud")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_tw3it")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_82isu")
+}],
+"loop": false,
+"name": &"break",
+"speed": 10.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_khl11")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_31y17")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_01jgp")
+}],
+"loop": true,
+"name": &"damage",
+"speed": 10.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_ahbg3")
+}],
+"loop": true,
+"name": &"idle",
+"speed": 5.0
+}]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_def456"]
+size = Vector2(19, 20)
+
+[node name="Barrel" type="CharacterBody2D" groups=["destructible_objects"]]
+script = ExtResource("1_0abc123")
+
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
+sprite_frames = SubResource("SpriteFrames_kcvnm")
+animation = &"break"
+autoplay = "idle"
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+position = Vector2(0.5, 4)
+shape = SubResource("RectangleShape2D_def456")

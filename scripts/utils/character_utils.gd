@@ -5,6 +5,11 @@ extends RefCounted
 const DUST_SCENE := preload("res://scenes/objects/dust_splash.tscn")
 const BLOOD_SCENE := preload("res://scenes/objects/blood_splash.tscn")
 
+# Single source of truth for dialogue positioning
+const DIALOGUE_TOP_Y_RATIO := 0.25  # Position 25% from top of screen (relative)
+const DIALOGUE_WIDTH_RATIO := 0.67  # 67% of screen width
+const DIALOGUE_HEIGHT_RATIO := 0.17  # 17% of screen height
+
 # Performance optimization: cached player reference
 static var _cached_player_ref: WeakRef = weakref(null)
 
@@ -362,19 +367,45 @@ static func show_dialogue(character: Node, dialogue_text: String, portrait_path:
 
 # Create dialogue UI for character
 static func _create_dialogue_ui(character: Node, dialogue_data: DialogueData, is_enemy: bool) -> void:
-	# Create main dialogue container (no background panel) - centered
+	# Create main dialogue container with black background
 	dialogue_data.box = Control.new()
 	dialogue_data.box.z_index = 1000  # Show on top of everything
 	
-	# Anchor container to center-top of screen
+	# Get viewport size for relative positioning
+	var viewport_size = character.get_viewport().get_visible_rect().size
+	var dialogue_width = viewport_size.x * DIALOGUE_WIDTH_RATIO
+	var dialogue_height = viewport_size.y * DIALOGUE_HEIGHT_RATIO
+	var dialogue_top_y = viewport_size.y * DIALOGUE_TOP_Y_RATIO
+	var dialogue_half_width = dialogue_width / 2
+	
+	# Anchor container to center-top of screen using relative positioning
 	dialogue_data.box.anchor_left = 0.5
 	dialogue_data.box.anchor_right = 0.5
 	dialogue_data.box.anchor_top = 0
-	var top_y = 200  # Position 200 pixels from top of screen
-	dialogue_data.box.offset_left = -400  # Half width to center
-	dialogue_data.box.offset_right = 400   # Half width to center
-	dialogue_data.box.offset_top = top_y
-	dialogue_data.box.offset_bottom = top_y + 115
+	dialogue_data.box.offset_left = -dialogue_half_width  # Center the dialogue box
+	dialogue_data.box.offset_right = dialogue_half_width   # Center the dialogue box
+	dialogue_data.box.offset_top = dialogue_top_y
+	dialogue_data.box.offset_bottom = dialogue_top_y + dialogue_height
+	
+	# Add black background panel
+	var background_panel = Panel.new()
+	background_panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	
+	# Create custom style with white border
+	var style_box = StyleBoxFlat.new()
+	style_box.bg_color = Color.BLACK
+	style_box.border_width_left = 4
+	style_box.border_width_right = 4
+	style_box.border_width_top = 4
+	style_box.border_width_bottom = 4
+	style_box.border_color = Color.WHITE
+	style_box.corner_radius_top_left = 8
+	style_box.corner_radius_top_right = 8
+	style_box.corner_radius_bottom_left = 8
+	style_box.corner_radius_bottom_right = 8
+	
+	background_panel.add_theme_stylebox_override("panel", style_box)
+	dialogue_data.box.add_child(background_panel)
 	
 	# Create container for portrait and text
 	var container = HBoxContainer.new()
@@ -546,11 +577,29 @@ static func is_waiting_for_input(is_enemy: bool = false) -> bool:
 	var dialogue_data = _enemy_dialogue if is_enemy else _player_dialogue
 	return dialogue_data.waiting_for_input
 
+# Check if dialogue is currently active (animating or waiting)
+static func is_dialogue_active(is_enemy: bool = false) -> bool:
+	var dialogue_data = _enemy_dialogue if is_enemy else _player_dialogue
+	return dialogue_data.active
+
 # Handle player input to continue dialogue
 static func handle_dialogue_input(is_enemy: bool = false) -> void:
 	var dialogue_data = _enemy_dialogue if is_enemy else _player_dialogue
 	print("DEBUG: handle_dialogue_input called, is_enemy: ", is_enemy, " waiting_for_input: ", dialogue_data.waiting_for_input)
-	if dialogue_data.waiting_for_input:
+	
+	# Check if text animation is still playing (tween is active)
+	if dialogue_data.tween and dialogue_data.tween.is_valid():
+		print("DEBUG: Text animation still playing, skipping to full text")
+		# Stop the animation tween
+		dialogue_data.tween.kill()
+		# Show full text immediately
+		dialogue_data.label.visible_ratio = 1.0
+		# Stop typing sound
+		_stop_typing_sound(dialogue_data)
+		# Start blinking arrow and setup input wait
+		_start_blinking_arrow(dialogue_data.character, dialogue_data)
+		_setup_dialogue_input_wait(dialogue_data.character, dialogue_data)
+	elif dialogue_data.waiting_for_input:
 		dialogue_data.waiting_for_input = false
 		_continue_dialogue(dialogue_data.character, dialogue_data)
 	else:
@@ -638,11 +687,6 @@ static func _play_typing_sound(dialogue_data: DialogueData) -> void:
 static func _stop_typing_sound(dialogue_data: DialogueData) -> void:
 	if dialogue_data.typing_sound_player and dialogue_data.typing_sound_player.playing:
 		dialogue_data.typing_sound_player.stop()
-
-# Check if dialogue is active for a character
-static func is_dialogue_active(is_enemy: bool = false) -> bool:
-	var dialogue_data = _enemy_dialogue if is_enemy else _player_dialogue
-	return dialogue_data.active
 
 # Force hide all dialogue (useful for scene changes)
 static func hide_all_dialogue() -> void:

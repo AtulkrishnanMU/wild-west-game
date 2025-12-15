@@ -210,10 +210,14 @@ func _input(event: InputEvent) -> void:
 	# Handle dialogue input (space bar)
 	if event is InputEventKey and event.pressed:
 		if event.keycode == KEY_SPACE:
-			# Check if any dialogue is waiting for input
+			# Check if any dialogue is waiting for input or animating
 			if CharacterUtils.is_waiting_for_input(false):  # Player dialogue
 				CharacterUtils.handle_dialogue_input(false)
 			elif CharacterUtils.is_waiting_for_input(true):  # Enemy dialogue
+				CharacterUtils.handle_dialogue_input(true)
+			elif CharacterUtils.is_dialogue_active(false):  # Player dialogue animating
+				CharacterUtils.handle_dialogue_input(false)
+			elif CharacterUtils.is_dialogue_active(true):  # Enemy dialogue animating
 				CharacterUtils.handle_dialogue_input(true)
 
 func _setup_weapon_positions() -> void:
@@ -710,24 +714,29 @@ func _hide_bat() -> void:
 		sword_hitbox.monitoring = false
 
 func _on_bat_collision_entered(body: Node) -> void:
-	# Only apply damage during attacks and to valid enemies
+	# Only apply damage during attacks and to valid targets
 	if not is_attacking:
 		return
 	
+	var enemy_was_alive = false
+	
 	# Check if the collided body is an enemy
-	if not body.is_in_group("enemies"):
-		return
+	if body.is_in_group("enemies"):
+		# Check if enemy can take damage
+		if body.has_method("take_damage"):
+			# Apply damage to enemy
+			enemy_was_alive = not body.is_dead
+			body.take_damage(20)
 	
-	# Check if enemy can take damage
-	if not body.has_method("take_damage"):
-		return
-	
-	# Apply damage to enemy
-	var enemy_was_alive = not body.is_dead
-	body.take_damage(20)
+	# Check if the collided body is a destructible object
+	elif body.is_in_group("destructible_objects"):
+		# Check if object can take damage
+		if body.has_method("take_damage"):
+			# Apply damage to destructible object
+			body.take_damage(25)
 	
 	# Check if this attack killed the enemy
-	if enemy_was_alive and body.is_dead:
+	if enemy_was_alive and body.is_in_group("enemies") and body.has_method("is_dead") and body.is_dead:
 		# Play KO sound for killing attacks with random pitch
 		AudioUtils.play_positioned_sound(PLAYER_KO_SOUND, global_position, 0.8, 1.2)
 	else:
@@ -740,17 +749,29 @@ func _on_bat_collision_entered(body: Node) -> void:
 	CharacterUtils.apply_knockback(body, knockback_direction, 250.0, 0.18)
 	
 	# Create impact effect
-	if BLOOD_SCENE:
-		var blood := BLOOD_SCENE.instantiate()
-		var scene := get_tree().current_scene
-		if blood and scene:
-			blood.global_position = body.global_position
-			var blood_direction: Vector2 = (body.global_position - global_position).normalized()
-			blood.set_direction(blood_direction)
-			
-			# Fallback: just add to scene
-			scene.add_child(blood)
-
+	if body.is_in_group("destructible_objects"):
+		# Create dust effect for destructible objects
+		var dust_scene = preload("res://scenes/objects/dust_splash.tscn")
+		if dust_scene:
+			var dust := dust_scene.instantiate()
+			var scene := get_tree().current_scene
+			if dust and scene:
+				dust.global_position = body.global_position
+				dust.set_direction(Vector2.UP)  # Dust goes upward
+				scene.add_child(dust)
+	else:
+		# Create blood effect for enemies
+		if BLOOD_SCENE:
+			var blood := BLOOD_SCENE.instantiate()
+			var scene := get_tree().current_scene
+			if blood and scene:
+				blood.global_position = body.global_position
+				var blood_direction: Vector2 = (body.global_position - global_position).normalized()
+				blood.set_direction(blood_direction)
+				
+				# Add blood to scene at bottom layer (first to be drawn)
+				scene.add_child(blood)
+				scene.move_child(blood, 0)
 
 func _start_camera_shake() -> void:
 	_camera_shake_timer = camera_shake_time

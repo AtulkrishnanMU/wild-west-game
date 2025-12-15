@@ -99,7 +99,7 @@ func _start_cutscene():
 	
 	# Position player at the left side of the screen
 	if player:
-		player.global_position = Vector2(-200, 392)  # Start off-screen left
+		player.global_position = Vector2(-150, 392)  # Start off-screen left (moved 50px right)
 
 func _show_enemy_dialogue():
 	# Prevent accidental double-calls

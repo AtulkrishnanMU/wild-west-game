@@ -70,6 +70,12 @@ func _ready() -> void:
 	# Add to projectiles group for chain detection
 	add_to_group("projectiles")
 	
+	# Set up collision to hit destructible objects
+	collision_mask |= 2  # Add alive enemy layer (bitwise OR)
+	collision_mask |= 8  # Add dead enemy layer (bitwise OR)
+	collision_mask |= 1  # Add world/collider layer (bitwise OR)
+	collision_mask |= 4  # Add destructible objects layer (bitwise OR)
+	
 	# Set up spin sound
 	_setup_spin_sound()
 	_play_spin_sound()
@@ -134,7 +140,7 @@ func _on_body_entered(body: Node) -> void:
 			var knockback_dir = sign(body.global_position.x - global_position.x)
 			CharacterUtils.apply_knockback(body, knockback_dir, 300.0, 0.2)
 			# Create impact effect
-			_create_impact_effect(body.global_position)
+			_create_impact_effect(body.global_position, body)
 			return
 		else:
 			# Enemy is inactive and not on screen - don't damage
@@ -147,7 +153,7 @@ func _on_body_entered(body: Node) -> void:
 		CharacterUtils.apply_knockback(body, knockback_dir, 300.0, 0.2)
 		
 		# Create impact effect
-		_create_impact_effect(body.global_position)
+		_create_impact_effect(body.global_position, body)
 
 func _on_area_entered(area: Area2D) -> void:
 	# Handle hitting other areas (like enemy hitboxes)
@@ -168,7 +174,7 @@ func _on_area_entered(area: Area2D) -> void:
 				var knockback_dir = sign(owner.global_position.x - global_position.x)
 				CharacterUtils.apply_knockback(owner, knockback_dir, 300.0, 0.2)
 				# Create impact effect
-				_create_impact_effect(owner.global_position)
+				_create_impact_effect(owner.global_position, owner)
 				return
 			else:
 				# Enemy is inactive and not on screen - don't damage
@@ -178,22 +184,34 @@ func _on_area_entered(area: Area2D) -> void:
 			owner.take_damage(damage)
 			var knockback_dir = sign(owner.global_position.x - global_position.x)
 			CharacterUtils.apply_knockback(owner, knockback_dir, 300.0, 0.2)
-			_create_impact_effect(owner.global_position)
+			_create_impact_effect(owner.global_position, owner)
 
-func _create_impact_effect(pos: Vector2) -> void:
-	# Create blood splash effect if available
-	var blood_scene = preload("res://scenes/objects/blood_splash.tscn")
-	if blood_scene:
-		var blood = blood_scene.instantiate()
-		var scene = get_tree().current_scene
-		if scene:
-			blood.global_position = pos
-			var blood_direction = (pos - global_position).normalized()
-			blood.set_direction(blood_direction)
-			
-			# Add blood to scene at bottom layer (first to be drawn)
-			scene.add_child(blood)
-			scene.move_child(blood, 0)
+func _create_impact_effect(pos: Vector2, target: Node = null) -> void:
+	# Check if we hit a destructible object
+	if target and target.is_in_group("destructible_objects"):
+		# Create dust effect for destructible objects
+		var dust_scene = preload("res://scenes/objects/dust_splash.tscn")
+		if dust_scene:
+			var dust = dust_scene.instantiate()
+			var scene = get_tree().current_scene
+			if scene:
+				dust.global_position = pos
+				dust.set_direction(Vector2.UP)  # Dust goes upward
+				scene.add_child(dust)
+	else:
+		# Create blood splash effect for enemies
+		var blood_scene = preload("res://scenes/objects/blood_splash.tscn")
+		if blood_scene:
+			var blood = blood_scene.instantiate()
+			var scene = get_tree().current_scene
+			if scene:
+				blood.global_position = pos
+				var blood_direction = (pos - global_position).normalized()
+				blood.set_direction(blood_direction)
+				
+				# Add blood to scene at bottom layer (first to be drawn)
+				scene.add_child(blood)
+				scene.move_child(blood, 0)
 
 
 func _setup_spin_sound():
