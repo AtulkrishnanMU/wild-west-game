@@ -9,6 +9,7 @@ var max_health: int
 var is_destroyed: bool = false
 var damage_cooldown_timer: float = 0.0
 const DAMAGE_COOLDOWN: float = 0.20
+var initial_y_position: float = 0.0  # Store initial Y position
 
 @onready var animated_sprite: AnimatedSprite2D = $AnimatedSprite2D
 
@@ -19,6 +20,9 @@ func get_max_health() -> int:
 func _ready() -> void:
 	max_health = get_max_health()
 	health = max_health
+	
+	# Store initial Y position to prevent vertical movement
+	initial_y_position = global_position.y
 	
 	# Set up collision layers for destructible objects
 	collision_layer = 4  # Destructible objects layer
@@ -37,30 +41,48 @@ func _physics_process(delta: float) -> void:
 	if is_destroyed:
 		return
 	
-	# Apply gravity
-	if not is_on_floor():
-		velocity.y += GRAVITY * delta
+	# DISABLE GRAVITY COMPLETELY - no vertical movement at all
+	# if not is_on_floor():
+	# 	velocity.y += GRAVITY * delta
 	
 	# Apply friction to stop movement
 	velocity.x = move_toward(velocity.x, 0, 100.0 * delta)
 	
+	# Force vertical velocity to zero before movement
+	velocity.y = 0
+	
+	# Debug output
+	if abs(velocity.y) > 0.1:
+		print("DEBUG: Vertical velocity: ", velocity.y, " is_on_floor: ", is_on_floor())
+	
 	# Check for player collision
 	move_and_slide()
 	
-	# Check if we're colliding with the player
+	# Force vertical velocity to zero at end of physics process
+	velocity.y = 0
+	
+	# Check if we're colliding with the player or enemies
 	for i in range(get_slide_collision_count()):
 		var collision = get_slide_collision(i)
 		var collider = collision.get_collider()
-		if collider and collider.is_in_group("player"):
-			print("Destructible object colliding with player!")
-			# Gentle push-back to prevent overlap
+		if collider and (collider.is_in_group("player") or collider.is_in_group("enemies")):
+			print("Destructible object colliding with character!")
 			var push_direction = (global_position - collider.global_position).normalized()
 			velocity.x = push_direction.x * 10.0  # Much smaller push force
+			velocity.y = 0  # Disable vertical movement
 			break
 	
 	# Cooldown countdown
 	if damage_cooldown_timer > 0.0:
 		damage_cooldown_timer -= delta
+	
+	# FINAL SAFEGUARD: Lock Y position to prevent any vertical movement
+	global_position.y = initial_y_position
+
+func set_knockback(horizontal_velocity: float, duration: float) -> void:
+	# Only apply horizontal knockback, ignore vertical
+	velocity.x = horizontal_velocity
+	velocity.y = 0  # Force vertical velocity to zero
 
 func take_damage(amount: int) -> void:
 	take_damage_with_direction(amount, Vector2.ZERO)
@@ -75,7 +97,6 @@ func take_damage_with_direction(amount: int, bullet_direction: Vector2, bullet_p
 	# Start damage cooldown
 	damage_cooldown_timer = DAMAGE_COOLDOWN
 	
-	# Create dust effect instead of blood
 	_create_dust_effect(bullet_position)
 	
 	# Flash effect
@@ -91,6 +112,7 @@ func take_damage_with_direction(amount: int, bullet_direction: Vector2, bullet_p
 			dir = 1.0 if randf() < 0.5 else -1.0
 		
 		velocity.x = dir * 200.0
+		velocity.y = 0  # Force vertical velocity to zero
 	
 	# Check if object should be destroyed
 	if health <= 0 and not is_destroyed:

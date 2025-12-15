@@ -333,6 +333,8 @@ scale = Vector2(4.597175, 6.238241)
 
 [node name="TubLight" parent="." instance=ExtResource("7_oc4kc")]
 position = Vector2(579, 312)
+collision_layer = 4
+collision_mask = 35
 
 [node name="Collider4" parent="." instance=ExtResource("2_6761a")]
 position = Vector2(-369.99997, 356.99997)
@@ -356,16 +358,16 @@ position = Vector2(237, 303)
 position = Vector2(1378, 300)
 
 [node name="Box" parent="." instance=ExtResource("11_excbq")]
-position = Vector2(862, 417)
+position = Vector2(862, 424)
 
 [node name="Gun_enemy" parent="." instance=ExtResource("12_iav0o")]
 position = Vector2(1579, 401)
 
 [node name="Box2" parent="." instance=ExtResource("11_excbq")]
-position = Vector2(897, 416)
+position = Vector2(897, 424)
 
 [node name="Vase" parent="." instance=ExtResource("13_mm8aj")]
-position = Vector2(663, 423)
+position = Vector2(663, 429)
 
 [node name="Barrel" parent="." instance=ExtResource("14_wtwp4")]
-position = Vector2(1053, 418)
+position = Vector2(1053, 424)
