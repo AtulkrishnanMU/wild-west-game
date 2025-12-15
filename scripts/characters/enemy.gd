@@ -45,6 +45,7 @@ var ATTACK_RANGE_DISTANCE: float = ATTACK_RANGE
 var is_dead: bool = false
 var has_been_visible_with_player := false
 var is_active := false
+var is_in_cutscene := false  # Prevent jumping during cutscenes
 var was_on_floor: bool = false  # Track if enemy was on floor in previous frame
 var _visibility_check_timer: float = 0.0
 const VISIBILITY_CHECK_INTERVAL: float = 0.5
@@ -213,8 +214,8 @@ func _physics_process(delta: float) -> void:
 	if not is_attacking:
 
 		if abs_distance > ATTACK_RANGE_DISTANCE:
-			# Far → chance to lunge jump
-			if abs_distance > FAR_JUMP_DISTANCE and is_on_floor() and randf() < 0.3:
+			# Far → chance to lunge jump (but not during cutscenes)
+			if abs_distance > FAR_JUMP_DISTANCE and is_on_floor() and randf() < 0.3 and not is_in_cutscene:
 				velocity.y = JUMP_SPEED
 				var jump_target_speed = direction * SPEED * 1.2
 				velocity.x = CharacterUtils.apply_smooth_movement(self, jump_target_speed, SPEED * 1.2, delta, ACCELERATION, DECELERATION, AIR_ACCELERATION)
@@ -534,8 +535,8 @@ func _check_dead_end_detection(delta: float, direction: float) -> void:
 	
 	_previous_position = global_position
 	
-	# If stuck for too long and leap is ready, perform leap escape
-	if _stuck_timer >= _stuck_threshold and _leap_cooldown <= 0.0:
+	# If stuck for too long and leap is ready, perform leap escape (but not during cutscenes)
+	if _stuck_timer >= _stuck_threshold and _leap_cooldown <= 0.0 and not is_in_cutscene:
 		_perform_leap_escape(direction)
 
 # Leap escape mechanics

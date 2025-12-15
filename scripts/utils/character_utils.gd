@@ -298,7 +298,7 @@ static func set_character_facing(animated_sprite: AnimatedSprite2D, should_face_
 # Dialogue data structure for characters
 class DialogueData:
 	var active: bool = false
-	var box: Panel = null
+	var box: Control = null
 	var label: RichTextLabel = null
 	var portrait: TextureRect = null
 	var tween: Tween = null
@@ -309,6 +309,8 @@ class DialogueData:
 	var waiting_for_input: bool = false
 	var character: Node = null
 	var typing_sound_player: AudioStreamPlayer = null
+	var blink_tween: Tween = null  # For blinking > symbol
+	var original_text: String = ""  # Store text without > symbol
 	
 	func clear() -> void:
 		active = false
@@ -316,7 +318,9 @@ class DialogueData:
 		label = null
 		portrait = null
 		tween = null
+		blink_tween = null
 		current_text = ""
+		original_text = ""
 		current_parts.clear()
 		current_index = 0
 		portrait_path = ""
@@ -358,15 +362,11 @@ static func show_dialogue(character: Node, dialogue_text: String, portrait_path:
 
 # Create dialogue UI for character
 static func _create_dialogue_ui(character: Node, dialogue_data: DialogueData, is_enemy: bool) -> void:
-	# Create main dialogue panel (black box with white outline) - centered
-	dialogue_data.box = Panel.new()
+	# Create main dialogue container (no background panel) - centered
+	dialogue_data.box = Control.new()
 	dialogue_data.box.z_index = 1000  # Show on top of everything
 	
-	# Set minimum size to prevent layout collapse
-	dialogue_data.box.custom_minimum_size = Vector2(800, 115)
-	dialogue_data.box.size = Vector2(800, 115)
-	
-	# Anchor panel to center-top of screen instead of manual positioning
+	# Anchor container to center-top of screen
 	dialogue_data.box.anchor_left = 0.5
 	dialogue_data.box.anchor_right = 0.5
 	dialogue_data.box.anchor_top = 0
@@ -376,21 +376,6 @@ static func _create_dialogue_ui(character: Node, dialogue_data: DialogueData, is
 	dialogue_data.box.offset_top = top_y
 	dialogue_data.box.offset_bottom = top_y + 115
 	
-	# Style the dialogue box
-	var style_box = StyleBoxFlat.new()
-	style_box.bg_color = Color.BLACK
-	style_box.border_width_left = 3
-	style_box.border_width_right = 3
-	style_box.border_width_top = 3
-	style_box.border_width_bottom = 3
-	style_box.border_color = Color.WHITE
-	style_box.corner_radius_top_left = 8
-	style_box.corner_radius_top_right = 8
-	style_box.corner_radius_bottom_left = 8
-	style_box.corner_radius_bottom_right = 8
-	
-	dialogue_data.box.add_theme_stylebox_override("panel", style_box)
-	
 	# Create container for portrait and text
 	var container = HBoxContainer.new()
 	container.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -399,7 +384,7 @@ static func _create_dialogue_ui(character: Node, dialogue_data: DialogueData, is
 	# Add margin to center content
 	var margin = MarginContainer.new()
 	margin.add_theme_constant_override("margin_left", 20)
-	margin.add_theme_constant_override("margin_right", 20)
+	margin.add_theme_constant_override("margin_right", 20)  # Same right margin for both player and enemy
 	margin.add_theme_constant_override("margin_top", 20)
 	margin.add_theme_constant_override("margin_bottom", 20)
 	
@@ -423,15 +408,13 @@ static func _create_dialogue_ui(character: Node, dialogue_data: DialogueData, is
 	text_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	text_container.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	
-	# For non-player characters: right-align content inside but keep box centered
+	# Mirror portrait positions: player portrait on left, enemy portrait on right
 	if is_enemy:
-		# Keep dialogue box centered (remove right alignment)
-		# Add text first, then portrait (portrait on right)
+		# Enemy dialogue: text first, then portrait (portrait on right)
 		container.add_child(text_container)
 		container.add_child(dialogue_data.portrait)
 	else:
-		# Player dialogue: left-align (current behavior)
-		# Add portrait first, then text (portrait on left)
+		# Player dialogue: portrait first, then text (portrait on left)
 		container.add_child(dialogue_data.portrait)
 		container.add_child(text_container)
 	
@@ -441,7 +424,7 @@ static func _create_dialogue_ui(character: Node, dialogue_data: DialogueData, is
 	var speaker_label = Label.new()
 	speaker_label.text = "Enemy" if is_enemy else "Player"
 	speaker_label.add_theme_font_size_override("font_size", 18)
-	speaker_label.add_theme_color_override("font_color", Color.YELLOW if is_enemy else Color.CYAN)
+	speaker_label.add_theme_color_override("font_color", Color.CYAN)  # Same cyan color for both player and enemy
 	speaker_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT  # Always left align character name for everyone
 	# Apply default font from FontConfig
 	FontConfig.apply_ui_font(speaker_label)
@@ -486,12 +469,19 @@ static func _show_dialogue_part(character: Node, dialogue_data: DialogueData, te
 	
 	var current_part = dialogue_data.current_parts[dialogue_data.current_index]
 	
+	# Store original text without > symbol
+	dialogue_data.original_text = current_part
+	
 	# Set full text immediately (prevents layout shifts)
 	dialogue_data.label.text = current_part
 	
 	# Kill existing tween if any
 	if dialogue_data.tween and dialogue_data.tween.is_valid():
 		dialogue_data.tween.kill()
+	
+	# Kill existing blink tween if any
+	if dialogue_data.blink_tween and dialogue_data.blink_tween.is_valid():
+		dialogue_data.blink_tween.kill()
 	
 	# Create new tween for substring-based reveal
 	dialogue_data.tween = character.create_tween()
@@ -515,13 +505,41 @@ static func _show_dialogue_part(character: Node, dialogue_data: DialogueData, te
 		0.0, 1.0, reveal_duration
 	)
 	
-	# Wait for completion, then stop sound and wait for player input
+	# Wait for completion, then stop sound and add blinking > symbol
 	dialogue_data.tween.tween_callback(_stop_typing_sound.bind(dialogue_data))
+	dialogue_data.tween.tween_callback(_start_blinking_arrow.bind(character, dialogue_data))
 	dialogue_data.tween.tween_callback(_setup_dialogue_input_wait.bind(character, dialogue_data))
 
 # Setup waiting for player input to continue dialogue
 static func _setup_dialogue_input_wait(character: Node, dialogue_data: DialogueData) -> void:
 	dialogue_data.waiting_for_input = true
+
+# Start blinking > symbol after text reveal
+static func _start_blinking_arrow(character: Node, dialogue_data: DialogueData) -> void:
+	if not dialogue_data.label:
+		return
+	
+	# Create blinking tween
+	dialogue_data.blink_tween = character.create_tween()
+	dialogue_data.blink_tween.set_loops()  # Loop infinitely
+	
+	# Blink between original text and text with > symbol
+	var text_with_arrow = dialogue_data.original_text + " >"
+	
+	dialogue_data.blink_tween.tween_callback(func(): dialogue_data.label.text = text_with_arrow)
+	dialogue_data.blink_tween.tween_interval(0.5)
+	dialogue_data.blink_tween.tween_callback(func(): dialogue_data.label.text = dialogue_data.original_text)
+	dialogue_data.blink_tween.tween_interval(0.5)
+
+# Stop blinking > symbol
+static func _stop_blinking_arrow(dialogue_data: DialogueData) -> void:
+	if dialogue_data.blink_tween and dialogue_data.blink_tween.is_valid():
+		dialogue_data.blink_tween.kill()
+		dialogue_data.blink_tween = null
+	
+	# Restore original text
+	if dialogue_data.label and dialogue_data.original_text != "":
+		dialogue_data.label.text = dialogue_data.original_text
 
 # Check if dialogue is waiting for player input
 static func is_waiting_for_input(is_enemy: bool = false) -> bool:
@@ -531,31 +549,85 @@ static func is_waiting_for_input(is_enemy: bool = false) -> bool:
 # Handle player input to continue dialogue
 static func handle_dialogue_input(is_enemy: bool = false) -> void:
 	var dialogue_data = _enemy_dialogue if is_enemy else _player_dialogue
+	print("DEBUG: handle_dialogue_input called, is_enemy: ", is_enemy, " waiting_for_input: ", dialogue_data.waiting_for_input)
 	if dialogue_data.waiting_for_input:
 		dialogue_data.waiting_for_input = false
 		_continue_dialogue(dialogue_data.character, dialogue_data)
+	else:
+		print("DEBUG: Not waiting for input, ignoring")
 
 # Continue to next dialogue part
 static func _continue_dialogue(character: Node, dialogue_data: DialogueData) -> void:
+	print("DEBUG: _continue_dialogue called, current_index: ", dialogue_data.current_index, " parts size: ", dialogue_data.current_parts.size())
+	
+	# Stop blinking arrow before continuing
+	_stop_blinking_arrow(dialogue_data)
+	
 	dialogue_data.current_index += 1
-	_show_dialogue_part(character, dialogue_data, 0.05)
+	
+	# Check if there are more dialogue parts
+	if dialogue_data.current_index >= dialogue_data.current_parts.size():
+		print("DEBUG: No more dialogue parts, hiding dialogue")
+		# No more dialogue parts, hide dialogue
+		_hide_dialogue(character, dialogue_data)
+	else:
+		print("DEBUG: Showing next dialogue part")
+		# Show next dialogue part
+		_show_dialogue_part(character, dialogue_data, 0.05)
 
 # Hide dialogue and clean up
 static func _hide_dialogue(character: Node, dialogue_data: DialogueData) -> void:
+	print("DEBUG: _hide_dialogue called")
 	if dialogue_data.box:
 		# Stop typing sound if playing
 		_stop_typing_sound(dialogue_data)
+		# Stop blinking arrow if playing
+		_stop_blinking_arrow(dialogue_data)
 		dialogue_data.box.queue_free()
 		dialogue_data.clear()
+		print("DEBUG: Dialogue data cleared")
 
 # Setup typing sound player
 static func _setup_typing_sound(dialogue_data: DialogueData) -> void:
 	# Create audio player if it doesn't exist
 	if not dialogue_data.typing_sound_player:
 		dialogue_data.typing_sound_player = AudioStreamPlayer.new()
-		dialogue_data.typing_sound_player.stream = load("res://sounds/text-typing.mp3")
 		dialogue_data.typing_sound_player.autoplay = false
 		dialogue_data.character.add_child(dialogue_data.typing_sound_player)
+		# Connect finished signal for manual looping
+		dialogue_data.typing_sound_player.finished.connect(_on_sound_finished.bind(dialogue_data))
+	
+	# Load character-specific sound
+	var sound_path: String
+	# More robust character type detection
+	var character_name = dialogue_data.character.get_script().get_global_name()
+	var is_enemy = dialogue_data.character.is_in_group("enemy")
+	
+	print("DEBUG: Character name: ", character_name)
+	print("DEBUG: Is enemy: ", is_enemy)
+	
+	# Check for enemy class names (contains "Enemy" or specific class names)
+	if character_name == "Enemy" or character_name == "AxeEnemy" or character_name.contains("Enemy"):
+		sound_path = "res://sounds/enemy dialogue.wav"
+		print("DEBUG: Selected enemy dialogue sound")
+	elif character_name == "Player":
+		sound_path = "res://sounds/player dialogue.wav"
+		print("DEBUG: Selected player dialogue sound")
+	elif is_enemy:
+		sound_path = "res://sounds/enemy dialogue.wav"
+		print("DEBUG: Selected enemy dialogue sound (group check)")
+	else:
+		sound_path = "res://sounds/player dialogue.wav"
+		print("DEBUG: Selected player dialogue sound (default)")
+	
+	print("DEBUG: Final sound path: ", sound_path)
+	dialogue_data.typing_sound_player.stream = load(sound_path)
+
+# Handle sound finished signal for manual looping
+static func _on_sound_finished(dialogue_data: DialogueData) -> void:
+	# Replay the sound if dialogue is still revealing text
+	if dialogue_data.active and dialogue_data.tween and dialogue_data.tween.is_valid():
+		dialogue_data.typing_sound_player.play()
 
 # Play typing sound in loop
 static func _play_typing_sound(dialogue_data: DialogueData) -> void:

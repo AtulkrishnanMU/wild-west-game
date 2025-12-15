@@ -1,0 +1,34 @@
+[gd_scene load_steps=5 format=3 uid="uid://ibifqgdl4b4v"]
+
+[ext_resource type="Script" uid="uid://b1xneaetncjpf" path="res://scripts/objects/tub_light.gd" id="1_0k8xr"]
+[ext_resource type="AudioStream" uid="uid://cx85rn12wbd32" path="res://sounds/light-normal.mp3" id="2_normal"]
+[ext_resource type="AudioStream" uid="uid://dlwynwvxwab2" path="res://sounds/light-flicker.mp3" id="3_flicker"]
+[ext_resource type="Texture2D" uid="uid://crocqdh3fy3nj" path="res://assets/objects/light.png" id="4_8c48o"]
+
+[node name="TubLight" type="PointLight2D"]
+z_index = 10
+scale = Vector2(2.1907482, 0.8682432)
+color = Color(1, 1, 0.9, 1)
+energy = 1.35
+texture = ExtResource("4_8c48o")
+texture_scale = 0.5
+script = ExtResource("1_0k8xr")
+
+[node name="DarkOverlay" type="ColorRect" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -353.30396
+offset_top = -231.50195
+offset_right = 46.17993
+offset_bottom = 29.634277
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0, 0, 0, 0.5)
+
+[node name="NormalSound" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("2_normal")
+
+[node name="FlickerSound" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("3_flicker")

@@ -10,7 +10,6 @@ radius = 5.0
 height = 20.0
 
 [node name="chain" type="Node2D"]
-rotation = 0.5497787
 script = ExtResource("2_chain_script")
 
 [node name="Chain_anchor" type="StaticBody2D" parent="."]
@@ -96,6 +95,26 @@ scale = Vector2(0.06332414, 0.06368956)
 texture = ExtResource("1_i41ho")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="segment4"]
+position = Vector2(0, 31)
+scale = Vector2(0.47682145, 0.47682145)
+shape = SubResource("CapsuleShape2D_mm814")
+
+[node name="PinJoint2D5" type="PinJoint2D" parent="."]
+position = Vector2(-1, 76.000015)
+scale = Vector2(0.3813702, 0.3813702)
+node_a = NodePath("../segment4")
+node_b = NodePath("../segment5")
+softness = 1.0
+
+[node name="segment5" type="RigidBody2D" parent="."]
+position = Vector2(-0.9999981, 51)
+
+[node name="Sprite2D" type="Sprite2D" parent="segment5"]
+position = Vector2(-2.3841858e-07, 31)
+scale = Vector2(0.06332414, 0.06368956)
+texture = ExtResource("1_i41ho")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="segment5"]
 position = Vector2(0, 31)
 scale = Vector2(0.47682145, 0.47682145)
 shape = SubResource("CapsuleShape2D_mm814")
