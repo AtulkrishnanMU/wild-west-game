@@ -121,7 +121,15 @@ var _player_reload_tween: Tween = null
 var _player_reload_count: int = 0
 var _gun_fire_cooldown: float = 0.0  # Cooldown between bullet fires
 
+# Player bat attack tracking
+var _player_bat_attack_active: bool = false
+var _player_bat_hit_this_attack: bool = false
 
+# Gravity for sprites when player is dead
+var _bat_gravity_velocity: float = 0.0
+var _gun_gravity_velocity: float = 0.0
+const SPRITE_GRAVITY: float = 500.0  # Gravity acceleration for sprites
+const SPRITE_TERMINAL_VELOCITY: float = 800.0  # Max falling speed
 
 var is_attacking := false
 var is_dead := false
@@ -181,6 +189,19 @@ var _enemy_cache_update_timer: float = 0.0
 const ENEMY_CACHE_UPDATE_INTERVAL: float = 0.5  # Update cache every 500ms
 # Performance optimization: track connected enemies to avoid redundant checks
 var _connected_enemies: Array[Node] = []
+
+func _apply_sprite_gravity(delta: float) -> void:
+	# Apply gravity to bat sprite if it exists and is visible
+	if bat_sprite and bat_sprite.visible:
+		_bat_gravity_velocity += SPRITE_GRAVITY * delta
+		_bat_gravity_velocity = min(_bat_gravity_velocity, SPRITE_TERMINAL_VELOCITY)
+		bat_sprite.position.y += _bat_gravity_velocity * delta
+	
+	# Apply gravity to gun sprite if it exists and is visible
+	if gun_sprite and gun_sprite.visible:
+		_gun_gravity_velocity += SPRITE_GRAVITY * delta
+		_gun_gravity_velocity = min(_gun_gravity_velocity, SPRITE_TERMINAL_VELOCITY)
+		gun_sprite.position.y += _gun_gravity_velocity * delta
 
 func _ready() -> void:
 	randomize()
@@ -247,6 +268,10 @@ func _setup_weapon_positions() -> void:
 func _physics_process(delta: float) -> void:
 	# Update enemy cache periodically (optimized)
 	_update_enemy_cache(delta)
+	
+	# Apply gravity to sprites when player is dead
+	if is_dead:
+		_apply_sprite_gravity(delta)
 	
 	# Handle core physics and states
 	_handle_physics(delta)
@@ -322,11 +347,22 @@ func _handle_rigid_body_collisions() -> void:
 	if is_dead:
 		return
 	
-	# Identical implementation to character_vs_rigid
+	# Identical implementation to character_vs_rigid with reduced force for circular objects
 	for i in get_slide_collision_count():
 		var c = get_slide_collision(i)
 		if c.get_collider() is RigidBody2D:
-			c.get_collider().apply_central_impulse(-c.get_normal() * 80.0)
+			var rigid_body = c.get_collider()
+			var force = 80.0
+			
+			# Reduce force for circular objects (barrels, vases) to prevent player shooting away
+			if rigid_body.get_script():
+				var script_name = rigid_body.get_script().get_global_name()
+				if script_name == "Barrel" or script_name == "Vase":
+					force = 20.0  # Much lower force for circular objects
+			elif "barrel" in rigid_body.name.to_lower() or "vase" in rigid_body.name.to_lower():
+				force = 20.0  # Fallback for objects without scripts
+			
+			rigid_body.apply_central_impulse(-c.get_normal() * force)
 
 func _should_skip_normal_movement() -> bool:
 	return is_dead or knockback_timer > 0.0 or not controls_enabled
@@ -1089,6 +1125,9 @@ func take_damage_with_direction(amount: int, bullet_direction: Vector2, bullet_p
 			# Disable enemy and RigidBody2D collisions when dead
 			collision_mask &= ~32  # Remove bit 4 (layer 5) which is enemies
 			collision_mask &= ~4   # Remove bit 2 (layer 3) which is destructible objects
+			# Reset gravity velocities for sprites
+			_bat_gravity_velocity = 0.0
+			_gun_gravity_velocity = 0.0
 			CharacterUtils.play_character_animation(animated_sprite, "DEATH")
 			_play_player_death_sound()
 			

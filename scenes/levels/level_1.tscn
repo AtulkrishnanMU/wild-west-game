@@ -324,6 +324,10 @@ position = Vector2(782, 396)
 position = Vector2(-322, 562)
 scale = Vector2(43.100372, -2.5125008)
 
+[node name="Collider6" parent="." instance=ExtResource("2_6761a")]
+position = Vector2(3985.9998, 562)
+scale = Vector2(43.100372, -2.5125008)
+
 [node name="Collider2" parent="." instance=ExtResource("2_6761a")]
 position = Vector2(-287, 204.00002)
 scale = Vector2(43.100372, -2.5125008)
@@ -373,3 +377,6 @@ position = Vector2(1053, 424)
 
 [node name="chain" parent="." instance=ExtResource("15_wtwp4")]
 position = Vector2(962, 303)
+
+[node name="Axe_enemy2" parent="." instance=ExtResource("5_6761a")]
+position = Vector2(2683, 407)

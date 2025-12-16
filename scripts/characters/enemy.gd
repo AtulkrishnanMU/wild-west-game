@@ -436,11 +436,22 @@ func _handle_rigid_body_collisions() -> void:
 	if is_dead:
 		return
 	
-	# Identical implementation to character_vs_rigid
+	# Identical implementation to character_vs_rigid with reduced force for circular objects
 	for i in get_slide_collision_count():
 		var c = get_slide_collision(i)
 		if c.get_collider() is RigidBody2D:
-			c.get_collider().apply_central_impulse(-c.get_normal() * 80.0)
+			var rigid_body = c.get_collider()
+			var force = 80.0
+			
+			# Reduce force for circular objects (barrels, vases) to prevent shooting away
+			if rigid_body.get_script():
+				var script_name = rigid_body.get_script().get_global_name()
+				if script_name == "Barrel" or script_name == "Vase":
+					force = 20.0  # Much lower force for circular objects
+			elif "barrel" in rigid_body.name.to_lower() or "vase" in rigid_body.name.to_lower():
+				force = 20.0  # Fallback for objects without scripts
+			
+			rigid_body.apply_central_impulse(-c.get_normal() * force)
 
 func _switch_to_dead_collision() -> void:
 	# Switch to dead collision setup
