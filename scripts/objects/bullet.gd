@@ -23,6 +23,7 @@ func _ready() -> void:
 	# Ensure bullet can hit both alive and dead enemies by adding their layers
 	collision_mask |= 2  # Add alive enemy layer (bitwise OR)
 	collision_mask |= 8  # Add dead enemy layer (bitwise OR)
+	collision_mask |= 32  # Add enemy layer 5 (bitwise OR)
 	collision_mask |= 1  # Add world/collider layer (bitwise OR)
 	collision_mask |= 4  # Add destructible objects layer (bitwise OR)
 
@@ -35,6 +36,17 @@ func _on_area_entered(area: Area2D) -> void:
 func _on_body_entered(body: Node) -> void:
 	# Check if hit a tileset (TileMap), solid surface, or collider
 	if body is TileMap or body.is_in_group("walls") or body.is_in_group("ground") or body.is_in_group("colliders"):
+		call_deferred("_create_impact_effect")
+		queue_free()
+		return
+	
+	# Handle RigidBody2D objects (destructible objects) like colliders
+	if body is RigidBody2D:
+		# Apply impulse to RigidBody2D like hitting a collider
+		var impulse = direction * 200.0  # Strong impulse to push object
+		body.apply_central_impulse(impulse)
+		
+		# Create impact effect like with colliders
 		call_deferred("_create_impact_effect")
 		queue_free()
 		return

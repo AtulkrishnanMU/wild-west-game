@@ -318,6 +318,10 @@ func _handle_landing_effects() -> void:
 	was_on_floor = is_on_floor()
 
 func _handle_rigid_body_collisions() -> void:
+	# Skip RigidBody2D collisions when dead
+	if is_dead:
+		return
+	
 	# Identical implementation to character_vs_rigid
 	for i in get_slide_collision_count():
 		var c = get_slide_collision(i)
@@ -1082,6 +1086,9 @@ func take_damage_with_direction(amount: int, bullet_direction: Vector2, bullet_p
 		if not is_dead:
 			is_dead = true
 			is_attacking = false
+			# Disable enemy and RigidBody2D collisions when dead
+			collision_mask &= ~32  # Remove bit 4 (layer 5) which is enemies
+			collision_mask &= ~4   # Remove bit 2 (layer 3) which is destructible objects
 			CharacterUtils.play_character_animation(animated_sprite, "DEATH")
 			_play_player_death_sound()
 			

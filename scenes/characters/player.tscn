@@ -491,15 +491,16 @@ animations = [{
 }]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_tuyoq"]
-size = Vector2(18.540806, 32)
+size = Vector2(13.085263, 32)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_destructible"]
-size = Vector2(18.290806, 16.548826)
+size = Vector2(15.677834, 16.548826)
 
 [node name="Player" type="CharacterBody2D"]
 position = Vector2(-8, -5)
 scale = Vector2(1.1481178, 1.1481178)
 collision_layer = 2
+collision_mask = 5
 script = ExtResource("1_jej6c")
 
 [node name="BatSprite" type="Sprite2D" parent="."]
@@ -520,7 +521,7 @@ position = Vector2(9.020403, 5.2580185)
 shape = SubResource("RectangleShape2D_tuyoq")
 
 [node name="DestructibleCollisionShape" type="CollisionShape2D" parent="."]
-position = Vector2(9.145403, 12.629363)
+position = Vector2(9.580898, 12.629363)
 shape = SubResource("RectangleShape2D_destructible")
 
 [node name="VisibilityNotifier2D" type="VisibleOnScreenNotifier2D" parent="."]
@@ -530,10 +531,10 @@ rect = Rect2(-10, -10, 17, 20)
 [node name="SwordHitbox" type="Area2D" parent="."]
 position = Vector2(13, 0)
 collision_layer = 16
-collision_mask = 4
+collision_mask = 36
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="SwordHitbox"]
-position = Vector2(-3.7499998, 5.2580185)
+position = Vector2(-3.8647978, 5.258017)
 shape = SubResource("RectangleShape2D_tuyoq")
 
 [node name="SlashPlayer" type="AudioStreamPlayer2D" parent="."]

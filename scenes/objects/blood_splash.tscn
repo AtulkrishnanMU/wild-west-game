@@ -1,7 +1,7 @@
-[gd_scene load_steps=1 format=3]
+[gd_scene load_steps=2 format=3 uid="uid://cvsh6ojs2k6ah"]
 
-[ext_resource type="Script" path="res://scripts/objects/blood_splash.gd" id="1"]
+[ext_resource type="Script" uid="uid://dlmmqfcu1he6j" path="res://scripts/objects/blood_splash.gd" id="1"]
 
 [node name="BloodSplash" type="Node2D"]
-z_index = 12
+z_index = 1
 script = ExtResource("1")

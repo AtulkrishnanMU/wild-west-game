@@ -49,13 +49,15 @@ func _setup_chain_physics():
 		segment.angular_damp = 1.2  # Much higher angular damping
 		segment.contact_monitor = true
 		
-		# Set up collision layers - chain should not block player
+		# Set up collision layers - chain should be non-blocking to player but detect for swinging
 		# Layer 1: World/Environment
 		# Layer 2: Player  
 		# Layer 3: Enemies
-		# Layer 4: Chain (non-blocking)
-		segment.collision_layer = 4  # Put chain on its own layer
-		segment.collision_mask = 1  # Only collide with world, not with player or enemies
+		# Layer 4: Destructible objects
+		# Layer 5: Enemies (layer 32)
+		# Layer 6: Chain (non-blocking)
+		segment.collision_layer = 64  # Put chain on layer 6 (value 64)
+		segment.collision_mask = 1   # Only collide with world, completely non-blocking to player
 
 func _physics_process(delta):
 	if not collision_enabled:

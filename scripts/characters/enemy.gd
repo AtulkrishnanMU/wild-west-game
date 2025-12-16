@@ -254,6 +254,9 @@ func _physics_process(delta: float) -> void:
 		attack_hitbox.position = Vector2(offset_x, _attack_hitbox_base_position.y)
 
 	move_and_slide()
+	
+	# Handle collisions with RigidBody2D objects (like destructible objects)
+	_handle_rigid_body_collisions()
 
 
 func _start_attack_close() -> void:
@@ -352,6 +355,8 @@ func take_damage_with_direction(amount: int, bullet_direction: Vector2, bullet_p
 		# Death handling with knockback
 		is_dead = true
 		is_attacking = false
+		# Disable RigidBody2D collisions when dead (remove layer 3)
+		collision_mask &= ~4  # Remove bit 2 (layer 3) which is RigidBody2D
 		# Apply strong horizontal knockback in death
 		var dir: float = 1.0  # Default knockback direction
 		if player:
@@ -425,6 +430,17 @@ func _end_attack_zoom() -> void:
 	if scene and scene.has_method("end_attack_zoom"):
 		scene.end_attack_zoom()
 
+
+func _handle_rigid_body_collisions() -> void:
+	# Skip RigidBody2D collisions when dead
+	if is_dead:
+		return
+	
+	# Identical implementation to character_vs_rigid
+	for i in get_slide_collision_count():
+		var c = get_slide_collision(i)
+		if c.get_collider() is RigidBody2D:
+			c.get_collider().apply_central_impulse(-c.get_normal() * 80.0)
 
 func _switch_to_dead_collision() -> void:
 	# Switch to dead collision setup

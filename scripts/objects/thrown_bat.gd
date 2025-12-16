@@ -73,6 +73,7 @@ func _ready() -> void:
 	# Set up collision to hit destructible objects
 	collision_mask |= 2  # Add alive enemy layer (bitwise OR)
 	collision_mask |= 8  # Add dead enemy layer (bitwise OR)
+	collision_mask |= 32  # Add enemy layer 5 (bitwise OR)
 	collision_mask |= 1  # Add world/collider layer (bitwise OR)
 	collision_mask |= 4  # Add destructible objects layer (bitwise OR)
 	
@@ -83,6 +84,20 @@ func _ready() -> void:
 func _physics_process(delta: float) -> void:
 	total_flight_time += delta
 	time_since_bounce += delta
+	
+	# Check if player died and apply gravity
+	if thrower and is_instance_valid(thrower) and thrower.has_method("is_dead") and thrower.is_dead:
+		# Apply gravity when player is dead
+		direction.y += 300.0 * delta  # Gravity acceleration
+		direction.y = min(direction.y, 800.0)  # Terminal velocity
+		# Move with gravity
+		global_position += direction * delta
+		# Continue spinning but slow down
+		rotation_angle += SPIN_SPEED * current_spin_speed * 0.3 * 2 * PI * delta
+		sprite.rotation = rotation_angle
+		# Stop spin sound when player is dead
+		_stop_spin_sound()
+		return
 	
 	_update_spin_speed(delta)
 	_update_flight_speed()  # Update speed based on distance
@@ -124,6 +139,16 @@ func _physics_process(delta: float) -> void:
 func _on_body_entered(body: Node) -> void:
 	if body == thrower:
 		return  # Don't hit the thrower
+	
+	# Handle RigidBody2D objects (destructible objects) like colliders
+	if body is RigidBody2D:
+		# Apply strong impulse to RigidBody2D like hitting a collider
+		var impulse = direction * 300.0  # Strong impulse to push object
+		body.apply_central_impulse(impulse)
+		
+		# Create impact effect like with colliders
+		_create_impact_effect(body.global_position, body)
+		return
 		
 	# Check if enemy is inactive - if on screen, damage and activate it
 	if body.is_in_group("enemies") and ("is_active" in body) and not body.is_active:

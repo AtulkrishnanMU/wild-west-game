@@ -1,4 +1,4 @@
-[gd_scene load_steps=17 format=3 uid="uid://b144xoh0eppd4"]
+[gd_scene load_steps=18 format=3 uid="uid://b144xoh0eppd4"]
 
 [ext_resource type="Script" uid="uid://djvoxmmrjp4my" path="res://scripts/levels/level_1.gd" id="1_x42e6"]
 [ext_resource type="PackedScene" uid="uid://bpp56g7uetkk8" path="res://scenes/objects/collider.tscn" id="2_6761a"]
@@ -14,6 +14,7 @@
 [ext_resource type="PackedScene" uid="uid://20gk72vk5hmc" path="res://scenes/characters/gun_enemy.tscn" id="12_iav0o"]
 [ext_resource type="PackedScene" uid="uid://cphdbcwqjebt8" path="res://scenes/objects/vase.tscn" id="13_mm8aj"]
 [ext_resource type="PackedScene" uid="uid://dlowi6q8m6bdo" path="res://scenes/objects/barrel.tscn" id="14_wtwp4"]
+[ext_resource type="PackedScene" uid="uid://bmu7ykjtjjcgi" path="res://scenes/objects/chain.tscn" id="15_wtwp4"]
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_dga24"]
 texture = ExtResource("2_s8va5")
@@ -333,8 +334,6 @@ scale = Vector2(4.597175, 6.238241)
 
 [node name="TubLight" parent="." instance=ExtResource("7_oc4kc")]
 position = Vector2(579, 312)
-collision_layer = 4
-collision_mask = 35
 
 [node name="Collider4" parent="." instance=ExtResource("2_6761a")]
 position = Vector2(-369.99997, 356.99997)
@@ -371,3 +370,6 @@ position = Vector2(663, 429)
 
 [node name="Barrel" parent="." instance=ExtResource("14_wtwp4")]
 position = Vector2(1053, 424)
+
+[node name="chain" parent="." instance=ExtResource("15_wtwp4")]
+position = Vector2(962, 303)

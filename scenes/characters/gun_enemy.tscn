@@ -277,10 +277,11 @@ radius = 16.0
 size = Vector2(37, 7)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_bypnf"]
-size = Vector2(18, 39)
+size = Vector2(23, 39)
 
 [node name="Gun_enemy" type="CharacterBody2D"]
-collision_layer = 4
+collision_layer = 32
+collision_mask = 5
 script = ExtResource("1_fc5su")
 
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
@@ -294,7 +295,7 @@ frame = 3
 frame_progress = 1.0
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
-position = Vector2(-2, -3)
+position = Vector2(0, -3)
 shape = SubResource("CircleShape2D_xwavj")
 
 [node name="DeadCollisionShape2D" type="CollisionShape2D" parent="."]
@@ -313,7 +314,7 @@ stream = ExtResource("10_4tf1r")
 [node name="RunningPlayer" type="AudioStreamPlayer2D" parent="."]
 
 [node name="Gun" type="Sprite2D" parent="."]
-position = Vector2(3, -4)
+position = Vector2(6, -4)
 texture = ExtResource("11_gun")
 
 [node name="AttackHitbox" type="Area2D" parent="."]
@@ -321,5 +322,5 @@ collision_layer = 32
 collision_mask = 2
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="AttackHitbox"]
-position = Vector2(-1, -6.5)
+position = Vector2(1.5, -6.5)
 shape = SubResource("RectangleShape2D_bypnf")
