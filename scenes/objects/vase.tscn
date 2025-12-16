@@ -78,15 +78,23 @@ animations = [{
 }]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_def456"]
-size = Vector2(13, 15)
+size = Vector2(12, 13)
 
-[node name="Vase" type="CharacterBody2D" groups=["destructible_objects"]]
+[node name="Vase" type="RigidBody2D" groups=["destructible_objects"]]
+gravity_scale = 0.0
+linear_damp = 5.0
+angular_damp = 5.0
 script = ExtResource("1_0abc123")
 
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
 sprite_frames = SubResource("SpriteFrames_7m8gy")
-animation = &"break"
+animation = &"idle"
+autoplay = "idle"
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
-position = Vector2(1.5, 0.5)
+position = Vector2(2, 1.5)
 shape = SubResource("RectangleShape2D_def456")
+
+[node name="FeetDetector" type="Area2D" parent="."]
+position = Vector2(1.5, -7)
+collision_layer = 8

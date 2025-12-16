@@ -1,7 +1,11 @@
-extends "res://scripts/objects/destructible_object.gd"
+extends RigidBody2D
 
-# Vase destructible object
-# Takes 1 hit to break
+func _ready() -> void:
+	# Essential physics properties (match character_vs_rigid defaults)
+	gravity_scale = 1.0  # Default gravity scale
+	mass = 1.0          # Default mass
+	freeze = false      # Not frozen
 
-func get_max_health() -> int:
-	return 1  # Vase only takes 1 hit to break
+func _on_body_entered(body):
+	if body.name == "Player":
+		prints(name, "collided with player")

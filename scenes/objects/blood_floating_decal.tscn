@@ -1,12 +1,12 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=3 format=3 uid="uid://bfr26jbwoxkq8"]
 
-[ext_resource type="Script" path="res://scripts/objects/blood_floating_decal.gd" id="1"]
+[ext_resource type="Script" uid="uid://0lcip12s84vd" path="res://scripts/objects/blood_floating_decal.gd" id="1"]
 
 [sub_resource type="CircleShape2D" id="1"]
 radius = 8.0
 
 [node name="BloodFloatingDecal" type="Area2D"]
-z_index = 12
+z_index = 1
 script = ExtResource("1")
 
 [node name="Sprite" type="Sprite2D" parent="."]

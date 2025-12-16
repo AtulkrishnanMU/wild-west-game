@@ -263,6 +263,9 @@ func _physics_process(delta: float) -> void:
 	
 	# Final physics update - ALWAYS runs (critical for cutscenes)
 	move_and_slide()
+	
+	# Handle collisions with RigidBody2D objects (like destructible objects)
+	_handle_rigid_body_collisions()
 
 func _handle_physics(delta: float) -> void:
 	# Apply gravity
@@ -314,6 +317,13 @@ func _handle_landing_effects() -> void:
 	
 	was_on_floor = is_on_floor()
 
+func _handle_rigid_body_collisions() -> void:
+	# Identical implementation to character_vs_rigid
+	for i in get_slide_collision_count():
+		var c = get_slide_collision(i)
+		if c.get_collider() is RigidBody2D:
+			c.get_collider().apply_central_impulse(-c.get_normal() * 80.0)
+
 func _should_skip_normal_movement() -> bool:
 	return is_dead or knockback_timer > 0.0 or not controls_enabled
 
@@ -334,8 +344,6 @@ func _handle_special_movement(delta: float) -> void:
 	
 	# Handle animations during special movement (cutscenes)
 	_handle_animation_and_effects()
-	
-	move_and_slide()
 
 func _handle_movement_input(delta: float) -> void:
 	# Skip input handling if input is disabled (cutscene mode)
@@ -1465,21 +1473,17 @@ func _on_bat_returned() -> void:
 # ——— CURSOR MANAGEMENT ———
 func _get_wall_direction() -> float:
 	# Check if player is touching a wall and return the direction (-1 for left, 1 for right, 0 for no wall)
-	for i in range(get_slide_collision_count()):
-		var collision = get_slide_collision(i)
-		var collider = collision.get_collider()
-		
-		# Check if collision is with a wall (vertical surface) - now supports both TileMap and colliders
-		if collider and (collider.is_in_group("walls") or collider.is_in_group("colliders") or collider is TileMap):
+	if is_on_wall():
+		for i in range(get_slide_collision_count()):
+			var collision = get_slide_collision(i)
 			var normal = collision.get_normal()
-			# Check if this is a vertical wall (normal.x is significant)
 			if abs(normal.x) > 0.5:  # Mostly horizontal normal means vertical wall
 				return -normal.x  # Return direction away from wall
 	
 	return 0.0  # No wall detected
 
 func _update_cursor() -> void:
-	if current_equipped_weapon == "gun" and has_gun and gun_cursor_texture:
+	if current_equipped_weapon == "gun" and has_gun:
 		# Set custom cursor when holding gun
 		Input.set_custom_mouse_cursor(gun_cursor_texture, Input.CURSOR_ARROW, Vector2(16, 16))
 	else:

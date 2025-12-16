@@ -1,4 +1,4 @@
-[gd_scene load_steps=69 format=3 uid="uid://c5a3w2pm50uds"]
+[gd_scene load_steps=70 format=3 uid="uid://c5a3w2pm50uds"]
 
 [ext_resource type="Script" uid="uid://c0x381uf5lvt" path="res://scripts/characters/player.gd" id="1_jej6c"]
 [ext_resource type="Texture2D" uid="uid://bkx2m4js6vf3e" path="res://assets/characters/Player/PLayer full sprite.png" id="5_qgnko"]
@@ -491,7 +491,10 @@ animations = [{
 }]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_tuyoq"]
-size = Vector2(15.5, 32)
+size = Vector2(18.540806, 32)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_destructible"]
+size = Vector2(18.290806, 16.548826)
 
 [node name="Player" type="CharacterBody2D"]
 position = Vector2(-8, -5)
@@ -513,8 +516,12 @@ autoplay = "IDLE"
 metadata/_edit_group_ = true
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
-position = Vector2(7.5, 5.2580185)
+position = Vector2(9.020403, 5.2580185)
 shape = SubResource("RectangleShape2D_tuyoq")
+
+[node name="DestructibleCollisionShape" type="CollisionShape2D" parent="."]
+position = Vector2(9.145403, 12.629363)
+shape = SubResource("RectangleShape2D_destructible")
 
 [node name="VisibilityNotifier2D" type="VisibleOnScreenNotifier2D" parent="."]
 position = Vector2(11, 0)

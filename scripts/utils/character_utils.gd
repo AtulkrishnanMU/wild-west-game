@@ -281,13 +281,16 @@ static func _trigger_camera_shake(damaged_character: Node2D) -> void:
 		player._start_camera_shake()
 
 # Knockback system utilities
-static func apply_knockback(character: CharacterBody2D, direction: float, strength: float, duration: float) -> void:
+static func apply_knockback(character: Node, direction: float, strength: float, duration: float) -> void:
 	# Apply knockback velocity
 	if character.has_method("set_knockback"):
 		character.set_knockback(direction * strength, duration)
 	else:
-		# Fallback: directly modify velocity if character doesn't have knockback system
-		character.velocity.x = direction * strength
+		# Fallback: directly modify velocity based on node type
+		if character is CharacterBody2D:
+			character.velocity.x = direction * strength
+		elif character is RigidBody2D:
+			character.linear_velocity.x = direction * strength
 
 # Animation utilities
 static func play_character_animation(animated_sprite: AnimatedSprite2D, anim_name: String) -> void:
