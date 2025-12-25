@@ -26,12 +26,9 @@ func _ready() -> void:
 	ATTACK_RANGE_DISTANCE = 100.0
 	# Make gun enemies jump from further away than default
 	FAR_JUMP_DISTANCE = 220.0
-	# Adjust gun pivot so that rotation happens around the horizontal middle of the gun
-	if gun_sprite and gun_sprite.texture:
-		gun_sprite.centered = true
-		# With centered = true, an offset of (0, 0) keeps the pivot at the texture center
-		gun_sprite.offset = Vector2.ZERO
-		_gun_base_position = gun_sprite.position
+	# Setup gun position using shared utility
+	if gun_sprite:
+		_gun_base_position = CharacterUtils.setup_gun_position(gun_sprite)
 
 func _physics_process(delta: float) -> void:
 	# Run base enemy movement/attack logic
@@ -52,22 +49,14 @@ func _update_gun_aim() -> void:
 	if player == null or gun_sprite == null:
 		return
 	
-	# Use shared aiming logic from CharacterUtils
-	var target_angle = CharacterUtils.calculate_gun_aim_direction(
+	# Use shared gun aiming logic from CharacterUtils
+	CharacterUtils.handle_gun_aiming(
 		gun_sprite, 
 		player.global_position, 
 		animated_sprite, 
 		_gun_base_position,
-		Vector2.ZERO  # Gun enemy doesn't need left offset like player
+		Vector2(-8.0, 0.0)  # Gun enemy needs left offset like player
 	)
-
-	# Smoothly tween gun rotation toward the desired angle
-	if _aim_tween and _aim_tween.is_valid():
-		_aim_tween.kill()
-	_aim_tween = create_tween()
-	_aim_tween.set_trans(Tween.TRANS_SINE)
-	_aim_tween.set_ease(Tween.EASE_OUT)
-	_aim_tween.tween_property(gun_sprite, "rotation", target_angle, 0.1)
 
 func _start_attack_close() -> void:
 	if is_attacking or attack_cooldown_timer > 0.0:
@@ -97,45 +86,25 @@ func _apply_damage_to_player() -> void:
 	pass
 
 func _fire_bullet() -> void:
-	if BULLET_SCENE == null or gun_sprite == null:
-		return
-	var bullet := BULLET_SCENE.instantiate()
-	if bullet == null:
-		return
-	# Direction: from gun toward player at fire time
-	var dir: Vector2 = Vector2.RIGHT
-	if player:
-		dir = (player.global_position - gun_sprite.global_position).normalized()
-	bullet.direction = dir
-	# Spawn at muzzle point: small offset along gun's current forward direction
-	var muzzle_offset: float = 16.0
-	var spawn_pos: Vector2 = gun_sprite.global_position + dir * muzzle_offset
-	bullet.global_position = spawn_pos
-	bullet.rotation = dir.angle()
-	# Tag shooter so bullet won't damage its own enemy
-	bullet.shooter = self
-	# Create muzzle flash effect at spawn position
-	GunUtils.create_muzzle_flash(spawn_pos, dir)
+	# Use shared bullet firing logic from CharacterUtils
+	CharacterUtils.fire_bullet_from_gun(
+		gun_sprite, 
+		player.global_position, 
+		BULLET_SCENE, 
+		self, 
+		GUN_SHOT_SOUND
+	)
+	
 	# Apply a small recoil on the gun in the opposite direction of the shot
-	_play_gun_recoil(dir)
-	# Play gun-shot sound at the gun position with random pitch
-	if GUN_SHOT_SOUND:
-		var scene_for_sound := get_tree().current_scene
-		if scene_for_sound:
-			var audio := AudioStreamPlayer2D.new()
-			audio.stream = GUN_SHOT_SOUND
-			audio.position = gun_sprite.global_position
-			scene_for_sound.add_child(audio)
-			AudioUtils.play_random_pitch(audio, 0.9, 1.2)
-			audio.finished.connect(audio.queue_free)
+	var shot_dir: Vector2 = Vector2.RIGHT
+	if player:
+		shot_dir = (player.global_position - gun_sprite.global_position).normalized()
+	_play_gun_recoil(shot_dir)
 	# Track number of shots and trigger reload every 5 bullets
 	_shots_since_reload += 1
 	if _shots_since_reload >= 5:
 		_shots_since_reload = 0
 		_start_reload_animation()
-	var scene := get_tree().current_scene
-	if scene:
-		scene.add_child(bullet)
 
 func take_damage(amount: int) -> void:
 	take_damage_with_direction(amount, Vector2.ZERO)
@@ -170,11 +139,9 @@ func _play_gun_recoil(shot_dir: Vector2) -> void:
 		return
 	if _recoil_tween and _recoil_tween.is_valid():
 		_recoil_tween.kill()
-	_recoil_tween = create_tween()
-	var recoil_distance := 4.0
-	var back_pos := _gun_base_position - shot_dir.normalized() * recoil_distance
-	_recoil_tween.tween_property(gun_sprite, "position", back_pos, 0.04)
-	_recoil_tween.tween_property(gun_sprite, "position", _gun_base_position, 0.06)
+	
+	# Use shared recoil logic from CharacterUtils
+	_recoil_tween = CharacterUtils.play_gun_recoil(gun_sprite, shot_dir)
 
 func _start_reload_animation() -> void:
 	if gun_sprite == null:

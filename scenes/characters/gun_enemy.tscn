@@ -314,7 +314,8 @@ stream = ExtResource("10_4tf1r")
 [node name="RunningPlayer" type="AudioStreamPlayer2D" parent="."]
 
 [node name="Gun" type="Sprite2D" parent="."]
-position = Vector2(6, -4)
+position = Vector2(3.9999998, -3)
+scale = Vector2(1.142857, 1.1428572)
 texture = ExtResource("11_gun")
 
 [node name="AttackHitbox" type="Area2D" parent="."]

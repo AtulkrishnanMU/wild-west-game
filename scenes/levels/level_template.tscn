@@ -1,8 +1,9 @@
-[gd_scene load_steps=5 format=3 uid="uid://c6070ch5whd31"]
+[gd_scene load_steps=6 format=3 uid="uid://c6070ch5whd31"]
 
 [ext_resource type="Script" uid="uid://pmf0k5c1mlow" path="res://scripts/levels/level_template.gd" id="1_eokde"]
 [ext_resource type="PackedScene" uid="uid://bpp56g7uetkk8" path="res://scenes/objects/collider.tscn" id="2_qvykx"]
 [ext_resource type="PackedScene" uid="uid://c5a3w2pm50uds" path="res://scenes/characters/player.tscn" id="4_qvykx"]
+[ext_resource type="PackedScene" uid="uid://20gk72vk5hmc" path="res://scenes/characters/gun_enemy.tscn" id="5_4s5u3"]
 [ext_resource type="PackedScene" uid="uid://vi8yy0g5xqwb" path="res://scenes/levels/ui.tscn" id="5_ui"]
 
 [node name="LevelTemplate" type="Node2D"]
@@ -13,7 +14,7 @@ position = Vector2(2069, 551)
 scale = Vector2(43.100372, -2.5125008)
 
 [node name="Collider2" parent="." instance=ExtResource("2_qvykx")]
-position = Vector2(2046, 226.00002)
+position = Vector2(2046, 181.00002)
 scale = Vector2(43.100372, -2.5125008)
 
 [node name="UI" parent="." instance=ExtResource("5_ui")]
@@ -23,7 +24,13 @@ position = Vector2(590, 392)
 
 [node name="Camera2D" type="Camera2D" parent="."]
 position = Vector2(608, 345)
-zoom = Vector2(1.125, 1.125)
+zoom = Vector2(2, 2)
 position_smoothing_enabled = true
 
 [node name="BloodEffects" type="Node2D" parent="."]
+
+[node name="Gun_enemy" parent="." instance=ExtResource("5_4s5u3")]
+position = Vector2(700, 405)
+
+[node name="Gun_enemy2" parent="." instance=ExtResource("5_4s5u3")]
+position = Vector2(1240, 405)

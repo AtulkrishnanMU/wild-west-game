@@ -82,7 +82,7 @@ var ui_layer: CanvasLayer = null
 var camera_follow_speed: float = 12.0
 var camera_follow_enabled: bool = true
 # Camera zoom settings for slow-motion attacks
-var camera_zoom_amount: float = 1.03  # Zoom in factor (1.1 = 10% closer)
+var camera_zoom_amount: float = 1.1  # Zoom in factor (1.1 = 10% closer)
 var camera_zoom_duration: float = 0.15  # Time to zoom in/out
 var _camera_zoom_tween: Tween = null
 var _original_camera_zoom: float = 1.0
@@ -195,6 +195,10 @@ func setup_ui() -> void:
 	update_health_bar_unified(player.health, player.MAX_HEALTH)
 	_on_player_cash_changed(player.cash)
 	_on_player_reloads_changed(player._player_reload_count, player.PLAYER_MAX_RELOADS)
+	
+	# Initialize bullets UI if player starts with gun
+	if player.has_gun:
+		_on_player_bullets_changed(player.PLAYER_MAG_SIZE - player._player_shots_since_reload, player.PLAYER_MAG_SIZE)
 	
 	# Connect existing enemies to combo system
 	_connect_existing_enemies()

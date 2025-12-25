@@ -145,6 +145,84 @@ static func calculate_gun_aim_direction(gun_sprite: Sprite2D, target_position: V
 	
 	return target_angle
 
+# Gun system utilities for both player and enemies
+static func setup_gun_position(gun_sprite: Sprite2D) -> Vector2:
+	# Setup gun base position and return it
+	if gun_sprite and gun_sprite.texture:
+		gun_sprite.centered = true
+		# With centered = true, an offset of (0, 0) keeps the pivot at the texture center
+		gun_sprite.offset = Vector2.ZERO
+	return gun_sprite.position
+
+static func handle_gun_aiming(gun_sprite: Sprite2D, target_position: Vector2, animated_sprite: AnimatedSprite2D, gun_base_position: Vector2, left_offset: Vector2 = Vector2(-8.0, 0.0)) -> void:
+	# Handle gun aiming using shared logic
+	var target_angle = calculate_gun_aim_direction(
+		gun_sprite, 
+		target_position, 
+		animated_sprite, 
+		gun_base_position,
+		left_offset
+	)
+	gun_sprite.rotation = target_angle
+
+static func fire_bullet_from_gun(gun_sprite: Sprite2D, target_position: Vector2, bullet_scene: PackedScene, shooter: Node, gun_shot_sound: AudioStream, muzzle_offset: float = 16.0) -> void:
+	if bullet_scene == null or gun_sprite == null:
+		return
+		
+	var bullet := bullet_scene.instantiate()
+	if bullet == null:
+		return
+		
+	# Direction: from gun toward target at fire time
+	var dir: Vector2 = Vector2.RIGHT
+	if target_position != gun_sprite.global_position:
+		dir = (target_position - gun_sprite.global_position).normalized()
+	bullet.direction = dir
+	
+	# Spawn at muzzle point: small offset along gun's current forward direction
+	var spawn_pos: Vector2 = gun_sprite.global_position + dir * muzzle_offset
+	bullet.global_position = spawn_pos
+	bullet.rotation = dir.angle()
+	
+	# Tag shooter so bullet won't damage its own owner
+	bullet.shooter = shooter
+	
+	# Create muzzle flash effect at spawn position
+	const GunUtils = preload("res://scripts/utils/gun_utils.gd")
+	GunUtils.create_muzzle_flash(spawn_pos, dir)
+	
+	# Play gun-shot sound at the gun position with random pitch
+	if gun_shot_sound:
+		var scene_for_sound := shooter.get_tree().current_scene
+		if scene_for_sound:
+			var audio := AudioStreamPlayer2D.new()
+			audio.stream = gun_shot_sound
+			audio.position = gun_sprite.global_position
+			scene_for_sound.add_child(audio)
+			const AudioUtils = preload("res://scripts/utils/audio_utils.gd")
+			AudioUtils.play_random_pitch(audio, 0.9, 1.2)
+			audio.finished.connect(audio.queue_free)
+	
+	# Add bullet to scene
+	var scene := shooter.get_tree().current_scene
+	if scene:
+		scene.add_child(bullet)
+
+static func play_gun_recoil(gun_sprite: Sprite2D, shot_dir: Vector2, recoil_distance: float = 4.0, recoil_time_back: float = 0.04, recoil_time_return: float = 0.06) -> Tween:
+	if gun_sprite == null:
+		return null
+		
+	var recoil_tween := gun_sprite.create_tween()
+	
+	# Get current gun position (which includes left-facing offset)
+	var current_gun_pos := gun_sprite.position
+	var back_pos := current_gun_pos - shot_dir.normalized() * recoil_distance
+	
+	recoil_tween.tween_property(gun_sprite, "position", back_pos, recoil_time_back)
+	recoil_tween.tween_property(gun_sprite, "position", current_gun_pos, recoil_time_return)
+	
+	return recoil_tween
+
 # Clean floating popup method (similar to cash popup)
 static func spawn_floating_popup(character: Node2D, text: String, color: Color, offset: Vector2 = Vector2(0, -20), font_size: int = FontConfig.DEFAULT_POPUP_FONT_SIZE, height: float = 0.0) -> void:
 	var scene := character.get_tree().current_scene

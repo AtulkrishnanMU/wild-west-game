@@ -11,7 +11,7 @@ config_version=5
 [application]
 
 config/name="Wild west"
-run/main_scene="uid://b144xoh0eppd4"
+run/main_scene="uid://c6070ch5whd31"
 config/features=PackedStringArray("4.5", "Forward Plus")
 config/icon="res://icon.svg"
 

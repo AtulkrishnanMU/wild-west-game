@@ -1,0 +1,23 @@
+[gd_scene load_steps=4 format=3 uid="uid://cjpv25is7fhkw"]
+
+[ext_resource type="Script" uid="uid://cqwku1pvao6vl" path="res://scripts/objects/thrown_gun.gd" id="1"]
+[ext_resource type="Texture2D" uid="uid://dkceem2jn78gn" path="res://assets/objects/gun.png" id="2"]
+
+[sub_resource type="CircleShape2D" id="1"]
+radius = 28.5
+
+[node name="ThrownGun" type="Area2D"]
+scale = Vector2(0.4, 0.4)
+collision_layer = 8
+collision_mask = 7
+script = ExtResource("1")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+position = Vector2(-7.4489737, 3.7258806)
+rotation = 1.0472
+scale = Vector2(2.1846793, 2.1846793)
+texture = ExtResource("2")
+offset = Vector2(0, -3)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("1")

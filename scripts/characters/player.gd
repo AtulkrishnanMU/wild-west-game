@@ -55,6 +55,7 @@ const HURT_SOUND := preload("res://sounds/enemy_hurt/hurt.mp3")
 const BLOOD_SPLAT_SOUND := preload("res://sounds/blood-splat.mp3")
 const RUNNING_SOUND := preload("res://sounds/running.mp3") 
 const PLAYER_BAT_SCENE := preload("res://scenes/objects/thrown_bat.tscn")
+const PLAYER_GUN_SCENE := preload("res://scenes/objects/thrown_gun.tscn")
 const PLAYER_MAG_SIZE: int = 10
 const PLAYER_MAX_RELOADS: int = 5
 const PLAYER_GUN_FIRE_COOLDOWN: float = 0.2  # Cooldown between bullet fires
@@ -133,8 +134,8 @@ const SPRITE_TERMINAL_VELOCITY: float = 800.0  # Max falling speed
 
 var is_attacking := false
 var is_dead := false
-var has_gun: bool = false
-var has_bat: bool = true  # Player always has bat for normal attacks
+var has_gun: bool = true  # Player starts with gun by default
+var has_bat: bool = true  # Player still has bat for backup
 
 # Bat throw system
 var _bat_thrown: bool = false
@@ -142,12 +143,18 @@ var _thrown_bat: Node2D = null
 var _bat_throw_cooldown: float = 0.0
 const BAT_THROW_COOLDOWN_TIME: float = 10.0  # 10 seconds between throws
 
+# Gun throw system
+var _gun_thrown: bool = false
+var _thrown_gun: Node2D = null
+var _gun_throw_cooldown: float = 0.0
+const GUN_THROW_COOLDOWN_TIME: float = 8.0  # 8 seconds between throws (shorter than bat)
+
 # Backup weapon system
 var backup_gun_data: Dictionary = {}
 var has_backup_gun: bool = false
 
 # Current equipped weapon tracking
-var current_equipped_weapon: String = "bat"  # "bat" or "gun"
+var current_equipped_weapon: String = "gun"  # "bat" or "gun" - gun is now default
 
 # Playable state for cutscene control
 var playable: bool = true
@@ -243,7 +250,7 @@ func _input(event: InputEvent) -> void:
 
 func _setup_weapon_positions() -> void:
 	if gun_sprite:
-		_gun_base_position = gun_sprite.position
+		_gun_base_position = CharacterUtils.setup_gun_position(gun_sprite)
 	if bat_sprite:
 		_bat_base_position = bat_sprite.position
 	if sword_hitbox:
@@ -302,6 +309,12 @@ func _handle_physics(delta: float) -> void:
 		_bat_throw_cooldown -= delta
 	else:
 		_bat_throw_cooldown = 0.0
+	
+	# Update gun throw cooldown
+	if _gun_throw_cooldown > 0:
+		_gun_throw_cooldown -= delta
+	else:
+		_gun_throw_cooldown = 0.0
 	
 	# Update UI cooldown display
 	if _ui and _ui.has_method("update_bat_cooldown"):
@@ -497,6 +510,9 @@ func _handle_combat_input() -> void:
 	# Handle bat throw inputs
 	_handle_bat_throw_inputs(attack_pressed, bat_throw_pressed)
 	
+	# Handle gun throw inputs
+	_handle_gun_throw_inputs(attack_pressed)
+	
 	# Handle normal attacks
 	_handle_normal_attacks(attack_pressed, gun_attack_pressed)
 
@@ -508,6 +524,11 @@ func _handle_bat_throw_inputs(attack_pressed: bool, bat_throw_pressed: bool) -> 
 	# Shift + Click bat throw
 	if attack_pressed and Input.is_key_pressed(KEY_SHIFT) and current_equipped_weapon == "bat" and has_bat and not is_dead and not is_attacking and not _bat_thrown and _bat_throw_cooldown <= 0:
 		_start_bat_throw()
+
+func _handle_gun_throw_inputs(attack_pressed: bool) -> void:
+	# Shift + Click gun throw
+	if attack_pressed and Input.is_key_pressed(KEY_SHIFT) and current_equipped_weapon == "gun" and has_gun and not is_dead and not is_attacking and not _gun_thrown and _gun_throw_cooldown <= 0:
+		_start_gun_throw()
 
 func _handle_normal_attacks(attack_pressed: bool, gun_attack_pressed: bool) -> void:
 	# Normal bat attack
@@ -548,16 +569,14 @@ func _handle_gun_aiming() -> void:
 	if not gun_sprite:
 		return
 	
-	# Use shared aiming logic from CharacterUtils
-	var target_angle = CharacterUtils.calculate_gun_aim_direction(
+	# Use shared gun aiming logic from CharacterUtils
+	CharacterUtils.handle_gun_aiming(
 		gun_sprite, 
 		get_global_mouse_position(), 
 		animated_sprite, 
 		_gun_base_position,
 		Vector2(-8.0, 0.0)  # Player needs left offset for gun positioning
 	)
-	
-	gun_sprite.rotation = target_angle
 
 func _handle_animation_and_effects() -> void:
 	# Update gun fire cooldown
@@ -628,7 +647,7 @@ func _update_weapon_visibility() -> void:
 		bat_sprite.visible = false
 
 	# Show appropriate weapon based on currently equipped weapon
-	if current_equipped_weapon == "gun" and has_gun and gun_sprite:
+	if current_equipped_weapon == "gun" and has_gun and gun_sprite and not _gun_thrown:
 		gun_sprite.visible = true
 	elif current_equipped_weapon == "bat" and has_bat and not _bat_thrown:
 		# Show bat whenever equipped with bat (and not thrown)
@@ -850,41 +869,25 @@ func _on_animation_finished() -> void:
 
 
 func _fire_player_bullet() -> void:
-	if PLAYER_BULLET_SCENE == null or gun_sprite == null:
-		return
 	# Block shooting during reload
 	if _player_is_reloading:
 		return
-	var bullet := PLAYER_BULLET_SCENE.instantiate()
-	if bullet == null:
-		return
-	# Direction: from gun toward mouse at fire time
-	var dir: Vector2 = Vector2.RIGHT
-	var mouse_pos := get_global_mouse_position()
-	if mouse_pos != gun_sprite.global_position:
-		dir = (mouse_pos - gun_sprite.global_position).normalized()
-	bullet.direction = dir
-	# Spawn at muzzle point: small offset along gun's current forward direction
-	var muzzle_offset: float = 16.0
-	var spawn_pos: Vector2 = gun_sprite.global_position + dir * muzzle_offset
-	bullet.global_position = spawn_pos
-	bullet.rotation = dir.angle()
-	# Tag shooter so bullet won't damage the player
-	bullet.shooter = self
-	# Create muzzle flash effect at spawn position
-	GunUtils.create_muzzle_flash(spawn_pos, dir)
+	
+	# Use shared bullet firing logic from CharacterUtils
+	CharacterUtils.fire_bullet_from_gun(
+		gun_sprite, 
+		get_global_mouse_position(), 
+		PLAYER_BULLET_SCENE, 
+		self, 
+		PLAYER_GUN_SHOT_SOUND
+	)
+	
 	# Apply a small recoil on the gun in the opposite direction of the shot
-	_play_player_gun_recoil(dir)
-	# Play gun-shot sound at the gun position with random pitch
-	if PLAYER_GUN_SHOT_SOUND:
-		var scene_for_sound := get_tree().current_scene
-		if scene_for_sound:
-			var audio := AudioStreamPlayer2D.new()
-			audio.stream = PLAYER_GUN_SHOT_SOUND
-			audio.position = gun_sprite.global_position
-			scene_for_sound.add_child(audio)
-			AudioUtils.play_random_pitch(audio, 0.9, 1.2)
-			audio.finished.connect(audio.queue_free)
+	var mouse_pos := get_global_mouse_position()
+	var shot_dir: Vector2 = Vector2.RIGHT
+	if mouse_pos != gun_sprite.global_position:
+		shot_dir = (mouse_pos - gun_sprite.global_position).normalized()
+	_play_player_gun_recoil(shot_dir)
 	# Track number of shots and trigger reload / drop when magazine is empty
 	_player_shots_since_reload += 1
 	var remaining: int = max(PLAYER_MAG_SIZE - _player_shots_since_reload, 0)
@@ -895,11 +898,7 @@ func _fire_player_bullet() -> void:
 			_drop_player_gun()
 		else:
 			_start_player_reload_animation()
-	# Finally, add the bullet to the scene
-	var scene := get_tree().current_scene
-	if scene:
-		scene.add_child(bullet)
-
+	
 
 func _start_player_reload_animation() -> void:
 	if gun_sprite == null:
@@ -1082,15 +1081,9 @@ func _play_player_gun_recoil(shot_dir: Vector2) -> void:
 		return
 	if _gun_recoil_tween and _gun_recoil_tween.is_valid():
 		_gun_recoil_tween.kill()
-	_gun_recoil_tween = create_tween()
-	var recoil_distance := 4.0
 	
-	# Get current gun position (which includes left-facing offset)
-	var current_gun_pos := gun_sprite.position
-	var back_pos := current_gun_pos - shot_dir.normalized() * recoil_distance
-	
-	_gun_recoil_tween.tween_property(gun_sprite, "position", back_pos, 0.04)
-	_gun_recoil_tween.tween_property(gun_sprite, "position", current_gun_pos, 0.06)
+	# Use shared recoil logic from CharacterUtils
+	_gun_recoil_tween = CharacterUtils.play_gun_recoil(gun_sprite, shot_dir)
 
 func take_damage(amount: int) -> void:
 	take_damage_with_direction(amount, Vector2.ZERO)  # Default direction for non-bullet damage
@@ -1509,6 +1502,66 @@ func _on_bat_returned() -> void:
 	# Play catch sound (could use a soft hit sound)
 	if hit_player:
 		hit_player.pitch_scale = 0.8
+		hit_player.play()
+
+# ——— GUN THROW ———
+func _start_gun_throw() -> void:
+	if _gun_thrown or not has_gun or current_equipped_weapon == "bat" or _gun_throw_cooldown > 0:
+		return
+	
+	_gun_thrown = true
+	is_attacking = true  # Prevent other attacks during throw
+	_gun_throw_cooldown = GUN_THROW_COOLDOWN_TIME  # Set cooldown
+	
+	# Hide the gun sprite
+	if gun_sprite:
+		gun_sprite.visible = false
+	
+	# Play throw sound (reuse bat throw sound for now)
+	if _bat_throw_sound_cache:
+		var scene_for_sound := get_tree().current_scene
+		if scene_for_sound:
+			var audio := AudioStreamPlayer2D.new()
+			audio.stream = _bat_throw_sound_cache
+			audio.position = global_position
+			scene_for_sound.add_child(audio)
+			AudioUtils.play_random_pitch(audio, 1.1, 1.3)  # Higher pitch for gun
+			audio.finished.connect(audio.queue_free)
+	
+	# Create thrown gun
+	var thrown_gun = PLAYER_GUN_SCENE.instantiate()
+	if thrown_gun:
+		# Set throw direction toward mouse
+		var mouse_pos := get_global_mouse_position()
+		var throw_direction := (mouse_pos - global_position).normalized()
+		thrown_gun.direction = throw_direction
+		thrown_gun.thrower = self
+		thrown_gun.global_position = global_position
+		
+		# Add to scene
+		var scene := get_tree().current_scene
+		if scene:
+			scene.add_child(thrown_gun)
+			_thrown_gun = thrown_gun
+	
+	# Short throw animation (use gun attack animation)
+	animated_sprite.play("GUN_ATTACK")
+	
+	# End throw animation quickly
+	await get_tree().create_timer(0.3).timeout
+	is_attacking = false
+
+func _on_gun_returned() -> void:
+	_gun_thrown = false
+	_thrown_gun = null
+	
+	# Show gun again
+	if gun_sprite:
+		gun_sprite.visible = true
+	
+	# Play catch sound (could use a soft hit sound)
+	if hit_player:
+		hit_player.pitch_scale = 0.9
 		hit_player.play()
 
 

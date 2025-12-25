@@ -1,6 +1,6 @@
-[gd_scene load_steps=3 format=3 uid="uid://post_death_dialogue"]
+[gd_scene load_steps=3 format=3 uid="uid://8rge4wjscpsd"]
 
-[ext_resource type="Script" path="res://scripts/levels/post_death_dialogue.gd" id="1"]
+[ext_resource type="Script" uid="uid://boyecduprlkfx" path="res://scripts/levels/post_death_dialogue.gd" id="1"]
 [ext_resource type="AudioStream" uid="uid://cob865tpr0s6e" path="res://sounds/text-typing.mp3" id="2"]
 
 [node name="PostDeathDialogue" type="Control"]
@@ -17,6 +17,8 @@ layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
 color = Color(0, 0, 0, 0.5)
 
 [node name="DialogueLabel" type="RichTextLabel" parent="."]
@@ -33,9 +35,8 @@ offset_bottom = 50.0
 grow_horizontal = 2
 grow_vertical = 2
 bbcode_enabled = true
-autowrap_mode = 3
-fit_content = true
 text = "TIME FOR VEGEANCE"
+fit_content = true
 
 [node name="TypingPlayer" type="AudioStreamPlayer" parent="."]
 stream = ExtResource("2")
